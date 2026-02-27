@@ -1,0 +1,25 @@
+id: SNOW-ACL-006
+title: "Script-based ACL using gs.hasRole admin check only"
+description: >
+  An ACL script relies solely on gs.hasRole('admin') for authorization. This
+  is a brittle pattern because it does not account for role delegation,
+  impersonation, or elevated privileges. If the admin role is compromised, all
+  such ACLs are bypassed.
+severity: MEDIUM
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "gs.hasRole('admin')"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Replace gs.hasRole('admin') with more specific role checks. Create dedicated
+  roles for different access levels rather than relying on the admin role.
+  Consider using role hierarchies and the principle of least privilege.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"

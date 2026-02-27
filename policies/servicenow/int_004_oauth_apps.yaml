@@ -1,0 +1,24 @@
+id: SNOW-INT-004
+title: "Active OAuth application registered"
+description: >
+  An active OAuth entity (application) is registered in the instance. While
+  OAuth is the preferred authentication mechanism, each OAuth application
+  represents a trust relationship with an external system. All OAuth
+  applications should be inventoried and reviewed for appropriate scopes
+  and active usage.
+severity: INFO
+category: Integrations
+platform: servicenow
+query:
+  table: oauth_entity
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Maintain an inventory of all active OAuth applications. Review each for
+  appropriate scope minimization. Remove OAuth registrations for integrations
+  that are no longer in use. Rotate client secrets regularly. Monitor OAuth
+  token usage for anomalous patterns.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_OAuthApplications.html"

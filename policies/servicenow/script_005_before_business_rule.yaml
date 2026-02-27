@@ -1,0 +1,26 @@
+id: SNOW-SCRIPT-005
+title: "Active before business rule modifying data on sensitive tables"
+description: >
+  An active business rule runs in the 'before' phase, which executes before
+  the database operation. Before rules can silently modify record data,
+  bypass validation, or alter security-relevant fields. Each before rule on
+  sensitive tables should be reviewed for data integrity risks.
+severity: MEDIUM
+category: Scripts
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "when"
+      operator: "equals"
+      value: "before"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review all before business rules for data integrity implications. Ensure
+  they do not silently modify security-relevant fields (e.g., roles, ACLs,
+  passwords). Add logging for any data modifications made by before rules.
+  Document the purpose and security impact of each rule.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/script/server-scripting/concept/c_BusinessRules.html"

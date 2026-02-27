@@ -1,0 +1,26 @@
+id: SNOW-CFG-001
+title: "Instance allows HTTP connections (HTTPS not enforced)"
+description: >
+  The system property glide.security.use_secure_cookies or
+  glide.servlet.uri does not enforce HTTPS. Without HTTPS enforcement,
+  session cookies and credentials can be intercepted in transit via
+  man-in-the-middle attacks.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.security.use_secure_cookies"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.security.use_secure_cookies to true to ensure cookies are only
+  transmitted over HTTPS. Verify that the instance URL uses HTTPS and that
+  HTTP redirects to HTTPS. Configure HSTS headers to prevent protocol
+  downgrade attacks.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

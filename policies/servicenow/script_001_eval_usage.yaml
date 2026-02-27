@@ -1,0 +1,26 @@
+id: SNOW-SCRIPT-001
+title: "Business rule script uses eval() or GlideEvaluator"
+description: >
+  A business rule script contains eval() or GlideEvaluator calls, which
+  dynamically execute code at runtime. This is a code injection risk if any
+  part of the evaluated string comes from user input, record fields, or
+  URL parameters. This pattern should be avoided in favor of static logic.
+severity: CRITICAL
+category: Scripts
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "eval("
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Replace eval() and GlideEvaluator usage with static logic. If dynamic code
+  execution is truly required, use GlideScriptEvaluator with strict input
+  validation and whitelisting. Ensure no user-controlled data flows into the
+  evaluated expression. Review the script for injection vectors.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/script/general-scripting/concept/c_GlideEvaluator.html"

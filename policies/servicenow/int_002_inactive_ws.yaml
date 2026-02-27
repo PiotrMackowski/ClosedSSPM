@@ -1,0 +1,22 @@
+id: SNOW-INT-002
+title: "Inactive web service endpoint still defined"
+description: >
+  A web service endpoint is defined but not active. Inactive web services
+  may indicate decommissioned integrations that have not been cleaned up.
+  They could be re-activated accidentally or maliciously, potentially
+  exposing stale or insecure endpoints.
+severity: LOW
+category: Integrations
+platform: servicenow
+query:
+  table: sys_ws_definition
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Review all inactive web service definitions. Delete those that are no longer
+  needed. For those that may be needed in the future, document the owner and
+  purpose. Establish a regular review process to clean up unused integrations.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/integrate/web-services/concept/c_DirectWebServices.html"

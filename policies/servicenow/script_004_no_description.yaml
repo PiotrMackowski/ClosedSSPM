@@ -1,0 +1,25 @@
+id: SNOW-SCRIPT-004
+title: "Active business rule with no description"
+description: >
+  An active business rule has no description field set. Undocumented business
+  rules make security reviews difficult and may indicate ad-hoc changes that
+  bypassed change management. All business rules should have a clear
+  description explaining their purpose and security implications.
+severity: LOW
+category: Scripts
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "true"
+    - field: "description"
+      operator: "empty"
+remediation: >
+  Add a clear description to every active business rule explaining its purpose,
+  the table it operates on, when it runs, and any security implications. This
+  aids in security reviews, incident response, and change management. Consider
+  enforcing descriptions through a change policy.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/script/server-scripting/concept/c_BusinessRules.html"

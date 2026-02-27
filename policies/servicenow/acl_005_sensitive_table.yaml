@@ -1,0 +1,27 @@
+id: SNOW-ACL-005
+title: "ACL on sensitive table with weak protection"
+description: >
+  An ACL protecting a sensitive table (sys_user, sys_user_has_role,
+  sys_user_group, sys_properties, sys_security_acl) has no script-based
+  condition and relies only on role checks. Sensitive tables should have
+  defense-in-depth with both role and script/condition-based protection.
+severity: HIGH
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "script"
+      operator: "empty"
+    - field: "condition"
+      operator: "empty"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Add script or condition-based checks to ACLs on sensitive tables. For example,
+  restrict access to sys_user records so that users can only view their own
+  profile, or add IP-based restrictions for administrative tables. Implement
+  defense-in-depth beyond role checks alone.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"

@@ -1,0 +1,25 @@
+id: SNOW-ROLE-001
+title: "Users with admin role"
+description: >
+  Lists all users who have been assigned the admin role. The admin role provides
+  full system access and should be strictly limited. A high number of admin
+  users significantly increases the attack surface.
+severity: HIGH
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_has_role
+  field_conditions:
+    - field: "role"
+      operator: "contains"
+      value: "admin"
+    - field: "state"
+      operator: "equals"
+      value: "active"
+remediation: >
+  Minimize the number of admin role assignments. Review each admin user and
+  determine if they truly need full admin access. Create specific roles for
+  different administrative functions (e.g. user_admin, security_admin) and
+  assign those instead. Aim for fewer than 5 admin users in production.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_PredefinedRoles.html"

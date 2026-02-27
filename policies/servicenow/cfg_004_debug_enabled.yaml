@@ -1,0 +1,26 @@
+id: SNOW-CFG-004
+title: "Debug mode or logging verbosity enabled in production"
+description: >
+  A system property related to debug mode or verbose logging is set. Debug
+  properties (e.g. glide.security.debug) can expose sensitive information
+  in logs including session tokens, query parameters, and internal system
+  details that aid attackers in reconnaissance.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "contains"
+      value: "debug"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Disable all debug and verbose logging properties in production instances.
+  Debug logging should only be enabled temporarily during troubleshooting
+  and disabled immediately after. Review logs for any sensitive data that
+  may have been exposed while debug mode was active.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

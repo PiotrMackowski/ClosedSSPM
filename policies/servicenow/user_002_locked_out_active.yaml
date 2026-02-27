@@ -1,0 +1,27 @@
+id: SNOW-USER-002
+title: "Locked out user account still active"
+description: >
+  A user account is both active and locked out. This typically indicates a
+  brute force attack, excessive failed login attempts, or an account that
+  was administratively locked but not properly deactivated. The account
+  should be investigated for compromise indicators.
+severity: HIGH
+category: Users
+platform: servicenow
+query:
+  table: sys_user
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "true"
+    - field: "locked_out"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Investigate the cause of the lockout. Check login attempt logs for brute
+  force indicators (multiple failed attempts from different IPs). If the
+  lockout is legitimate, unlock and reset the password. If suspicious,
+  deactivate the account, reset credentials, and review audit logs for any
+  unauthorized access that occurred before the lockout.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_UserAccountSecurity.html"

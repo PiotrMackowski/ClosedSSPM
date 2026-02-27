@@ -1,0 +1,25 @@
+id: SNOW-USER-001
+title: "Active user account that has never logged in"
+description: >
+  A user account is active but has never logged in (last_login_time is empty).
+  Unused active accounts expand the attack surface unnecessarily. They may
+  represent orphaned accounts from automated provisioning, test accounts left
+  active, or accounts created for users who never onboarded.
+severity: MEDIUM
+category: Users
+platform: servicenow
+query:
+  table: sys_user
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "true"
+    - field: "last_login_time"
+      operator: "empty"
+remediation: >
+  Disable or lock user accounts that have never logged in after a reasonable
+  provisioning period (e.g., 30 days). Implement automated account lifecycle
+  management to detect and disable unused accounts. Review the account
+  creation source to fix upstream provisioning issues.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_UserAccountSecurity.html"

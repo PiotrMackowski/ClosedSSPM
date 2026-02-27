@@ -1,0 +1,26 @@
+id: SNOW-USER-003
+title: "User account sourced from external directory but active"
+description: >
+  A user account was provisioned from an external directory (LDAP, Azure AD,
+  etc.) as indicated by a non-empty source field. If the user has been removed
+  from the external directory but remains active in ServiceNow, it indicates
+  a sync failure and potential orphaned access.
+severity: MEDIUM
+category: Users
+platform: servicenow
+query:
+  table: sys_user
+  field_conditions:
+    - field: "source"
+      operator: "not_empty"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Verify that directory synchronization is working correctly and that
+  deprovisioned users are being deactivated promptly. Review all externally
+  sourced active accounts against the current directory state. Implement
+  automated reconciliation to detect and flag sync discrepancies. Set a
+  maximum sync interval of 4 hours.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/integrate/ldap/concept/c_LDAPIntegration.html"

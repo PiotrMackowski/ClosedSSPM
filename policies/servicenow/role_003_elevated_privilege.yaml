@@ -1,0 +1,23 @@
+id: SNOW-ROLE-003
+title: "Roles with elevated privilege flag enabled"
+description: >
+  A role has the elevated_privilege flag set to true. Elevated privilege roles
+  bypass certain security checks and should be tightly controlled. Any role
+  with this flag should be carefully reviewed to ensure it is intentional and
+  necessary.
+severity: HIGH
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_role
+  field_conditions:
+    - field: "elevated_privilege"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review all roles with elevated_privilege enabled. Determine if the elevated
+  privilege is truly necessary. If not, disable it and use standard role-based
+  access controls instead. Document the business justification for any role
+  that retains elevated privileges.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/elevated-privilege.html"

@@ -1,0 +1,26 @@
+id: SNOW-INT-001
+title: "Web service endpoint with authentication disabled"
+description: >
+  A web service definition has requires_authentication set to false, allowing
+  unauthenticated access. This exposes the endpoint to the public internet
+  and could allow data exfiltration or unauthorized operations without any
+  credential requirement.
+severity: CRITICAL
+category: Integrations
+platform: servicenow
+query:
+  table: sys_ws_definition
+  field_conditions:
+    - field: "requires_authentication"
+      operator: "equals"
+      value: "false"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Enable authentication on all web service endpoints. Set requires_authentication
+  to true and configure appropriate ACLs to restrict access to authorized
+  roles only. If anonymous access is truly required, document the business
+  justification and add IP allowlisting at the network layer.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/integrate/web-services/concept/c_DirectWebServices.html"

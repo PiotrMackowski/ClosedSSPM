@@ -1,0 +1,26 @@
+id: SNOW-CFG-006
+title: "IP address access control not configured"
+description: >
+  The system property glide.ip.access.control or similar IP restriction
+  properties are not configured. Without IP-based access control, the
+  ServiceNow instance is accessible from any IP address, increasing exposure
+  to brute force attacks, credential stuffing, and unauthorized access from
+  unexpected locations.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.ip.access.control"
+    - field: "value"
+      operator: "empty"
+remediation: >
+  Configure IP access control to restrict instance access to known corporate
+  IP ranges, VPN exit points, and trusted networks. Implement IP allowlisting
+  for admin access at a minimum. Consider using ServiceNow's IP address
+  access control in combination with SSO for defense-in-depth.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_IPAddressAccessControl.html"

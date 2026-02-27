@@ -1,0 +1,26 @@
+id: SNOW-CFG-005
+title: "High security plugin not activated"
+description: >
+  The High Security Settings plugin (com.glide.security.high) provides
+  enhanced security controls including stricter session management, additional
+  input validation, and tighter default ACLs. If this plugin is not active,
+  the instance is missing an important layer of defense-in-depth.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_plugins
+  field_conditions:
+    - field: "id"
+      operator: "equals"
+      value: "com.glide.security.high"
+    - field: "active"
+      operator: "not_equals"
+      value: "active"
+remediation: >
+  Activate the High Security Settings plugin. Review the plugin documentation
+  for any behavioral changes that may affect existing functionality. Test
+  thoroughly in a sub-production instance before activating in production.
+  This is considered a baseline security requirement by ServiceNow.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_HighSecurityPlugin.html"

@@ -1,0 +1,23 @@
+id: SNOW-INT-003
+title: "REST message using basic authentication"
+description: >
+  An outbound REST message is configured to use basic authentication. Basic
+  auth transmits credentials in a reversible Base64-encoded format and static
+  credentials are susceptible to credential theft from logs, memory, or
+  configuration exports. OAuth 2.0 is the recommended alternative.
+severity: HIGH
+category: Integrations
+platform: servicenow
+query:
+  table: sys_rest_message
+  field_conditions:
+    - field: "authentication_type"
+      operator: "equals"
+      value: "basic"
+remediation: >
+  Migrate outbound REST integrations from basic authentication to OAuth 2.0
+  or mutual TLS. If basic auth must be used temporarily, store credentials
+  in a connection alias rather than directly in the REST message configuration.
+  Rotate credentials regularly and monitor for unauthorized usage.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/integrate/outbound-rest/concept/c_OutboundRESTWebService.html"

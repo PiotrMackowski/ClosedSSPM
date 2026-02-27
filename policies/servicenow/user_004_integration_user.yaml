@@ -1,0 +1,27 @@
+id: SNOW-USER-004
+title: "Internal integration user account is active"
+description: >
+  A user account is marked as an internal integration user. These accounts
+  are used for system-to-system communication and should be inventoried
+  and audited regularly. Each integration user should have a documented
+  purpose, minimal role assignments, and credential rotation policy.
+severity: INFO
+category: Users
+platform: servicenow
+query:
+  table: sys_user
+  field_conditions:
+    - field: "internal_integration_user"
+      operator: "equals"
+      value: "true"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Maintain an inventory of all internal integration users with documented
+  owners, purposes, and required permissions. Implement credential rotation
+  on a regular schedule (at least every 90 days). Assign only the minimum
+  roles required. Monitor API usage patterns for anomalies. Deactivate
+  integration users for retired integrations.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_UserAccountSecurity.html"

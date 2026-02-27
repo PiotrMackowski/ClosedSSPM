@@ -1,0 +1,25 @@
+id: SNOW-ROLE-004
+title: "Roles with no assignable_by restriction"
+description: >
+  A role has no assignable_by restriction, meaning any admin can assign it to
+  any user without secondary approval. For sensitive roles, the assignable_by
+  field should be set to limit who can grant that role, enforcing separation
+  of duties.
+severity: MEDIUM
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_role
+  field_conditions:
+    - field: "assignable_by"
+      operator: "empty"
+    - field: "elevated_privilege"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Set the assignable_by field on all elevated privilege roles to restrict who
+  can grant them. This enforces separation of duties and prevents a single
+  admin from unilaterally escalating privileges. At minimum, elevated roles
+  should require assignment by a security_admin role holder.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_PredefinedRoles.html"

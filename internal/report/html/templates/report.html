@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ .Title }}</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --text-muted: #8b949e;
+    --critical: #f85149; --high: #db6d28; --medium: #d29922;
+    --low: #3fb950; --info: #58a6ff;
+    --score-a: #3fb950; --score-b: #56d364; --score-c: #d29922;
+    --score-d: #db6d28; --score-f: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem; }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.2rem; }
+  .card-value { font-size: 2rem; font-weight: 700; }
+  .card-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Severity badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;
+    font-weight: 600; text-transform: uppercase; }
+  .badge.critical { background: var(--critical); color: #fff; }
+  .badge.high { background: var(--high); color: #fff; }
+  .badge.medium { background: var(--medium); color: #000; }
+  .badge.low { background: var(--low); color: #000; }
+  .badge.info { background: var(--info); color: #000; }
+
+  /* Score */
+  .score { font-size: 3rem; font-weight: 800; }
+  .score-a { color: var(--score-a); }
+  .score-b { color: var(--score-b); }
+  .score-c { color: var(--score-c); }
+  .score-d { color: var(--score-d); }
+  .score-f { color: var(--score-f); }
+
+  /* Findings */
+  .finding { background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem 1.2rem; margin-bottom: 0.75rem; }
+  .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .finding-title { font-weight: 600; }
+  .finding-id { color: var(--text-muted); font-size: 0.8rem; font-family: monospace; }
+  .finding-body { font-size: 0.9rem; color: var(--text-muted); }
+  .finding-body p { margin: 0.3rem 0; }
+  .finding-resource { font-family: monospace; font-size: 0.8rem; color: var(--info); }
+  .finding-remediation { margin-top: 0.5rem; padding: 0.5rem; background: rgba(56,139,253,0.1);
+    border-radius: 4px; font-size: 0.85rem; }
+
+  /* Evidence table */
+  .evidence-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.8rem; }
+  .evidence-table th, .evidence-table td { padding: 4px 8px; text-align: left;
+    border-bottom: 1px solid var(--border); }
+  .evidence-table th { color: var(--text-muted); font-weight: 600; }
+
+  /* Collection stats */
+  .stats-table { width: 100%; border-collapse: collapse; }
+  .stats-table th, .stats-table td { padding: 6px 12px; text-align: left;
+    border-bottom: 1px solid var(--border); }
+  .stats-table th { color: var(--text-muted); font-weight: 600; }
+  .stats-table td:last-child { text-align: right; font-family: monospace; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>{{ .Title }}</h1>
+<div class="meta">
+  Generated: {{ .GeneratedAt }}
+  {{ if .InstanceURL }}| Instance: {{ .InstanceURL }}{{ end }}
+  {{ if .Platform }}| Platform: {{ .Platform }}{{ end }}
+</div>
+
+<!-- Executive Summary -->
+<h2>Executive Summary</h2>
+<div class="summary-grid">
+  <div class="card">
+    <div class="card-value score {{ scoreClass .Summary.PostureScore }}">{{ .Summary.PostureScore }}</div>
+    <div class="card-label">Posture Score</div>
+  </div>
+  <div class="card">
+    <div class="card-value">{{ .Summary.Total }}</div>
+    <div class="card-label">Total Findings</div>
+  </div>
+  {{ range .SeverityList }}
+  {{ $count := index $.Summary.BySeverity . }}
+  {{ if $count }}
+  <div class="card">
+    <div class="card-value" style="color: var(--{{ severityClass . }})">{{ $count }}</div>
+    <div class="card-label">{{ . }}</div>
+  </div>
+  {{ end }}
+  {{ end }}
+</div>
+
+<!-- Findings by Category -->
+{{ range $category, $findings := .ByCategory }}
+<h2>{{ $category }}</h2>
+{{ range $findings }}
+<div class="finding">
+  <div class="finding-header">
+    <div>
+      <span class="finding-title">{{ .Title }}</span>
+      <span class="finding-id">{{ .PolicyID }}</span>
+    </div>
+    <span class="badge {{ severityClass .Severity }}">{{ .Severity }}</span>
+  </div>
+  <div class="finding-body">
+    <p>{{ .Description }}</p>
+    <div class="finding-resource">{{ .Resource }}</div>
+    {{ if .Evidence }}
+    <table class="evidence-table">
+      <tr><th>Field</th><th>Value</th></tr>
+      {{ range .Evidence }}
+      {{ range $k, $v := .Fields }}
+      <tr><td>{{ $k }}</td><td>{{ $v }}</td></tr>
+      {{ end }}
+      {{ end }}
+    </table>
+    {{ end }}
+    {{ if .Remediation }}
+    <div class="finding-remediation"><strong>Remediation:</strong> {{ .Remediation }}</div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
+{{ end }}
+
+<!-- Collection Statistics -->
+{{ if .TableStats }}
+<h2>Collection Statistics</h2>
+<table class="stats-table">
+  <tr><th>Table</th><th>Records</th></tr>
+  {{ range .TableStats }}
+  <tr><td>{{ .Name }}</td><td>{{ .Count }}</td></tr>
+  {{ end }}
+</table>
+{{ end }}
+
+</div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+id: SNOW-ACL-002
+title: "ACL with wildcard role assignment"
+description: >
+  An ACL rule has a role requirement of '*' (wildcard/any role), which means
+  any authenticated user with any role can pass this check. This is effectively
+  the same as having no role requirement and should be replaced with specific
+  role assignments.
+severity: HIGH
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl_role
+  field_conditions:
+    - field: "sys_user_role"
+      operator: "contains"
+      value: "*"
+remediation: >
+  Replace the wildcard role with specific roles that should have access to the
+  protected resource. Review the ACL and determine the minimum set of roles
+  required based on the principle of least privilege.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"

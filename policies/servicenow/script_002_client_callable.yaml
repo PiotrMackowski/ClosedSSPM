@@ -1,0 +1,28 @@
+id: SNOW-SCRIPT-002
+title: "Script include marked as client-callable"
+description: >
+  A script include is marked as client_callable, making it accessible from
+  client-side scripts via GlideAjax. Client-callable script includes expand
+  the attack surface because any authenticated user can invoke them from the
+  browser. Each one should be reviewed for data exposure and privilege
+  escalation risks.
+severity: HIGH
+category: Scripts
+platform: servicenow
+query:
+  table: sys_script_include
+  field_conditions:
+    - field: "client_callable"
+      operator: "equals"
+      value: "true"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review all client-callable script includes. Remove the client_callable flag
+  from any that do not need to be invoked from the browser. For those that must
+  remain client-callable, add explicit role checks using gs.hasRole() at the
+  start of the function. Validate all input parameters and minimize data
+  returned to the client.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/script/server-scripting/concept/c_ScriptIncludes.html"

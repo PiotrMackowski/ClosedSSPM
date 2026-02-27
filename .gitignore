@@ -28,5 +28,23 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+
+# Build output
+bin/
+
+# Snapshots (may contain sensitive data)
+*.snapshot.json
+snapshot.json
+snapshot_*.json
+
+# Reports (generated output, root-level only)
+/report.html
+/report.json
+/report_*.html
+/report_*.json
+
+# OS files
+.DS_Store
+Thumbs.db

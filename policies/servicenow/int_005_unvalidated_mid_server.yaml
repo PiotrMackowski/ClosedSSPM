@@ -1,0 +1,24 @@
+id: SNOW-INT-005
+title: "MID Server not in validated status"
+description: >
+  A MID Server is registered but has not been validated or its validation
+  has expired. MID Servers bridge the ServiceNow cloud instance to on-premises
+  networks. An unvalidated MID Server could be a rogue agent introduced by
+  an attacker or a legitimate server that has lost connectivity and may miss
+  critical security updates.
+severity: HIGH
+category: Integrations
+platform: servicenow
+query:
+  table: ecc_agent
+  field_conditions:
+    - field: "validated"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Validate all registered MID Servers. Investigate any MID Server that has
+  lost validation — it may indicate compromise, misconfiguration, or
+  connectivity issues. Remove MID Server records for decommissioned hosts.
+  Ensure MID Servers are running the latest version and are monitored.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-servicenow-platform/page/product/mid-server/concept/c_MIDServer.html"

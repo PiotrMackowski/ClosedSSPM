@@ -1,0 +1,25 @@
+id: SNOW-SCRIPT-006
+title: "Active script include with no description"
+description: >
+  An active script include has no description field. Script includes are
+  reusable server-side code that may be invoked from business rules, UI
+  actions, or client-side scripts (if client-callable). Without a description,
+  it is difficult to determine the intent and security implications during
+  audit or incident response.
+severity: LOW
+category: Scripts
+platform: servicenow
+query:
+  table: sys_script_include
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "true"
+    - field: "description"
+      operator: "empty"
+remediation: >
+  Add a description to each active script include explaining its purpose,
+  callers, expected inputs, and security implications. Prioritize documenting
+  client-callable script includes, as these have the highest exposure.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/script/server-scripting/concept/c_ScriptIncludes.html"

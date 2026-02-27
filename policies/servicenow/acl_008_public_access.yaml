@@ -1,0 +1,25 @@
+id: SNOW-ACL-008
+title: "ACL allows unauthenticated access via public type"
+description: >
+  An ACL rule is configured with a type that allows public/unauthenticated
+  access. This means the protected resource can be accessed without any
+  authentication, potentially exposing sensitive data to the internet.
+severity: HIGH
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "type"
+      operator: "contains"
+      value: "public"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review all public-type ACLs and ensure they only protect resources that are
+  intentionally public-facing. Service Catalog items and Knowledge Base articles
+  exposed through Service Portal should be carefully reviewed for data leakage.
+  Remove public access unless explicitly required.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"

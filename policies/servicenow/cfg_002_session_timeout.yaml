@@ -1,0 +1,23 @@
+id: SNOW-CFG-002
+title: "Session timeout set too high or unlimited"
+description: >
+  The system property glide.ui.session_timeout is set to a value that
+  indicates an excessively long or unlimited session timeout. Long session
+  timeouts increase the window for session hijacking and leave unattended
+  workstations vulnerable.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.ui.session_timeout"
+remediation: >
+  Set glide.ui.session_timeout to 30 minutes or less for standard users.
+  Consider shorter timeouts for admin sessions. Implement re-authentication
+  for sensitive operations. The recommended value is 15-30 minutes
+  depending on the security classification of the instance.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

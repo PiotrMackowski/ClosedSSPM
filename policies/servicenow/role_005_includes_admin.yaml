@@ -1,0 +1,23 @@
+id: SNOW-ROLE-005
+title: "Custom role that includes the admin role"
+description: >
+  A role has been configured to include the admin role in its role hierarchy.
+  This means anyone assigned this role automatically inherits full admin
+  privileges, which may not be obvious from the role name alone. This is
+  a common privilege escalation path.
+severity: CRITICAL
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_role
+  field_conditions:
+    - field: "includes_roles"
+      operator: "contains"
+      value: "admin"
+remediation: >
+  Remove the admin role from the includes_roles list. Instead, grant only the
+  specific sub-permissions needed. If a role truly requires admin-level access,
+  document the justification and ensure the role name clearly indicates its
+  elevated nature. Audit all users assigned this role.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/role-hierarchy.html"

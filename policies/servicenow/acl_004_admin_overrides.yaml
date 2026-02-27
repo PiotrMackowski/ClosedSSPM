@@ -1,0 +1,25 @@
+id: SNOW-ACL-004
+title: "ACL with admin overrides enabled"
+description: >
+  An ACL rule has the 'admin_overrides' flag set to true. While this is the
+  default behavior, it means admin users bypass this ACL entirely. In
+  environments where admin accounts may be compromised, this increases the
+  blast radius. This is informational for audit completeness.
+severity: INFO
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "admin_overrides"
+      operator: "equals"
+      value: "true"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  For ACLs protecting highly sensitive data (PII, financial records, audit logs),
+  consider disabling admin overrides so that even admin users must pass the
+  ACL conditions. This requires enabling the High Security plugin.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"

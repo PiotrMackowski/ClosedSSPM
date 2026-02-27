@@ -1,0 +1,25 @@
+id: SNOW-ROLE-002
+title: "Integration or service users with admin role"
+description: >
+  An integration user or service account has been assigned the admin role.
+  Integration users with admin access are a critical risk because they often
+  use static credentials (basic auth), are not subject to MFA, and their
+  credentials may be stored in external systems. If compromised, the attacker
+  gains full system access.
+severity: CRITICAL
+category: Roles
+platform: servicenow
+query:
+  table: sys_user
+  field_conditions:
+    - field: "web_service_access_only"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove the admin role from all integration and service accounts. Create
+  dedicated roles with only the minimum permissions required for each
+  integration's specific use case. Use OAuth with scoped tokens instead of
+  basic auth where possible. Document each integration user's purpose and
+  required permissions.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_PredefinedRoles.html"

@@ -1,0 +1,22 @@
+id: SNOW-ACL-003
+title: "Inactive ACL that was previously active"
+description: >
+  An ACL rule has been deactivated. While this is not inherently a vulnerability,
+  deactivated ACLs may indicate a change in security posture that should be
+  reviewed. Attackers sometimes deactivate ACLs to bypass security controls.
+severity: MEDIUM
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Review all inactive ACLs to determine if they were intentionally deactivated.
+  If they are no longer needed, consider deleting them. If they were accidentally
+  deactivated, reactivate them. Document the reason for any intentionally
+  deactivated ACLs.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"

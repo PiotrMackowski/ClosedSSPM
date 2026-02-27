@@ -1,0 +1,27 @@
+id: SNOW-SCRIPT-003
+title: "Global UI script active and running for all users"
+description: >
+  A UI script is marked as both active and global, meaning it executes in
+  the browser for every user on every page. Global UI scripts can access
+  the DOM, make GlideAjax calls, and modify the user interface. A malicious
+  or poorly written global UI script has the broadest possible client-side
+  impact.
+severity: HIGH
+category: Scripts
+platform: servicenow
+query:
+  table: sys_ui_script
+  field_conditions:
+    - field: "active"
+      operator: "equals"
+      value: "true"
+    - field: "global"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review all global UI scripts. Remove the global flag from scripts that only
+  need to run on specific pages or for specific roles. Audit the script content
+  for XSS vectors, sensitive data exposure, or unintended GlideAjax calls.
+  Minimize the number of global UI scripts to reduce attack surface.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/script/client-scripting/concept/c_UIScripts.html"

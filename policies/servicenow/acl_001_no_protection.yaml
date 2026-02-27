@@ -1,0 +1,27 @@
+id: SNOW-ACL-001
+title: "ACL with no condition, no script, and no role requirement"
+description: >
+  An ACL rule has no condition, no script, and no required roles. This means
+  all authenticated users can access the protected resource regardless of their
+  role. This is the most permissive ACL configuration possible and is almost
+  always a misconfiguration.
+severity: CRITICAL
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "condition"
+      operator: "empty"
+    - field: "script"
+      operator: "empty"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Add an explicit condition or script to the ACL, or assign specific required
+  roles. Review the resource this ACL protects and determine the minimum set of
+  roles that should have access. Never leave all three (condition, script, roles)
+  empty on an active ACL.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/access-control-rules.html"
