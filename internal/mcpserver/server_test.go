@@ -418,3 +418,180 @@ func TestListTablesHandler_NoSnapshot(t *testing.T) {
 		t.Error("Should return error when no snapshot loaded")
 	}
 }
+
+// --- Input validation tests ---
+
+func TestListFindingsHandler_InvalidSeverity(t *testing.T) {
+	data := newTestAuditData()
+	handler := listFindingsHandler(data)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"severity": "INVALID",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Should return error for invalid severity")
+	}
+}
+
+func TestListFindingsHandler_InvalidCategory(t *testing.T) {
+	data := newTestAuditData()
+	handler := listFindingsHandler(data)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"category": "NONEXISTENT",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Should return error for invalid category")
+	}
+}
+
+func TestQuerySnapshotHandler_InvalidTableName(t *testing.T) {
+	data := newTestAuditData()
+	handler := querySnapshotHandler(data)
+
+	tests := []struct {
+		name  string
+		table string
+	}{
+		{"SQL injection attempt", "sys_user; DROP TABLE--"},
+		{"path traversal", "../../../etc/passwd"},
+		{"empty string", ""},
+		{"special chars", "table@name!"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := mcp.CallToolRequest{}
+			req.Params.Arguments = map[string]interface{}{
+				"table": tt.table,
+			}
+
+			result, err := handler(context.Background(), req)
+			if err != nil {
+				t.Fatalf("handler error: %v", err)
+			}
+
+			if !result.IsError {
+				t.Error("Should return error for invalid table name")
+			}
+		})
+	}
+}
+
+func TestQuerySnapshotHandler_InvalidFieldName(t *testing.T) {
+	data := newTestAuditData()
+	handler := querySnapshotHandler(data)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"table": "sys_security_acl",
+		"field": "field; DROP TABLE--",
+		"value": "test",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Should return error for invalid field name")
+	}
+}
+
+func TestQuerySnapshotHandler_LimitBounds(t *testing.T) {
+	data := newTestAuditData()
+	handler := querySnapshotHandler(data)
+
+	tests := []struct {
+		name     string
+		limit    float64
+		wantBoth bool // just check it doesn't error
+	}{
+		{"negative limit uses default", -1, true},
+		{"zero limit uses default", 0, true},
+		{"excessive limit is capped", 999999, true},
+		{"normal limit", 10, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := mcp.CallToolRequest{}
+			req.Params.Arguments = map[string]interface{}{
+				"table": "sys_security_acl",
+				"limit": tt.limit,
+			}
+
+			result, err := handler(context.Background(), req)
+			if err != nil {
+				t.Fatalf("handler error: %v", err)
+			}
+
+			if result.IsError {
+				t.Errorf("unexpected error for limit %v", tt.limit)
+			}
+		})
+	}
+}
+
+func TestGetFindingHandler_ExcessiveLength(t *testing.T) {
+	data := newTestAuditData()
+	handler := getFindingHandler(data)
+
+	longID := make([]byte, 300)
+	for i := range longID {
+		longID[i] = 'a'
+	}
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"finding_id": string(longID),
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Should return error for excessively long finding_id")
+	}
+}
+
+func TestSuggestRemediationHandler_ExcessiveLength(t *testing.T) {
+	data := newTestAuditData()
+	handler := suggestRemediationHandler(data)
+
+	longID := make([]byte, 300)
+	for i := range longID {
+		longID[i] = 'a'
+	}
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"finding_id": string(longID),
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if !result.IsError {
+		t.Error("Should return error for excessively long finding_id")
+	}
+}

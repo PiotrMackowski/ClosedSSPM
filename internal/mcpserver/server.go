@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -13,6 +14,40 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+const (
+	// maxQueryLimit caps the number of records returned per query to prevent
+	// excessive memory use / output size from MCP tool calls.
+	maxQueryLimit = 500
+
+	// defaultQueryLimit is the default number of records returned.
+	defaultQueryLimit = 50
+
+	// maxInputLength caps generic string input length for MCP parameters.
+	maxInputLength = 256
+)
+
+// validIdentifier matches ServiceNow table names and field names (alphanumeric + underscores).
+var validIdentifier = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,80}$`)
+
+// validSeverities lists allowed severity filter values.
+var validSeverities = map[string]bool{
+	"CRITICAL": true,
+	"HIGH":     true,
+	"MEDIUM":   true,
+	"LOW":      true,
+	"INFO":     true,
+}
+
+// validCategories lists allowed category filter values.
+var validCategories = map[string]bool{
+	"ACL":          true,
+	"ROLES":        true,
+	"SCRIPTS":      true,
+	"INTEGRATIONS": true,
+	"CONFIG":       true,
+	"USERS":        true,
+}
 
 // AuditData holds the loaded audit data for MCP tool queries.
 type AuditData struct {
@@ -86,7 +121,7 @@ func registerTools(s *server.MCPServer, data *AuditData) {
 				mcp.Description("Value to match against the field"),
 			),
 			mcp.WithNumber("limit",
-				mcp.Description("Max number of records to return (default 50)"),
+				mcp.Description("Max number of records to return (default 50, max 500)"),
 			),
 		),
 		querySnapshotHandler(data),
@@ -169,8 +204,27 @@ func registerResources(s *server.MCPServer, data *AuditData) {
 
 func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		severity := req.GetString("severity", "")
-		category := req.GetString("category", "")
+		severity := strings.TrimSpace(req.GetString("severity", ""))
+		category := strings.TrimSpace(req.GetString("category", ""))
+
+		// Validate severity filter.
+		if severity != "" {
+			severity = strings.ToUpper(severity)
+			if !validSeverities[severity] {
+				return mcp.NewToolResultError(
+					fmt.Sprintf("invalid severity %q; allowed values: CRITICAL, HIGH, MEDIUM, LOW, INFO", severity),
+				), nil
+			}
+		}
+
+		// Validate category filter.
+		if category != "" {
+			if !validCategories[strings.ToUpper(category)] {
+				return mcp.NewToolResultError(
+					fmt.Sprintf("invalid category %q; allowed values: ACL, Roles, Scripts, Integrations, Config, Users", category),
+				), nil
+			}
+		}
 
 		var filtered []finding.Finding
 		for _, f := range data.Findings {
@@ -224,6 +278,9 @@ func getFindingHandler(data *AuditData) server.ToolHandlerFunc {
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
+		if len(findingID) > maxInputLength {
+			return mcp.NewToolResultError("finding_id exceeds maximum length"), nil
+		}
 
 		for _, f := range data.Findings {
 			if f.ID == findingID || f.PolicyID == findingID {
@@ -250,6 +307,13 @@ func querySnapshotHandler(data *AuditData) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
+		// Validate table name format to prevent injection.
+		if !validIdentifier.MatchString(table) {
+			return mcp.NewToolResultError(
+				fmt.Sprintf("invalid table name %q; must be alphanumeric with underscores", table),
+			), nil
+		}
+
 		if data.Snapshot == nil {
 			return mcp.NewToolResultError("no snapshot loaded"), nil
 		}
@@ -267,9 +331,26 @@ func querySnapshotHandler(data *AuditData) server.ToolHandlerFunc {
 			), nil
 		}
 
-		field := req.GetString("field", "")
+		field := strings.TrimSpace(req.GetString("field", ""))
 		value := req.GetString("value", "")
-		limit := int(req.GetFloat("limit", 50))
+
+		// Validate field name format if provided.
+		if field != "" && !validIdentifier.MatchString(field) {
+			return mcp.NewToolResultError(
+				fmt.Sprintf("invalid field name %q; must be alphanumeric with underscores", field),
+			), nil
+		}
+		if len(value) > maxInputLength {
+			return mcp.NewToolResultError("value exceeds maximum length"), nil
+		}
+
+		limit := int(req.GetFloat("limit", float64(defaultQueryLimit)))
+		if limit <= 0 {
+			limit = defaultQueryLimit
+		}
+		if limit > maxQueryLimit {
+			limit = maxQueryLimit
+		}
 
 		var filtered []collector.Record
 		for _, r := range records {
@@ -301,6 +382,9 @@ func suggestRemediationHandler(data *AuditData) server.ToolHandlerFunc {
 		findingID, err := req.RequireString("finding_id")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
+		}
+		if len(findingID) > maxInputLength {
+			return mcp.NewToolResultError("finding_id exceeds maximum length"), nil
 		}
 
 		for _, f := range data.Findings {

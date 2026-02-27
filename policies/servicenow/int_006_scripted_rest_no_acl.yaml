@@ -1,0 +1,26 @@
+id: SNOW-INT-006
+title: "Scripted REST operation without ACL authorization"
+description: >
+  A scripted REST API operation does not require ACL authorization. Without
+  ACL checks, any authenticated user can invoke the operation regardless of
+  their role. Scripted REST endpoints often expose sensitive business logic
+  or data and should enforce role-based access control.
+severity: HIGH
+category: Integrations
+platform: servicenow
+query:
+  table: sys_ws_operation
+  field_conditions:
+    - field: "requires_acl_authorization"
+      operator: "not_equals"
+      value: "true"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Enable ACL authorization on all scripted REST operations by setting
+  requires_acl_authorization to true. Create appropriate ACL rules that
+  restrict access to the required roles. Review the operation script for
+  any sensitive operations that should be further restricted.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/integrate/custom-web-services/concept/c_CustomWebServices.html"

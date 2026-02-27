@@ -1,0 +1,26 @@
+id: SNOW-CFG-010
+title: "SAML identity provider using weak signing algorithm"
+description: >
+  A SAML 2.0 identity provider configuration uses SHA-1 (RSA-SHA1) as the
+  signing algorithm. SHA-1 is considered cryptographically weak and is
+  vulnerable to collision attacks. Modern security standards require at least
+  SHA-256 for digital signatures.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: saml2_update1
+  field_conditions:
+    - field: "signing_algorithm"
+      operator: "contains"
+      value: "sha1"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Upgrade the SAML signing algorithm from SHA-1 to SHA-256 or stronger.
+  Update the signing_algorithm field to use RSA-SHA256 or better. Coordinate
+  with the identity provider administrator to ensure both sides use the
+  same algorithm. Test SSO authentication after making the change.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/integrate/saml/concept/c_SAML2.0.html"
