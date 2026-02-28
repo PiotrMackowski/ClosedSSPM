@@ -40,11 +40,11 @@ builds:
 
 archives:
   - id: default
-    format: tar.gz
+    formats: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: zip
     files:
       - LICENSE
       - README.md
@@ -91,74 +91,49 @@ nfpms:
       - src: README.md
         dst: /usr/share/doc/closedsspm/README.md
 
-dockers:
-  - id: closedsspm-amd64
-    ids:
+dockers_v2:
+  - ids:
       - closedsspm
       - closedsspm-mcp
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}-amd64"
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.title=ClosedSSPM"
-      - "--label=org.opencontainers.image.description=Open Source SaaS Security Posture Management"
-      - "--label=org.opencontainers.image.url=https://github.com/PiotrMackowski/ClosedSSPM"
-      - "--label=org.opencontainers.image.source=https://github.com/PiotrMackowski/ClosedSSPM"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.licenses=Apache-2.0"
-      - "--platform=linux/amd64"
+    images:
+      - "ghcr.io/piotrmackowski/closedsspm"
+    tags:
+      - "{{ .Version }}"
+      - latest
+    labels:
+      "org.opencontainers.image.title": "ClosedSSPM"
+      "org.opencontainers.image.description": "Open Source SaaS Security Posture Management"
+      "org.opencontainers.image.url": "https://github.com/PiotrMackowski/ClosedSSPM"
+      "org.opencontainers.image.source": "https://github.com/PiotrMackowski/ClosedSSPM"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.licenses": "Apache-2.0"
+    platforms:
+      - linux/amd64
+      - linux/arm64
 
-  - id: closedsspm-arm64
-    ids:
+homebrew_casks:
+  - name: closedsspm
+    binaries:
       - closedsspm
       - closedsspm-mcp
-    goos: linux
-    goarch: arm64
-    image_templates:
-      - "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}-arm64"
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.title=ClosedSSPM"
-      - "--label=org.opencontainers.image.description=Open Source SaaS Security Posture Management"
-      - "--label=org.opencontainers.image.url=https://github.com/PiotrMackowski/ClosedSSPM"
-      - "--label=org.opencontainers.image.source=https://github.com/PiotrMackowski/ClosedSSPM"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.licenses=Apache-2.0"
-      - "--platform=linux/arm64"
-
-docker_manifests:
-  - name_template: "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}-amd64"
-      - "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/piotrmackowski/closedsspm:latest"
-    image_templates:
-      - "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}-amd64"
-      - "ghcr.io/piotrmackowski/closedsspm:{{ .Version }}-arm64"
-
-brews:
-  - repository:
+    repository:
       owner: PiotrMackowski
       name: homebrew-closedsspm
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
     homepage: https://github.com/PiotrMackowski/ClosedSSPM
     description: Open Source SaaS Security Posture Management — audit SaaS platforms for security misconfigurations.
     license: Apache-2.0
     commit_author:
       name: Piotr Mackowski
       email: 115957655+PiotrMackowski@users.noreply.github.com
-    install: |
-      bin.install "closedsspm"
-      bin.install "closedsspm-mcp"
-    test: |
-      system "#{bin}/closedsspm", "--version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/closedsspm"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/closedsspm-mcp"]
+          end
 
 changelog:
   sort: asc
