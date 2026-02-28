@@ -23,6 +23,7 @@ import (
 	"github.com/PiotrMackowski/ClosedSSPM/internal/policy"
 	"github.com/PiotrMackowski/ClosedSSPM/policies"
 	htmlreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/html"
+	csvreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/csv"
 	jsonreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/json"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
@@ -166,8 +167,11 @@ func writeReport(findings []finding.Finding, snapshot *collector.Snapshot, outpu
 	case "json":
 		reporter := &jsonreport.Reporter{}
 		return reporter.Generate(f, findings, snapshot)
+	case "csv":
+		reporter := &csvreport.Reporter{}
+		return reporter.Generate(f, findings, snapshot)
 	default:
-		return fmt.Errorf("unsupported output format: %s", format)
+		return fmt.Errorf("unsupported output format: %s (use html, json, or csv)", format)
 	}
 }
 
@@ -233,7 +237,7 @@ func newAuditCmd() *cobra.Command {
 	cmd.Flags().String("platform", "servicenow", "SaaS platform to audit (available: "+strings.Join(connector.List(), ", ")+")")
 	cmd.Flags().String("instance", "", "Platform instance URL (or set via env var)")
 	cmd.Flags().String("output", "report.html", "Output file path")
-	cmd.Flags().String("format", "html", "Report format: html or json")
+	cmd.Flags().String("format", "html", "Report format: html, json, or csv")
 	cmd.Flags().String("save-snapshot", "", "Also save the raw snapshot to this file")
 	cmd.Flags().String("policies", "", "Path to policies directory")
 	cmd.Flags().Int("concurrency", 5, "Max parallel API requests")
@@ -321,7 +325,7 @@ func newEvaluateCmd() *cobra.Command {
 
 	cmd.Flags().String("snapshot", "snapshot.json", "Path to snapshot file")
 	cmd.Flags().String("output", "report.html", "Output file path")
-	cmd.Flags().String("format", "html", "Report format: html or json")
+	cmd.Flags().String("format", "html", "Report format: html, json, or csv")
 	cmd.Flags().String("policies", "", "Path to policies directory")
 
 	return cmd
