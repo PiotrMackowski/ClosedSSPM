@@ -12,6 +12,7 @@ import (
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/mcpserver"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/policy"
+	"github.com/PiotrMackowski/ClosedSSPM/policies"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -22,7 +23,7 @@ func main() {
 	}
 
 	snapshotPath := os.Args[1]
-	policiesDir := "policies"
+	var policiesDir string
 	if len(os.Args) > 2 {
 		policiesDir = os.Args[2]
 	}
@@ -38,12 +39,22 @@ func main() {
 	}
 
 	// Load and evaluate policies.
-	policies, err := policy.LoadPolicies(policiesDir)
-	if err != nil {
-		log.Fatalf("Failed to load policies: %v", err)
+	var pols []policy.Policy
+	if policiesDir != "" {
+		pols, err = policy.LoadPolicies(policiesDir)
+		if err != nil {
+			log.Fatalf("Failed to load policies from %s: %v", policiesDir, err)
+		}
+		log.Printf("Loaded %d policies from %s", len(pols), policiesDir)
+	} else {
+		pols, err = policy.LoadPoliciesFS(policies.Embedded, ".")
+		if err != nil {
+			log.Fatalf("Failed to load embedded policies: %v", err)
+		}
+		log.Printf("Loaded %d embedded policies", len(pols))
 	}
 
-	evaluator := policy.NewEvaluator(policies)
+	evaluator := policy.NewEvaluator(pols)
 	findings, err := evaluator.Evaluate(&snapshot)
 	if err != nil {
 		log.Fatalf("Failed to evaluate policies: %v", err)

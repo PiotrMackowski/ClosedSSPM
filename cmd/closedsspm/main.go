@@ -20,6 +20,7 @@ import (
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/mcpserver"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/policy"
+	"github.com/PiotrMackowski/ClosedSSPM/policies"
 	htmlreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/html"
 	jsonreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/json"
 	"github.com/mark3labs/mcp-go/server"
@@ -124,7 +125,8 @@ func saveSnapshot(snapshot *collector.Snapshot, path string) error {
 	return nil
 }
 
-// getPoliciesDir returns the policies directory, checking common locations.
+// getPoliciesDir returns an explicit policies directory from the flag, or empty
+// string if none was specified (signaling embedded policies should be used).
 func getPoliciesDir(cmd *cobra.Command) string {
 	dir, _ := cmd.Flags().GetString("policies")
 	if dir != "" {
@@ -142,18 +144,36 @@ func getPoliciesDir(cmd *cobra.Command) string {
 	if info, err := os.Stat("policies"); err == nil && info.IsDir() {
 		return "policies"
 	}
-	return "policies"
+	// No external directory found; return empty to trigger embedded fallback.
+	return ""
+}
+
+// loadPolicies loads policies from disk if dir is non-empty, otherwise from embedded.
+func loadPolicies(dir string) ([]policy.Policy, string, error) {
+	if dir != "" {
+		p, err := policy.LoadPolicies(dir)
+		if err != nil {
+			return nil, "", fmt.Errorf("loading policies: %w", err)
+		}
+		return p, dir, nil
+	}
+	// Fall back to embedded policies.
+	p, err := policy.LoadPoliciesFS(policies.Embedded, ".")
+	if err != nil {
+		return nil, "", fmt.Errorf("loading embedded policies: %w", err)
+	}
+	return p, "(embedded)", nil
 }
 
 // evaluateFindings loads policies and evaluates them against a snapshot.
 func evaluateFindings(snapshot *collector.Snapshot, policiesDir string) ([]finding.Finding, error) {
-	policies, err := policy.LoadPolicies(policiesDir)
+	pols, source, err := loadPolicies(policiesDir)
 	if err != nil {
-		return nil, fmt.Errorf("loading policies: %w", err)
+		return nil, err
 	}
-	log.Printf("Loaded %d policies from %s", len(policies), policiesDir)
+	log.Printf("Loaded %d policies from %s", len(pols), source)
 
-	evaluator := policy.NewEvaluator(policies)
+	evaluator := policy.NewEvaluator(pols)
 	findings, err := evaluator.Evaluate(snapshot)
 	if err != nil {
 		return nil, fmt.Errorf("evaluating policies: %w", err)
@@ -391,21 +411,22 @@ func newChecksCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			policiesDir := getPoliciesDir(cmd)
 
-			policies, err := policy.LoadPolicies(policiesDir)
+			pols, source, err := loadPolicies(policiesDir)
 			if err != nil {
 				return fmt.Errorf("loading policies: %w", err)
 			}
+			log.Printf("Loaded %d policies from %s", len(pols), source)
 
 			fmt.Printf("%-16s %-10s %-12s %s\n", "ID", "SEVERITY", "CATEGORY", "TITLE")
 			fmt.Println("------------------------------------------------------------------------------------")
-			for _, p := range policies {
+			for _, p := range pols {
 				enabled := ""
 				if !p.IsEnabled() {
 					enabled = " (disabled)"
 				}
 				fmt.Printf("%-16s %-10s %-12s %s%s\n", p.ID, p.Severity, p.Category, p.Title, enabled)
 			}
-			fmt.Printf("\nTotal: %d checks\n", len(policies))
+			fmt.Printf("\nTotal: %d checks\n", len(pols))
 
 			return nil
 		},

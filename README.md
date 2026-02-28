@@ -1,24 +1,75 @@
 # ClosedSSPM
 
+[![CI](https://github.com/PiotrMackowski/ClosedSSPM/actions/workflows/ci.yml/badge.svg)](https://github.com/PiotrMackowski/ClosedSSPM/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/PiotrMackowski/ClosedSSPM/actions/workflows/codeql.yml/badge.svg)](https://github.com/PiotrMackowski/ClosedSSPM/actions/workflows/codeql.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/PiotrMackowski/ClosedSSPM)](https://goreportcard.com/report/github.com/PiotrMackowski/ClosedSSPM)
+[![License](https://img.shields.io/github/license/PiotrMackowski/ClosedSSPM)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/PiotrMackowski/ClosedSSPM)](go.mod)
+[![Release](https://img.shields.io/github/v/release/PiotrMackowski/ClosedSSPM?include_prereleases)](https://github.com/PiotrMackowski/ClosedSSPM/releases)
+
 Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with deep ServiceNow coverage.
 
 ## Features
 
-- **ServiceNow security auditing** - 10 built-in checks covering ACLs, roles, scripts, and more
-- **Policy-as-code** - Audit checks defined in YAML, easily extensible with custom policies
-- **HTML reports** - Self-contained, dark-themed HTML reports with posture scoring (A-F)
-- **JSON output** - Machine-readable output for pipeline integration
-- **MCP server** - AI-assisted audit analysis via Model Context Protocol (works with Claude, OpenCode, etc.)
-- **Offline analysis** - Collect data once, analyze many times with snapshot persistence
-- **Parallel collection** - Concurrent API requests with configurable rate limiting
+- **40 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
+- **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
+- **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
+- **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
+- **JSON output** — machine-readable output for pipeline integration
+- **MCP server** — AI-assisted audit analysis via Model Context Protocol (works with Claude, OpenCode, etc.)
+- **Offline analysis** — collect data once, analyze many times with snapshot persistence
+- **Parallel collection** — concurrent API requests with configurable rate limiting
 
-## Quick Start
+## Installation
 
-### Build
+### Binary (GitHub Releases)
+
+Download the latest release for your platform from the [Releases](https://github.com/PiotrMackowski/ClosedSSPM/releases) page.
 
 ```bash
+# Linux amd64
+curl -Lo closedsspm.tar.gz https://github.com/PiotrMackowski/ClosedSSPM/releases/latest/download/closedsspm_Linux_amd64.tar.gz
+tar xzf closedsspm.tar.gz
+sudo mv closedsspm closedsspm-mcp /usr/local/bin/
+```
+
+### Debian / Ubuntu (.deb)
+
+```bash
+# Download the .deb from the latest release
+sudo dpkg -i closedsspm_*.deb
+```
+
+### Red Hat / Fedora (.rpm)
+
+```bash
+# Download the .rpm from the latest release
+sudo rpm -i closedsspm_*.rpm
+```
+
+### Docker
+
+```bash
+docker pull ghcr.io/piotrmackowski/closedsspm:latest
+
+# Run an audit
+docker run --rm \
+  -e SNOW_INSTANCE=https://mycompany.service-now.com \
+  -e SNOW_USERNAME=audit_user \
+  -e SNOW_PASSWORD=secret \
+  -v "$(pwd):/out" \
+  ghcr.io/piotrmackowski/closedsspm:latest audit --output /out/report.html
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/PiotrMackowski/ClosedSSPM.git
+cd ClosedSSPM
 make all
 ```
+
+## Quick Start
 
 ### Run an Audit
 
@@ -29,24 +80,24 @@ export SNOW_USERNAME=audit_user
 export SNOW_PASSWORD=secret
 
 # Full audit: collect + evaluate + report
-./bin/closedsspm audit --output report.html
+closedsspm audit --output report.html
 
 # Or step by step:
-./bin/closedsspm collect --output snapshot.json
-./bin/closedsspm evaluate --snapshot snapshot.json --output report.html
+closedsspm collect --output snapshot.json
+closedsspm evaluate --snapshot snapshot.json --output report.html
 ```
 
 ### List Available Checks
 
 ```bash
-./bin/closedsspm checks list
+closedsspm checks list
 ```
 
 ### MCP Server (AI-Assisted Analysis)
 
 ```bash
 # Start MCP server with a snapshot
-./bin/closedsspm mcp --snapshot snapshot.json
+closedsspm mcp --snapshot snapshot.json
 ```
 
 Add to your MCP client configuration (e.g. Claude Desktop):
@@ -59,6 +110,14 @@ Add to your MCP client configuration (e.g. Claude Desktop):
     }
   }
 }
+```
+
+### Custom Policies Directory
+
+By default the binary uses its 40 embedded policies. To override with external policies:
+
+```bash
+closedsspm audit --policies /path/to/my/policies --output report.html
 ```
 
 ## Architecture
@@ -79,10 +138,24 @@ closedsspm/
 │       ├── html/           # HTML report generator
 │       └── json/           # JSON report generator
 └── policies/
-    └── servicenow/         # ServiceNow policy definitions (YAML)
+    └── servicenow/         # ServiceNow policy definitions (YAML, embedded at build)
 ```
 
-## Security Checks (v0.1)
+## Security Checks
+
+40 built-in checks across 6 categories:
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| **ACL** | 8 | Unprotected ACLs, wildcard roles, public access |
+| **Roles** | 5 | Admin role assignments, elevated privileges, role includes |
+| **Scripts** | 6 | eval() usage, client-callable script includes, global UI scripts |
+| **Integrations** | 7 | Unauthenticated endpoints, basic auth, unvalidated MID servers |
+| **Instance Config** | 10 | HTTPS enforcement, session timeout, password policy, SAML signing |
+| **Users** | 4 | Never-logged-in accounts, locked-out active users |
+
+<details>
+<summary>Full check list</summary>
 
 | ID | Severity | Category | Description |
 |----|----------|----------|-------------|
@@ -96,6 +169,38 @@ closedsspm/
 | SNOW-ACL-008 | HIGH | ACL | ACL allows unauthenticated access via public type |
 | SNOW-ROLE-001 | HIGH | Roles | Users with admin role |
 | SNOW-ROLE-002 | CRITICAL | Roles | Integration/service users with admin role |
+| SNOW-ROLE-003 | HIGH | Roles | Roles with elevated privilege flag enabled |
+| SNOW-ROLE-004 | MEDIUM | Roles | Roles with no assignable_by restriction |
+| SNOW-ROLE-005 | CRITICAL | Roles | Custom role that includes the admin role |
+| SNOW-SCRIPT-001 | CRITICAL | Scripts | Business rule script uses eval() or GlideEvaluator |
+| SNOW-SCRIPT-002 | HIGH | Scripts | Script include marked as client-callable |
+| SNOW-SCRIPT-003 | HIGH | Scripts | Global UI script active and running for all users |
+| SNOW-SCRIPT-004 | LOW | Scripts | Active business rule with no description |
+| SNOW-SCRIPT-005 | MEDIUM | Scripts | Active before business rule modifying data on sensitive tables |
+| SNOW-SCRIPT-006 | LOW | Scripts | Active script include with no description |
+| SNOW-INT-001 | CRITICAL | Integrations | Web service endpoint with authentication disabled |
+| SNOW-INT-002 | LOW | Integrations | Inactive web service endpoint still defined |
+| SNOW-INT-003 | HIGH | Integrations | REST message using basic authentication |
+| SNOW-INT-004 | INFO | Integrations | Active OAuth application registered |
+| SNOW-INT-005 | HIGH | Integrations | MID Server not in validated status |
+| SNOW-INT-006 | HIGH | Integrations | Scripted REST operation without ACL authorization |
+| SNOW-INT-007 | MEDIUM | Integrations | Scripted REST operation contains eval() or GlideRecord in script |
+| SNOW-CFG-001 | CRITICAL | Instance Config | Instance allows HTTP connections (HTTPS not enforced) |
+| SNOW-CFG-002 | HIGH | Instance Config | Session timeout set too high or unlimited |
+| SNOW-CFG-003 | HIGH | Instance Config | Password policy does not enforce complexity |
+| SNOW-CFG-004 | MEDIUM | Instance Config | Debug mode or logging verbosity enabled in production |
+| SNOW-CFG-005 | MEDIUM | Instance Config | High security plugin not activated |
+| SNOW-CFG-006 | MEDIUM | Instance Config | IP address access control not configured |
+| SNOW-CFG-007 | HIGH | Instance Config | SSL certificate approaching expiration or already expired |
+| SNOW-CFG-008 | CRITICAL | Instance Config | LDAP server connection without SSL/TLS encryption |
+| SNOW-CFG-009 | CRITICAL | Instance Config | SAML identity provider with unsigned assertions |
+| SNOW-CFG-010 | HIGH | Instance Config | SAML identity provider using weak signing algorithm |
+| SNOW-USER-001 | MEDIUM | Users | Active user account that has never logged in |
+| SNOW-USER-002 | HIGH | Users | Locked out user account still active |
+| SNOW-USER-003 | MEDIUM | Users | User account sourced from external directory but active |
+| SNOW-USER-004 | INFO | Users | Internal integration user account is active |
+
+</details>
 
 ## MCP Tools
 
@@ -111,9 +216,9 @@ closedsspm/
 ## Security Best Practices
 
 - Credentials are **only** read from environment variables, never from config files
-- Snapshots may contain sensitive data - treat them as confidential
+- Snapshots may contain sensitive data — treat them as confidential
 - The MCP server uses **stdio transport only** (no network exposure)
-- The tool is **read-only** - it never writes to your ServiceNow instance
+- The tool is **read-only** — it never writes to your ServiceNow instance
 - ServiceNow audit user should have **read-only** roles (minimum required permissions)
 
 ### Minimum ServiceNow Permissions
@@ -147,4 +252,4 @@ references:
 
 ## License
 
-Apache 2.0 - see [LICENSE](LICENSE)
+Apache 2.0 — see [LICENSE](LICENSE)

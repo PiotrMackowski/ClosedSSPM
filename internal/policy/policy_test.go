@@ -7,6 +7,7 @@ import (
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
+	"github.com/PiotrMackowski/ClosedSSPM/policies"
 )
 
 func TestLoadPolicies(t *testing.T) {
@@ -413,5 +414,30 @@ func TestEvaluateDisplayValueObject(t *testing.T) {
 	// The display_value "admin" should match the contains condition.
 	if len(findings) != 1 {
 		t.Errorf("Display value object should match, got %d findings, want 1", len(findings))
+	}
+}
+
+func TestLoadPoliciesFS(t *testing.T) {
+	// Load from embedded filesystem.
+	pols, err := LoadPoliciesFS(policies.Embedded, ".")
+	if err != nil {
+		t.Fatalf("LoadPoliciesFS() error: %v", err)
+	}
+
+	if len(pols) != 40 {
+		t.Errorf("LoadPoliciesFS() returned %d policies, want 40", len(pols))
+	}
+
+	// Verify all policies have required fields.
+	for _, p := range pols {
+		if p.ID == "" {
+			t.Error("Embedded policy has empty ID")
+		}
+		if p.Title == "" {
+			t.Errorf("Embedded policy %s has empty Title", p.ID)
+		}
+		if p.Severity == "" {
+			t.Errorf("Embedded policy %s has empty Severity", p.ID)
+		}
 	}
 }
