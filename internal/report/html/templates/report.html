@@ -105,7 +105,6 @@
   .group-header-left { display: flex; align-items: center; }
   .group-count { font-size: 0.9rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem; }
   .group-findings { overflow: hidden; }
-  .group-findings.collapsed { display: none; }
   .group-severity-summary { display: flex; gap: 0.4rem; }
   .group-severity-summary .badge { font-size: 0.65rem; padding: 1px 6px; }
 
@@ -117,9 +116,6 @@
 
   /* No results message */
   .no-results { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 1.1rem; }
-
-  /* Hide regrouped container until JS is ready. Category view is server-rendered visible. */
-  .regroup-container { display: none; }
 
   /* Responsive */
   @media (max-width: 768px) {
@@ -194,50 +190,8 @@
   </div>
 </div>
 
-<!-- Server-rendered findings grouped by category (default view, collapsed, zero JS needed) -->
-<div id="findings-container">
-{{ range $category, $findings := .ByCategory }}
-<div class="group-section" data-group-key="{{ $category }}">
-  <h2 class="group-header" data-group-name="{{ $category }}">
-    <div class="group-header-left">
-      <span class="chevron">&#9654;</span>
-      <span>{{ $category }}</span>
-      <span class="group-count">({{ len $findings }})</span>
-    </div>
-  </h2>
-  <div class="group-findings collapsed">
-    {{ range $findings }}
-    <div class="finding" data-severity="{{ .Severity }}" data-category="{{ $category }}" data-policy-id="{{ .PolicyID }}" data-title="{{ .Title }}">
-      <div class="finding-header">
-        <div>
-          <span class="finding-title">{{ .Title }}</span>
-          <span class="finding-id">{{ .PolicyID }}</span>
-        </div>
-        <span class="badge {{ severityClass .Severity }}">{{ .Severity }}</span>
-      </div>
-      <div class="finding-body">
-        <p>{{ .Description }}</p>
-        <div class="finding-resource">{{ .Resource }}</div>
-        {{ if .Evidence }}
-        <table class="evidence-table">
-          <tr><th>Field</th><th>Value</th></tr>
-          {{ range .Evidence }}
-          {{ range $k, $v := .Fields }}
-          <tr><td>{{ $k }}</td><td>{{ $v }}</td></tr>
-          {{ end }}
-          {{ end }}
-        </table>
-        {{ end }}
-        {{ if .Remediation }}
-        <div class="finding-remediation"><strong>Remediation:</strong> {{ .Remediation }}</div>
-        {{ end }}
-      </div>
-    </div>
-    {{ end }}
-  </div>
-</div>
-{{ end }}
-</div>
+<!-- Findings container — populated by JS from embedded JSON data -->
+<div id="findings-container"></div>
 
 <!-- Collection Statistics -->
 {{ if .TableStats }}
@@ -251,221 +205,189 @@
 {{ end }}
 
 </div>
+
+<!-- Findings data embedded as JSON — parsed by JS, never rendered as DOM by the browser -->
+<script id="report-data" type="application/json">{{ .FindingsJSON }}</script>
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const container = document.getElementById("findings-container");
-  if (!container) return;
+(function() {
+  "use strict";
 
-  const totalCountEl = document.getElementById("total-count");
-  const visibleCountEl = document.getElementById("visible-count");
-  const searchInput = document.getElementById("search-input");
-  const filterBtns = document.querySelectorAll(".filter-btn");
-  const groupBySelect = document.getElementById("group-by-select");
-  const expandAllBtn = document.getElementById("expand-all-btn");
-  const collapseAllBtn = document.getElementById("collapse-all-btn");
-
-  // Index all findings once. Use requestIdleCallback to avoid blocking.
-  const findingEls = Array.from(container.querySelectorAll(".finding"));
-  if (totalCountEl) totalCountEl.textContent = findingEls.length;
-  if (visibleCountEl) visibleCountEl.textContent = findingEls.length;
-
-  // Lightweight index: severity + searchable text per finding.
-  // Built in chunks so the browser stays responsive.
-  const findingData = new Array(findingEls.length);
-  let indexReady = false;
-  let indexPos = 0;
-  const CHUNK = 500;
-
-  function indexChunk() {
-    const end = Math.min(indexPos + CHUNK, findingEls.length);
-    for (let i = indexPos; i < end; i++) {
-      const el = findingEls[i];
-      findingData[i] = {
-        el,
-        severity: (el.getAttribute("data-severity") || "").toUpperCase(),
-        category: el.getAttribute("data-category") || "",
-        policyId: el.getAttribute("data-policy-id") || "",
-        title: el.getAttribute("data-title") || "",
-        searchText: [
-          el.getAttribute("data-title"),
-          el.getAttribute("data-policy-id"),
-          el.getAttribute("data-category"),
-          el.getAttribute("data-severity"),
-          el.querySelector(".finding-resource")?.textContent,
-          el.querySelector(".finding-body > p")?.textContent
-        ].filter(Boolean).join(" ").toLowerCase()
-      };
-    }
-    indexPos = end;
-    if (indexPos < findingEls.length) {
-      requestAnimationFrame(indexChunk);
-    } else {
-      indexReady = true;
-      // Add severity summaries to server-rendered headers now that index is built.
-      addSeveritySummaries();
-    }
-  }
-  requestAnimationFrame(indexChunk);
-
-  let activeFilters = new Set(["ALL"]);
-  let currentGroup = "category";
-  let searchTerm = "";
-  let debounceTimer = null;
-  const expandedGroups = new Set();
-
-  // --- Toggle a single group ---
-  function toggleGroup(section) {
-    const body = section.querySelector(".group-findings");
-    const chevron = section.querySelector(".chevron");
-    if (!body) return;
-    const key = section.getAttribute("data-group-key");
-    if (body.classList.contains("collapsed")) {
-      body.classList.remove("collapsed");
-      if (chevron) chevron.classList.add("open");
-      if (key) expandedGroups.add(key);
-    } else {
-      body.classList.add("collapsed");
-      if (chevron) chevron.classList.remove("open");
-      if (key) expandedGroups.delete(key);
-    }
+  // --- Parse embedded JSON data ---
+  var dataEl = document.getElementById("report-data");
+  if (!dataEl) return;
+  var findings;
+  try {
+    findings = JSON.parse(dataEl.textContent);
+  } catch (e) {
+    console.error("Failed to parse report data:", e);
+    return;
   }
 
-  // Attach click handlers to server-rendered group headers.
-  container.querySelectorAll(".group-header").forEach(header => {
-    header.addEventListener("click", () => toggleGroup(header.closest(".group-section")));
+  // Pre-compute searchable text and normalized fields for each finding.
+  var items = findings.map(function(f) {
+    return {
+      raw: f,
+      severity: (f.severity || "").toUpperCase(),
+      category: f.category || "",
+      policyId: f.policy_id || "",
+      title: f.title || "",
+      searchText: [
+        f.title, f.policy_id, f.category, f.severity, f.resource, f.description
+      ].filter(Boolean).join(" ").toLowerCase()
+    };
   });
 
-  // Expand / Collapse all.
-  if (expandAllBtn) {
-    expandAllBtn.addEventListener("click", () => {
-      container.querySelectorAll(".group-section").forEach(section => {
-        const body = section.querySelector(".group-findings");
-        const chevron = section.querySelector(".chevron");
-        const key = section.getAttribute("data-group-key");
-        if (body) body.classList.remove("collapsed");
-        if (chevron) chevron.classList.add("open");
-        if (key) expandedGroups.add(key);
+  var container = document.getElementById("findings-container");
+  var totalCountEl = document.getElementById("total-count");
+  var visibleCountEl = document.getElementById("visible-count");
+  var searchInput = document.getElementById("search-input");
+  var filterBtns = document.querySelectorAll(".filter-btn");
+  var groupBySelect = document.getElementById("group-by-select");
+  var expandAllBtn = document.getElementById("expand-all-btn");
+  var collapseAllBtn = document.getElementById("collapse-all-btn");
+
+  if (totalCountEl) totalCountEl.textContent = items.length;
+  if (visibleCountEl) visibleCountEl.textContent = items.length;
+
+  var activeFilters = { ALL: true };
+  var currentGroup = "category";
+  var searchTerm = "";
+  var debounceTimer = null;
+  var expandedGroups = {};
+
+  // --- Render a single finding card from JSON data ---
+  function renderFinding(f) {
+    var raw = f.raw;
+    var el = document.createElement("div");
+    el.className = "finding";
+
+    var headerDiv = document.createElement("div");
+    headerDiv.className = "finding-header";
+
+    var leftDiv = document.createElement("div");
+    var titleSpan = document.createElement("span");
+    titleSpan.className = "finding-title";
+    titleSpan.textContent = raw.title || "";
+    var idSpan = document.createElement("span");
+    idSpan.className = "finding-id";
+    idSpan.textContent = raw.policy_id || "";
+    leftDiv.appendChild(titleSpan);
+    leftDiv.appendChild(document.createTextNode(" "));
+    leftDiv.appendChild(idSpan);
+
+    var badge = document.createElement("span");
+    badge.className = "badge " + f.severity.toLowerCase();
+    badge.textContent = f.severity;
+
+    headerDiv.appendChild(leftDiv);
+    headerDiv.appendChild(badge);
+    el.appendChild(headerDiv);
+
+    var body = document.createElement("div");
+    body.className = "finding-body";
+
+    if (raw.description) {
+      var p = document.createElement("p");
+      p.textContent = raw.description;
+      body.appendChild(p);
+    }
+
+    if (raw.resource) {
+      var res = document.createElement("div");
+      res.className = "finding-resource";
+      res.textContent = raw.resource;
+      body.appendChild(res);
+    }
+
+    if (raw.evidence && raw.evidence.length > 0) {
+      var table = document.createElement("table");
+      table.className = "evidence-table";
+      var thead = document.createElement("tr");
+      var th1 = document.createElement("th");
+      th1.textContent = "Field";
+      var th2 = document.createElement("th");
+      th2.textContent = "Value";
+      thead.appendChild(th1);
+      thead.appendChild(th2);
+      table.appendChild(thead);
+
+      raw.evidence.forEach(function(ev) {
+        if (ev.fields) {
+          Object.keys(ev.fields).forEach(function(k) {
+            var tr = document.createElement("tr");
+            var td1 = document.createElement("td");
+            td1.textContent = k;
+            var td2 = document.createElement("td");
+            td2.textContent = ev.fields[k];
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            table.appendChild(tr);
+          });
+        }
       });
-    });
-  }
-  if (collapseAllBtn) {
-    collapseAllBtn.addEventListener("click", () => {
-      expandedGroups.clear();
-      container.querySelectorAll(".group-section").forEach(section => {
-        const body = section.querySelector(".group-findings");
-        const chevron = section.querySelector(".chevron");
-        if (body) body.classList.add("collapsed");
-        if (chevron) chevron.classList.remove("open");
-      });
-    });
-  }
+      body.appendChild(table);
+    }
 
-  // Severity filter buttons.
-  filterBtns.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const filter = btn.getAttribute("data-filter");
-      if (filter === "ALL") {
-        activeFilters.clear();
-        activeFilters.add("ALL");
-      } else {
-        activeFilters.delete("ALL");
-        if (activeFilters.has(filter)) activeFilters.delete(filter);
-        else activeFilters.add(filter);
-        if (activeFilters.size === 0) activeFilters.add("ALL");
-      }
-      applyFilters();
-    });
-  });
+    if (raw.remediation) {
+      var rem = document.createElement("div");
+      rem.className = "finding-remediation";
+      rem.innerHTML = "<strong>Remediation:</strong> " + escapeHTML(raw.remediation);
+      body.appendChild(rem);
+    }
 
-  // Group-by dropdown.
-  if (groupBySelect) {
-    groupBySelect.addEventListener("change", (e) => {
-      currentGroup = e.target.value;
-      expandedGroups.clear();
-      applyFilters();
-    });
+    el.appendChild(body);
+    return el;
   }
 
-  // Search input (debounced 200ms).
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        searchTerm = searchInput.value.trim().toLowerCase();
-        applyFilters();
-      }, 200);
+  // --- Build severity summary badges HTML for a group ---
+  function buildSeveritySummaryHTML(groupItems) {
+    var counts = {};
+    groupItems.forEach(function(d) {
+      counts[d.severity] = (counts[d.severity] || 0) + 1;
     });
-  }
-
-  // --- Add severity badge summaries to group headers ---
-  function addSeveritySummaries() {
-    container.querySelectorAll(".group-section").forEach(section => {
-      const header = section.querySelector(".group-header");
-      if (!header || header.querySelector(".group-severity-summary")) return;
-      const findings = Array.from(section.querySelectorAll(".finding"));
-      const counts = {};
-      findings.forEach(f => {
-        const s = (f.getAttribute("data-severity") || "").toUpperCase();
-        counts[s] = (counts[s] || 0) + 1;
-      });
-      const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
-      const badges = order.filter(s => counts[s])
-        .map(s => `<span class="badge ${s.toLowerCase()}">${counts[s]} ${s}</span>`)
-        .join("");
-      if (badges) {
-        const div = document.createElement("div");
-        div.className = "group-severity-summary";
-        div.innerHTML = badges;
-        header.appendChild(div);
-      }
-    });
-  }
-
-  function buildSeveritySummaryHTML(items) {
-    const counts = {};
-    items.forEach(d => { counts[d.severity] = (counts[d.severity] || 0) + 1; });
-    const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
-    return order.filter(s => counts[s])
-      .map(s => `<span class="badge ${s.toLowerCase()}">${counts[s]} ${s}</span>`)
+    var order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+    return order.filter(function(s) { return counts[s]; })
+      .map(function(s) { return '<span class="badge ' + s.toLowerCase() + '">' + counts[s] + " " + s + "</span>"; })
       .join("");
   }
 
-  // --- Apply filters: severity, search, group-by ---
-  function applyFilters() {
-    if (!indexReady) {
-      // Index still building; retry in 100ms.
-      setTimeout(applyFilters, 100);
-      return;
+  // --- Toggle group expand/collapse with lazy DOM rendering ---
+  function toggleGroup(section, groupItems) {
+    var body = section.querySelector(".group-findings");
+    var chevron = section.querySelector(".chevron");
+    var key = section.getAttribute("data-group-key");
+    if (!body) return;
+
+    if (body.style.display === "none" || !body.hasChildNodes()) {
+      // Expand: render finding DOM lazily.
+      if (!body.hasChildNodes()) {
+        var frag = document.createDocumentFragment();
+        groupItems.forEach(function(d) {
+          frag.appendChild(renderFinding(d));
+        });
+        body.appendChild(frag);
+      }
+      body.style.display = "";
+      if (chevron) chevron.classList.add("open");
+      if (key) expandedGroups[key] = true;
+    } else {
+      // Collapse: hide but keep DOM (already rendered).
+      body.style.display = "none";
+      if (chevron) chevron.classList.remove("open");
+      if (key) delete expandedGroups[key];
     }
+  }
 
-    // Update button states.
-    filterBtns.forEach(btn => {
-      btn.classList.toggle("active", activeFilters.has(btn.getAttribute("data-filter")));
-    });
+  // --- Render all group headers (no finding DOM yet — that's lazy) ---
+  function renderGroups(visibleItems) {
+    if (visibleCountEl) visibleCountEl.textContent = visibleItems.length;
 
-    const needsSeverity = !activeFilters.has("ALL");
-    const needsSearch = searchTerm.length > 0;
-    const needsRegroup = currentGroup !== "category";
-
-    // Fast path: no filters and default grouping — restore server-rendered HTML.
-    if (!needsSeverity && !needsSearch && !needsRegroup) {
-      restoreServerRendered();
-      return;
-    }
-
-    // Filter findings.
-    const visible = findingData.filter(d => {
-      if (needsSeverity && !activeFilters.has(d.severity)) return false;
-      if (needsSearch && !d.searchText.includes(searchTerm)) return false;
-      return true;
-    });
-
-    if (visibleCountEl) visibleCountEl.textContent = visible.length;
-
-    // Group.
-    const groups = {};
-    visible.forEach(d => {
-      let key = "", title = "";
+    // Group items.
+    var groups = {};
+    var groupOrder = [];
+    visibleItems.forEach(function(d) {
+      var key, title;
       if (currentGroup === "category") {
         key = d.category; title = key;
       } else if (currentGroup === "policyId") {
@@ -473,60 +395,78 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (currentGroup === "severity") {
         key = d.severity; title = key;
       }
-      if (!groups[key]) groups[key] = { title, items: [] };
+      if (!groups[key]) {
+        groups[key] = { title: title, items: [] };
+        groupOrder.push(key);
+      }
       groups[key].items.push(d);
     });
 
     // Sort keys.
-    let keys = Object.keys(groups);
     if (currentGroup === "severity") {
-      const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
-      keys.sort((a, b) => {
-        let ia = order.indexOf(a), ib = order.indexOf(b);
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      var sevOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+      groupOrder.sort(function(a, b) {
+        return (sevOrder[a] !== undefined ? sevOrder[a] : 99) - (sevOrder[b] !== undefined ? sevOrder[b] : 99);
       });
     } else {
-      keys.sort();
+      groupOrder.sort();
     }
 
-    // Build new DOM.
-    const fragment = document.createDocumentFragment();
-    if (keys.length === 0) {
-      const msg = document.createElement("div");
+    // Build DOM.
+    var fragment = document.createDocumentFragment();
+
+    if (groupOrder.length === 0) {
+      var msg = document.createElement("div");
       msg.className = "no-results";
       msg.textContent = "No findings match the current filters.";
       fragment.appendChild(msg);
     }
-    keys.forEach(key => {
-      const group = groups[key];
-      const isExpanded = expandedGroups.has(key);
 
-      const section = document.createElement("div");
+    groupOrder.forEach(function(key) {
+      var group = groups[key];
+      var isExpanded = !!expandedGroups[key];
+
+      var section = document.createElement("div");
       section.className = "group-section";
       section.setAttribute("data-group-key", key);
 
-      const header = document.createElement("h2");
+      var header = document.createElement("h2");
       header.className = "group-header";
 
-      const left = document.createElement("div");
+      var left = document.createElement("div");
       left.className = "group-header-left";
-      left.innerHTML = `<span class="chevron${isExpanded ? " open" : ""}">&#9654;</span><span>${escapeHTML(group.title)}</span><span class="group-count">(${group.items.length})</span>`;
+      left.innerHTML = '<span class="chevron' + (isExpanded ? " open" : "") + '">&#9654;</span>' +
+        '<span>' + escapeHTML(group.title) + '</span>' +
+        '<span class="group-count">(' + group.items.length + ')</span>';
       header.appendChild(left);
 
       if (currentGroup !== "severity") {
-        const summary = document.createElement("div");
+        var summary = document.createElement("div");
         summary.className = "group-severity-summary";
         summary.innerHTML = buildSeveritySummaryHTML(group.items);
         header.appendChild(summary);
       }
 
-      header.addEventListener("click", () => toggleGroup(section));
       section.appendChild(header);
 
-      const body = document.createElement("div");
-      body.className = "group-findings" + (isExpanded ? "" : " collapsed");
-      group.items.forEach(d => body.appendChild(d.el));
+      var body = document.createElement("div");
+      body.className = "group-findings";
+
+      if (isExpanded) {
+        // Re-render findings for expanded groups.
+        var frag = document.createDocumentFragment();
+        group.items.forEach(function(d) { frag.appendChild(renderFinding(d)); });
+        body.appendChild(frag);
+      } else {
+        body.style.display = "none";
+      }
+
       section.appendChild(body);
+
+      // Capture group.items for the click handler closure.
+      (function(sec, gi) {
+        header.addEventListener("click", function() { toggleGroup(sec, gi); });
+      })(section, group.items);
 
       fragment.appendChild(section);
     });
@@ -535,64 +475,113 @@ document.addEventListener("DOMContentLoaded", () => {
     container.appendChild(fragment);
   }
 
-  // Restore the server-rendered category view (no DOM rebuild needed for most).
-  // We need to move findings back into their original category sections.
-  function restoreServerRendered() {
-    if (visibleCountEl) visibleCountEl.textContent = findingEls.length;
+  // --- Apply all filters and re-render groups ---
+  function applyFilters() {
+    // Update button states.
+    for (var i = 0; i < filterBtns.length; i++) {
+      var btn = filterBtns[i];
+      var f = btn.getAttribute("data-filter");
+      btn.classList.toggle("active", !!activeFilters[f]);
+    }
 
-    // Re-group by category and rebuild the server-like structure.
-    const groups = {};
-    findingData.forEach(d => {
-      if (!groups[d.category]) groups[d.category] = [];
-      groups[d.category].push(d);
+    var needsSeverity = !activeFilters.ALL;
+    var needsSearch = searchTerm.length > 0;
+
+    var visible = items.filter(function(d) {
+      if (needsSeverity && !activeFilters[d.severity]) return false;
+      if (needsSearch && d.searchText.indexOf(searchTerm) === -1) return false;
+      return true;
     });
 
-    const keys = Object.keys(groups).sort();
-    const fragment = document.createDocumentFragment();
+    renderGroups(visible);
+  }
 
-    keys.forEach(key => {
-      const items = groups[key];
-      const isExpanded = expandedGroups.has(key);
+  // --- Severity filter buttons ---
+  for (var i = 0; i < filterBtns.length; i++) {
+    (function(btn) {
+      btn.addEventListener("click", function() {
+        var filter = btn.getAttribute("data-filter");
+        if (filter === "ALL") {
+          activeFilters = { ALL: true };
+        } else {
+          delete activeFilters.ALL;
+          if (activeFilters[filter]) delete activeFilters[filter];
+          else activeFilters[filter] = true;
+          // If nothing selected, revert to ALL.
+          var hasAny = false;
+          for (var k in activeFilters) { if (activeFilters.hasOwnProperty(k)) { hasAny = true; break; } }
+          if (!hasAny) activeFilters.ALL = true;
+        }
+        applyFilters();
+      });
+    })(filterBtns[i]);
+  }
 
-      const section = document.createElement("div");
-      section.className = "group-section";
-      section.setAttribute("data-group-key", key);
-
-      const header = document.createElement("h2");
-      header.className = "group-header";
-      header.setAttribute("data-group-name", key);
-
-      const left = document.createElement("div");
-      left.className = "group-header-left";
-      left.innerHTML = `<span class="chevron${isExpanded ? " open" : ""}">&#9654;</span><span>${escapeHTML(key)}</span><span class="group-count">(${items.length})</span>`;
-      header.appendChild(left);
-
-      const summary = document.createElement("div");
-      summary.className = "group-severity-summary";
-      summary.innerHTML = buildSeveritySummaryHTML(items);
-      header.appendChild(summary);
-
-      header.addEventListener("click", () => toggleGroup(section));
-      section.appendChild(header);
-
-      const body = document.createElement("div");
-      body.className = "group-findings" + (isExpanded ? "" : " collapsed");
-      items.forEach(d => body.appendChild(d.el));
-      section.appendChild(body);
-
-      fragment.appendChild(section);
+  // --- Group-by dropdown ---
+  if (groupBySelect) {
+    groupBySelect.addEventListener("change", function(e) {
+      currentGroup = e.target.value;
+      expandedGroups = {};
+      applyFilters();
     });
+  }
 
-    container.innerHTML = "";
-    container.appendChild(fragment);
+  // --- Search input (debounced 200ms) ---
+  if (searchInput) {
+    searchInput.addEventListener("input", function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        searchTerm = searchInput.value.trim().toLowerCase();
+        applyFilters();
+      }, 200);
+    });
+  }
+
+  // --- Expand / Collapse all ---
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener("click", function() {
+      var sections = container.querySelectorAll(".group-section");
+      for (var i = 0; i < sections.length; i++) {
+        var sec = sections[i];
+        var body = sec.querySelector(".group-findings");
+        var chevron = sec.querySelector(".chevron");
+        var key = sec.getAttribute("data-group-key");
+        if (body && !body.hasChildNodes()) {
+          // Need to find the group items for this section to render them.
+          // We trigger a click on the header which will call toggleGroup.
+          var hdr = sec.querySelector(".group-header");
+          if (hdr) hdr.click();
+        } else if (body) {
+          body.style.display = "";
+          if (chevron) chevron.classList.add("open");
+          if (key) expandedGroups[key] = true;
+        }
+      }
+    });
+  }
+
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener("click", function() {
+      expandedGroups = {};
+      var sections = container.querySelectorAll(".group-section");
+      for (var i = 0; i < sections.length; i++) {
+        var body = sections[i].querySelector(".group-findings");
+        var chevron = sections[i].querySelector(".chevron");
+        if (body) body.style.display = "none";
+        if (chevron) chevron.classList.remove("open");
+      }
+    });
   }
 
   function escapeHTML(str) {
-    const div = document.createElement("div");
+    var div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
   }
-});
+
+  // --- Initial render: show group headers immediately ---
+  renderGroups(items);
+})();
 </script>
 </body>
 </html>

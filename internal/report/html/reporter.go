@@ -3,6 +3,7 @@ package html
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -23,11 +24,10 @@ type ReportData struct {
 	InstanceURL  string
 	Platform     string
 	Summary      finding.Summary
-	Findings     []finding.Finding
-	ByCategory   map[string][]finding.Finding
-	BySeverity   map[finding.Severity][]finding.Finding
 	TableStats   []TableStat
 	SeverityList []finding.Severity
+	// FindingsJSON is the JSON-encoded findings array, embedded in a <script> tag.
+	FindingsJSON template.JS
 }
 
 // TableStat shows collection stats for a single table.
@@ -54,14 +54,6 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, snapshot *c
 		return finding.SeverityOrder(findings[i].Severity) < finding.SeverityOrder(findings[j].Severity)
 	})
 
-	// Group by category and severity.
-	byCategory := make(map[string][]finding.Finding)
-	bySeverity := make(map[finding.Severity][]finding.Finding)
-	for _, f := range findings {
-		byCategory[f.Category] = append(byCategory[f.Category], f)
-		bySeverity[f.Severity] = append(bySeverity[f.Severity], f)
-	}
-
 	// Table stats.
 	var tableStats []TableStat
 	if snapshot != nil {
@@ -73,14 +65,18 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, snapshot *c
 		})
 	}
 
+	// Serialize findings to JSON for embedding in the HTML.
+	findingsJSON, err := json.Marshal(findings)
+	if err != nil {
+		return fmt.Errorf("marshaling findings to JSON: %w", err)
+	}
+
 	data := ReportData{
-		Title:       "ClosedSSPM Security Audit Report",
-		GeneratedAt: time.Now().UTC().Format("2006-01-02 15:04:05 UTC"),
-		Summary:     finding.NewSummary(findings),
-		Findings:    findings,
-		ByCategory:  byCategory,
-		BySeverity:  bySeverity,
-		TableStats:  tableStats,
+		Title:        "ClosedSSPM Security Audit Report",
+		GeneratedAt:  time.Now().UTC().Format("2006-01-02 15:04:05 UTC"),
+		Summary:      finding.NewSummary(findings),
+		FindingsJSON: template.JS(findingsJSON),
+		TableStats:   tableStats,
 		SeverityList: []finding.Severity{
 			finding.Critical, finding.High, finding.Medium, finding.Low, finding.Info,
 		},
