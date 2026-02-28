@@ -13,6 +13,7 @@ Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms 
 
 ## Features
 
+- **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
 - **41 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
@@ -88,8 +89,11 @@ export SNOW_INSTANCE=https://mycompany.service-now.com
 export SNOW_USERNAME=audit_user
 export SNOW_PASSWORD=secret
 
-# Full audit: collect + evaluate + report
+# Full audit: collect + evaluate + report (ServiceNow is the default platform)
 closedsspm audit --output report.html
+
+# Explicitly specify a platform
+closedsspm audit --platform servicenow --output report.html
 
 # Or step by step:
 closedsspm collect --output snapshot.json
@@ -123,7 +127,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 40 embedded policies. To override with external policies:
+By default the binary uses its 41 embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -133,26 +137,28 @@ closedsspm audit --policies /path/to/my/policies --output report.html
 
 ### `closedsspm audit`
 
-Run a full security audit: connect to ServiceNow, collect data, evaluate policies, and generate a report.
+Run a full security audit: connect to a SaaS platform, collect data, evaluate policies, and generate a report.
 
 ```
 Flags:
-  --instance string        ServiceNow instance URL (or set SNOW_INSTANCE)
-  --output string          Output file path (default "report.html")
-  --format string          Report format: html or json (default "html")
-  --policies string        Path to custom policies directory (default: embedded)
-  --save-snapshot string   Also save the raw snapshot to this file
-  --concurrency int        Max parallel API requests (default 5)
-  --rate-limit float       Max API requests per second (default 10)
+  --platform string       SaaS platform to audit (default "servicenow")
+  --instance string       Platform instance URL (or set via env var)
+  --output string         Output file path (default "report.html")
+  --format string         Report format: html or json (default "html")
+  --policies string       Path to custom policies directory (default: embedded)
+  --save-snapshot string  Also save the raw snapshot to this file
+  --concurrency int       Max parallel API requests (default 5)
+  --rate-limit float      Max API requests per second (default 10)
 ```
 
 ### `closedsspm collect`
 
-Collect data from a ServiceNow instance and save a snapshot for offline analysis.
+Collect data from a SaaS platform and save a snapshot for offline analysis.
 
 ```
 Flags:
-  --instance string    ServiceNow instance URL (or set SNOW_INSTANCE)
+  --platform string    SaaS platform to collect from (default "servicenow")
+  --instance string    Platform instance URL (or set via env var)
   --output string      Output snapshot file path (default "snapshot.json")
   --concurrency int    Max parallel API requests (default 5)
   --rate-limit float   Max API requests per second (default 10)
@@ -193,6 +199,10 @@ Flags:
 
 All credentials are read from environment variables. **Never store credentials in config files.**
 
+Each platform uses its own set of environment variables. The `--platform` flag (default: `servicenow`) determines which variables are read.
+
+#### ServiceNow (`--platform servicenow`)
+
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `SNOW_INSTANCE` | ServiceNow instance URL (e.g. `https://mycompany.service-now.com`) | Yes |
@@ -206,20 +216,23 @@ All credentials are read from environment variables. **Never store credentials i
 ```
 closedsspm/
 ├── cmd/
-│   ├── closedsspm/        # Main CLI
-│   └── mcp/               # Standalone MCP server
+│   ├── closedsspm/
+│   │   ├── main.go          # CLI commands (platform-agnostic)
+│   │   └── platforms.go     # Blank imports to register platform connectors
+│   └── mcp/                 # Standalone MCP server
 ├── internal/
-│   ├── collector/          # Collector interface & snapshot model
+│   ├── collector/            # Collector interface & snapshot model
 │   ├── connector/
-│   │   └── servicenow/    # ServiceNow API client & collector
-│   ├── finding/            # Finding model & severity
-│   ├── mcpserver/          # MCP server implementation
-│   ├── policy/             # Policy engine (YAML loading & evaluation)
+│   │   ├── registry.go       # Platform connector registry
+│   │   └── servicenow/       # ServiceNow API client & collector
+│   ├── finding/              # Finding model & severity
+│   ├── mcpserver/            # MCP server implementation
+│   ├── policy/               # Policy engine (YAML loading & evaluation)
 │   └── report/
-│       ├── html/           # HTML report generator
-│       └── json/           # JSON report generator
+│       ├── html/             # HTML report generator
+│       └── json/             # JSON report generator
 └── policies/
-    └── servicenow/         # ServiceNow policy definitions (YAML, embedded at build)
+    └── servicenow/           # ServiceNow policy definitions (YAML, embedded at build)
 ```
 
 ## Subprojects
@@ -317,7 +330,7 @@ The MCP server exposes 6 tools and 2 resources over **stdio transport** for AI-a
 - Credentials are **only** read from environment variables, never from config files
 - Snapshots may contain sensitive data — treat them as confidential
 - The MCP server uses **stdio transport only** (no network exposure)
-- The tool is **read-only** — it never writes to your ServiceNow instance
+- The tool is **read-only** — it never writes to your SaaS platform
 - ServiceNow audit user should have **read-only** roles (minimum required permissions)
 
 ### Minimum ServiceNow Permissions
@@ -329,7 +342,7 @@ Create a dedicated audit user with these roles:
 
 ## Writing Custom Policies
 
-Policies are YAML files in the `policies/` directory:
+Policies are YAML files organized by platform in the `policies/` directory (e.g. `policies/servicenow/`):
 
 ```yaml
 id: CUSTOM-001
