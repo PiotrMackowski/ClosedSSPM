@@ -35,9 +35,11 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o closedsspm ./cmd/closedsspm
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o closedsspm-mcp ./cmd/mcp
+          mkdir -p linux/amd64
+          mv closedsspm closedsspm-mcp linux/amd64/
 
       - name: Build Docker image
-        run: docker build -t closedsspm:${{ github.sha }} .
+        run: docker build --build-arg TARGETPLATFORM=linux/amd64 -t closedsspm:${{ github.sha }} .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # 0.34.1
