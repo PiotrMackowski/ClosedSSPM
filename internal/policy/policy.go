@@ -3,6 +3,7 @@ package policy
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,15 +49,21 @@ func (p *Policy) IsEnabled() bool {
 	return *p.Enabled
 }
 
-// LoadPolicies loads all policy YAML files from a directory.
+// LoadPolicies loads all policy YAML files from a directory on disk.
 func LoadPolicies(dir string) ([]Policy, error) {
+	return LoadPoliciesFS(os.DirFS(dir), ".")
+}
+
+// LoadPoliciesFS loads all policy YAML files from an fs.FS.
+// root is the starting directory within the filesystem.
+func LoadPoliciesFS(fsys fs.FS, root string) ([]Policy, error) {
 	var policies []Policy
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := fs.WalkDir(fsys, root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
@@ -64,7 +71,7 @@ func LoadPolicies(dir string) ([]Policy, error) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(fsys, path)
 		if err != nil {
 			return fmt.Errorf("reading policy file %s: %w", path, err)
 		}
@@ -83,7 +90,7 @@ func LoadPolicies(dir string) ([]Policy, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("loading policies from %s: %w", dir, err)
+		return nil, fmt.Errorf("loading policies: %w", err)
 	}
 
 	return policies, nil
