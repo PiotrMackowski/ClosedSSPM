@@ -1,0 +1,8 @@
+# Default owner for everything
+* @PiotrMackowski
+
+# Critical paths — require explicit review
+/.github/ @PiotrMackowski
+/.goreleaser.yml @PiotrMackowski
+/Dockerfile @PiotrMackowski
+/SECURITY.md @PiotrMackowski
