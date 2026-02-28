@@ -70,6 +70,27 @@
   .stats-table th { color: var(--text-muted); font-weight: 600; }
   .stats-table td:last-child { text-align: right; font-family: monospace; }
 
+  /* Controls Toolbar */
+  .toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; margin: 2rem 0; display: flex; flex-wrap: wrap; gap: 1.5rem;
+    align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+  .toolbar-group { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .toolbar-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.05em; font-weight: 600; }
+  .filter-btn { background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; }
+  .filter-btn:hover { background: rgba(255,255,255,0.05); }
+  .filter-btn.active { background: var(--btn-color, var(--text)); color: var(--btn-text, var(--bg));
+    border-color: var(--btn-color, var(--text)); box-shadow: 0 0 10px var(--btn-color, rgba(255,255,255,0.2)); }
+  .group-select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; }
+  .group-select:focus { border-color: var(--info); }
+  .count-display { margin-left: auto; font-size: 0.9rem; color: var(--text-muted); }
+  .count-display strong { color: var(--text); }
+  h2.group-header { display: flex; align-items: center; justify-content: space-between; }
+  .group-count { font-size: 1rem; color: var(--text-muted); font-weight: normal; }
+
   /* Responsive */
   @media (max-width: 768px) {
     body { padding: 1rem; }
@@ -109,11 +130,36 @@
   {{ end }}
 </div>
 
+<!-- Controls Toolbar -->
+<div class="toolbar">
+  <div class="toolbar-group">
+    <span class="toolbar-label">Severity:</span>
+    <button class="filter-btn active" data-filter="ALL">ALL</button>
+    <button class="filter-btn" data-filter="CRITICAL" style="--btn-color: var(--critical); --btn-text: #fff">CRITICAL</button>
+    <button class="filter-btn" data-filter="HIGH" style="--btn-color: var(--high); --btn-text: #fff">HIGH</button>
+    <button class="filter-btn" data-filter="MEDIUM" style="--btn-color: var(--medium); --btn-text: #000">MEDIUM</button>
+    <button class="filter-btn" data-filter="LOW" style="--btn-color: var(--low); --btn-text: #000">LOW</button>
+    <button class="filter-btn" data-filter="INFO" style="--btn-color: var(--info); --btn-text: #000">INFO</button>
+  </div>
+  <div class="toolbar-group">
+    <span class="toolbar-label">Group by:</span>
+    <select id="group-by-select" class="group-select">
+      <option value="category" selected>Category</option>
+      <option value="policyId">Policy ID</option>
+      <option value="severity">Severity</option>
+    </select>
+  </div>
+  <div class="count-display">
+    Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> findings
+  </div>
+</div>
+
 <!-- Findings by Category -->
+<div id="findings-container">
 {{ range $category, $findings := .ByCategory }}
-<h2>{{ $category }}</h2>
+<h2 class="group-header" data-group-name="{{ $category }}">{{ $category }}</h2>
 {{ range $findings }}
-<div class="finding">
+<div class="finding" data-severity="{{ .Severity }}" data-category="{{ $category }}" data-policy-id="{{ .PolicyID }}" data-title="{{ .Title }}">
   <div class="finding-header">
     <div>
       <span class="finding-title">{{ .Title }}</span>
@@ -141,6 +187,7 @@
 </div>
 {{ end }}
 {{ end }}
+</div>
 
 <!-- Collection Statistics -->
 {{ if .TableStats }}
@@ -154,5 +201,141 @@
 {{ end }}
 
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const container = document.getElementById("findings-container");
+  if (!container) return;
+  
+  const findings = Array.from(container.querySelectorAll(".finding"));
+  const totalCountEl = document.getElementById("total-count");
+  const visibleCountEl = document.getElementById("visible-count");
+  
+  if(totalCountEl) totalCountEl.textContent = findings.length;
+
+  const originalHeaders = Array.from(container.querySelectorAll("h2.group-header"));
+  const headersMap = {};
+  originalHeaders.forEach(h => {
+    headersMap[h.getAttribute("data-group-name")] = h;
+  });
+
+  const filterBtns = document.querySelectorAll(".filter-btn");
+  const groupBySelect = document.getElementById("group-by-select");
+
+  let activeFilters = new Set(["ALL"]);
+  let currentGroup = "category";
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const filter = btn.getAttribute("data-filter");
+      if (filter === "ALL") {
+        activeFilters.clear();
+        activeFilters.add("ALL");
+      } else {
+        activeFilters.delete("ALL");
+        if (activeFilters.has(filter)) {
+          activeFilters.delete(filter);
+        } else {
+          activeFilters.add(filter);
+        }
+        if (activeFilters.size === 0) {
+          activeFilters.add("ALL");
+        }
+      }
+      updateUI();
+    });
+  });
+
+  if (groupBySelect) {
+    groupBySelect.addEventListener("change", (e) => {
+      currentGroup = e.target.value;
+      updateUI();
+    });
+  }
+
+  function updateUI() {
+    filterBtns.forEach(btn => {
+      if (activeFilters.has(btn.getAttribute("data-filter"))) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+
+    let visibleFindings = [];
+    findings.forEach(f => {
+      const sev = (f.getAttribute("data-severity") || "").toUpperCase();
+      if (activeFilters.has("ALL") || activeFilters.has(sev)) {
+        visibleFindings.push(f);
+      }
+    });
+
+    if (visibleCountEl) visibleCountEl.textContent = visibleFindings.length;
+
+    const groups = {};
+    visibleFindings.forEach(f => {
+      let key = "", title = "";
+      if (currentGroup === "category") {
+        key = f.getAttribute("data-category");
+        title = key;
+      } else if (currentGroup === "policyId") {
+        key = f.getAttribute("data-policy-id");
+        title = `${key} - ${f.getAttribute("data-title")}`;
+      } else if (currentGroup === "severity") {
+        key = (f.getAttribute("data-severity") || "").toUpperCase();
+        title = key;
+      }
+      if (!groups[key]) groups[key] = { title, elements: [] };
+      groups[key].elements.push(f);
+    });
+
+    container.innerHTML = "";
+
+    let keys = Object.keys(groups);
+    if (currentGroup === "severity") {
+      const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+      keys.sort((a, b) => {
+        let ia = order.indexOf(a);
+        let ib = order.indexOf(b);
+        if (ia === -1) ia = 99;
+        if (ib === -1) ib = 99;
+        return ia - ib;
+      });
+    } else {
+      keys.sort();
+    }
+
+    keys.forEach(key => {
+      const group = groups[key];
+      let header;
+      if (currentGroup === "category" && headersMap[key]) {
+        header = headersMap[key];
+        let countSpan = header.querySelector(".group-count");
+        if (!countSpan) {
+          countSpan = document.createElement("span");
+          countSpan.className = "group-count";
+          header.appendChild(countSpan);
+        }
+        countSpan.textContent = `(${group.elements.length})`;
+      } else {
+        header = document.createElement("h2");
+        header.className = "group-header";
+        
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = group.title;
+        header.appendChild(titleSpan);
+        
+        const countSpan = document.createElement("span");
+        countSpan.className = "group-count";
+        countSpan.textContent = `(${group.elements.length})`;
+        header.appendChild(countSpan);
+      }
+      container.appendChild(header);
+      group.elements.forEach(el => container.appendChild(el));
+    });
+  }
+
+  updateUI();
+});
+</script>
 </body>
 </html>

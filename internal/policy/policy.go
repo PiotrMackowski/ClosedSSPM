@@ -236,8 +236,8 @@ func getStringField(record collector.Record, field string) string {
 // recordToStringMap converts a record to a map of string values.
 func recordToStringMap(record collector.Record) map[string]string {
 	result := make(map[string]string)
-	for k, v := range record {
-		result[k] = fmt.Sprintf("%v", v)
+	for k := range record {
+		result[k] = getStringField(record, k)
 	}
 	return result
 }
