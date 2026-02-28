@@ -12,12 +12,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
-	"github.com/PiotrMackowski/ClosedSSPM/internal/connector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/connector/servicenow"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/mcpserver"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/policy"
@@ -38,13 +37,15 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "closedsspm",
 		Short: "ClosedSSPM - Open Source SaaS Security Posture Management",
-		Long: fmt.Sprintf(`ClosedSSPM audits SaaS platforms for security misconfigurations.
+		Long: `ClosedSSPM audits SaaS platforms for security misconfigurations.
+Currently supports ServiceNow with planned support for additional platforms.
 
-Supported platforms: %s
-
-Use --platform to select which connector to use (default: servicenow).
-Credentials are read from environment variables specific to each platform.
-Run 'closedsspm audit --help' for details.`, strings.Join(connector.List(), ", ")),
+Credentials are read from environment variables:
+  SNOW_INSTANCE    - ServiceNow instance URL (e.g. https://mycompany.service-now.com)
+  SNOW_USERNAME    - Username for basic auth
+  SNOW_PASSWORD    - Password for basic auth
+  SNOW_CLIENT_ID   - OAuth client ID (alternative to basic auth)
+  SNOW_CLIENT_SECRET - OAuth client secret (alternative to basic auth)`,
 		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
 	}
 
@@ -62,6 +63,42 @@ Run 'closedsspm audit --help' for details.`, strings.Join(connector.List(), ", "
 }
 
 // --- Helper Functions ---
+
+// getConnectorConfig builds a ConnectorConfig from environment variables and flags.
+func getConnectorConfig(cmd *cobra.Command) collector.ConnectorConfig {
+	instance := envOrFlag(cmd, "instance", "SNOW_INSTANCE")
+	username := os.Getenv("SNOW_USERNAME")
+	password := os.Getenv("SNOW_PASSWORD")
+	clientID := os.Getenv("SNOW_CLIENT_ID")
+	clientSecret := os.Getenv("SNOW_CLIENT_SECRET")
+
+	authMethod := "basic"
+	if clientID != "" && clientSecret != "" {
+		authMethod = "oauth"
+	}
+
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
+	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
+
+	return collector.ConnectorConfig{
+		InstanceURL:  instance,
+		AuthMethod:   authMethod,
+		Username:     username,
+		Password:     password,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Concurrency:  concurrency,
+		RateLimit:    rateLimit,
+	}
+}
+
+func envOrFlag(cmd *cobra.Command, flag, env string) string {
+	val, _ := cmd.Flags().GetString(flag)
+	if val != "" {
+		return val
+	}
+	return os.Getenv(env)
+}
 
 // loadSnapshot loads a snapshot from a JSON file.
 func loadSnapshot(path string) (*collector.Snapshot, error) {
@@ -177,26 +214,21 @@ func newAuditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Run a full security audit (collect + evaluate + report)",
-		Long:  `Connects to a SaaS platform, collects security-relevant data,\nevaluates it against all policies, and generates a report.`,
+		Long: `Connects to a ServiceNow instance, collects security-relevant data,
+evaluates it against all policies, and generates a report.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
 
-			platform, _ := cmd.Flags().GetString("platform")
-			factory, configBuilder, err := connector.Get(platform)
-			if err != nil {
-				return err
-			}
-
-			config := configBuilder(cmd)
+			config := getConnectorConfig(cmd)
 			output, _ := cmd.Flags().GetString("output")
 			format, _ := cmd.Flags().GetString("format")
 			snapshotOutput, _ := cmd.Flags().GetString("save-snapshot")
 			policiesDir := getPoliciesDir(cmd)
 
 			// Collect.
-			log.Printf("Starting %s data collection...", platform)
-			coll := factory()
+			log.Println("Starting ServiceNow data collection...")
+			coll := &servicenow.ServiceNowCollector{}
 			snapshot, err := coll.Collect(ctx, config)
 			if err != nil {
 				return fmt.Errorf("collection failed: %w", err)
@@ -230,8 +262,7 @@ func newAuditCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("platform", "servicenow", "SaaS platform to audit (available: "+strings.Join(connector.List(), ", ")+")")
-	cmd.Flags().String("instance", "", "Platform instance URL (or set via env var)")
+	cmd.Flags().String("instance", "", "ServiceNow instance URL (or set SNOW_INSTANCE)")
 	cmd.Flags().String("output", "report.html", "Output file path")
 	cmd.Flags().String("format", "html", "Report format: html or json")
 	cmd.Flags().String("save-snapshot", "", "Also save the raw snapshot to this file")
@@ -245,23 +276,17 @@ func newAuditCmd() *cobra.Command {
 func newCollectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "collect",
-		Short: "Collect data from a SaaS platform (no evaluation)",
-		Long:  `Connects to a SaaS platform and saves a snapshot for offline analysis.`,
+		Short: "Collect data from a ServiceNow instance (no evaluation)",
+		Long:  `Connects to a ServiceNow instance and saves a snapshot for offline analysis.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
 
-			platform, _ := cmd.Flags().GetString("platform")
-			factory, configBuilder, err := connector.Get(platform)
-			if err != nil {
-				return err
-			}
-
-			config := configBuilder(cmd)
+			config := getConnectorConfig(cmd)
 			output, _ := cmd.Flags().GetString("output")
 
-			log.Printf("Starting %s data collection...", platform)
-			coll := factory()
+			log.Println("Starting ServiceNow data collection...")
+			coll := &servicenow.ServiceNowCollector{}
 			snapshot, err := coll.Collect(ctx, config)
 			if err != nil {
 				return fmt.Errorf("collection failed: %w", err)
@@ -276,8 +301,7 @@ func newCollectCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("platform", "servicenow", "SaaS platform to collect from (available: "+strings.Join(connector.List(), ", ")+")")
-	cmd.Flags().String("instance", "", "Platform instance URL (or set via env var)")
+	cmd.Flags().String("instance", "", "ServiceNow instance URL (or set SNOW_INSTANCE)")
 	cmd.Flags().String("output", "snapshot.json", "Output snapshot file path")
 	cmd.Flags().Int("concurrency", 5, "Max parallel API requests")
 	cmd.Flags().Float64("rate-limit", 10.0, "Max API requests per second")
