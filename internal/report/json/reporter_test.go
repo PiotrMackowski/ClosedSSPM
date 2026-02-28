@@ -21,9 +21,9 @@ func TestReporterGenerate(t *testing.T) {
 			Resource:    "test_table:abc",
 			Evidence: []finding.Evidence{
 				{
-					Table:        "test_table",
-					SysID:        "abc",
-					DisplayValue: "test_record",
+				ResourceType: "test_table",
+				ResourceID:   "abc",
+				DisplayName:  "test_record",
 					Fields:       map[string]string{"field1": "val1"},
 				},
 			},

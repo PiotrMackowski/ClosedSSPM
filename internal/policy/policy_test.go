@@ -215,8 +215,8 @@ func TestEvaluatePolicy(t *testing.T) {
 	if len(f.Evidence) != 1 {
 		t.Fatalf("Evidence count = %d, want 1", len(f.Evidence))
 	}
-	if f.Evidence[0].SysID != "rec2" {
-		t.Errorf("Evidence SysID = %q, want %q", f.Evidence[0].SysID, "rec2")
+	if f.Evidence[0].ResourceID != "rec2" {
+		t.Errorf("Evidence ResourceID = %q, want %q", f.Evidence[0].ResourceID, "rec2")
 	}
 }
 

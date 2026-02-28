@@ -34,12 +34,14 @@ func SeverityOrder(s Severity) int {
 
 // Evidence represents a specific piece of evidence supporting a finding.
 type Evidence struct {
-	// Table is the ServiceNow table the evidence came from.
-	Table string `json:"table"`
-	// SysID is the sys_id of the record.
-	SysID string `json:"sys_id"`
-	// DisplayValue is a human-readable description of the evidence.
-	DisplayValue string `json:"display_value"`
+	// ResourceType identifies the kind of resource (e.g. ServiceNow table name).
+	ResourceType string `json:"resource_type"`
+	// ResourceID is the unique identifier of the resource.
+	ResourceID string `json:"resource_id"`
+	// DisplayName is a human-readable label for the resource.
+	DisplayName string `json:"display_name"`
+	// Description provides additional context about the evidence.
+	Description string `json:"description,omitempty"`
 	// Fields contains the relevant field values from the record.
 	Fields map[string]string `json:"fields,omitempty"`
 }
