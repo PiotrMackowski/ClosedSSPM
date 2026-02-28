@@ -8,9 +8,7 @@ on:
   schedule:
     - cron: '30 5 * * 1' # Weekly on Monday at 05:30 UTC
 
-permissions:
-  contents: read
-  security-events: write
+permissions: read-all
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +18,9 @@ jobs:
   trivy:
     name: Trivy Image Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout code
