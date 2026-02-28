@@ -11,6 +11,8 @@
 
 Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with deep ServiceNow coverage.
 
+![ClosedSSPM HTML Report](docs/screenshots/report.jpg)
+
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
@@ -19,6 +21,7 @@ Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms 
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
 - **JSON output** — machine-readable output for pipeline integration
+- **CSV export** — spreadsheet-friendly output for compliance workflows
 - **MCP server** — AI-assisted audit analysis via Model Context Protocol (works with Claude, OpenCode, etc.)
 - **Offline analysis** — collect data once, analyze many times with snapshot persistence
 - **Parallel collection** — concurrent API requests with configurable rate limiting
@@ -144,7 +147,7 @@ Flags:
   --platform string       SaaS platform to audit (default "servicenow")
   --instance string       Platform instance URL (or set via env var)
   --output string         Output file path (default "report.html")
-  --format string         Report format: html or json (default "html")
+  --format string         Report format: html, json, or csv (default "html")
   --policies string       Path to custom policies directory (default: embedded)
   --save-snapshot string  Also save the raw snapshot to this file
   --concurrency int       Max parallel API requests (default 5)
@@ -172,7 +175,7 @@ Evaluate policies against a previously saved snapshot.
 Flags:
   --snapshot string   Path to snapshot file (default "snapshot.json")
   --output string     Output file path (default "report.html")
-  --format string     Report format: html or json (default "html")
+  --format string     Report format: html, json, or csv (default "html")
   --policies string   Path to custom policies directory (default: embedded)
 ```
 
@@ -218,6 +221,7 @@ closedsspm/
 ├── cmd/
 │   ├── closedsspm/
 │   │   ├── main.go          # CLI commands (platform-agnostic)
+│   │   ├── main_test.go     # CLI helper tests
 │   │   └── platforms.go     # Blank imports to register platform connectors
 │   └── mcp/                 # Standalone MCP server
 ├── internal/
@@ -229,8 +233,9 @@ closedsspm/
 │   ├── mcpserver/            # MCP server implementation
 │   ├── policy/               # Policy engine (YAML loading & evaluation)
 │   └── report/
-│       ├── html/             # HTML report generator
-│       └── json/             # JSON report generator
+│       ├── csv/             # CSV report generator
+│       ├── html/            # HTML report generator
+│       └── json/            # JSON report generator
 └── policies/
     └── servicenow/           # ServiceNow policy definitions (YAML, embedded at build)
 ```

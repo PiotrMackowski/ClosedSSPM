@@ -33,6 +33,8 @@ go.work.sum
 
 # Build output
 bin/
+/closedsspm
+/closedsspm-mcp
 
 # Snapshots (may contain sensitive data)
 *.snapshot.json
@@ -42,8 +44,10 @@ snapshot_*.json
 # Reports (generated output, root-level only)
 /report.html
 /report.json
+/report.csv
 /report_*.html
 /report_*.json
+/report_*.csv
 
 # OS files
 .DS_Store
