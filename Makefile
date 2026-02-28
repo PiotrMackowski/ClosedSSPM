@@ -1,4 +1,4 @@
-.PHONY: build build-mcp clean test lint run-checks help
+.PHONY: build build-mcp clean test vet lint run-checks docker snapshot-check tidy help
 
 BINARY=closedsspm
 MCP_BINARY=closedsspm-mcp
@@ -20,11 +20,15 @@ all: build build-mcp
 
 ## clean: Remove build artifacts
 clean:
-	rm -rf bin/
+	rm -rf bin/ dist/
 
 ## test: Run all tests
 test:
-	go test -v -race ./...
+	go test -v -count=1 ./...
+
+## vet: Run go vet
+vet:
+	go vet ./...
 
 ## lint: Run linter
 lint:
@@ -33,6 +37,14 @@ lint:
 ## run-checks: List all available security checks
 run-checks: build
 	./bin/$(BINARY) checks list
+
+## snapshot-check: Validate goreleaser config
+snapshot-check:
+	goreleaser check
+
+## docker: Build Docker image locally
+docker:
+	docker build -t closedsspm:local .
 
 ## tidy: Clean up go.mod and go.sum
 tidy:
