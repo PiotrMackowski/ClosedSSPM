@@ -1,0 +1,24 @@
+id: SNOW-INT-007
+title: "Scripted REST operation contains eval() or GlideRecord in script"
+description: >
+  A scripted REST API operation contains potentially dangerous script patterns
+  such as eval() calls. These patterns in REST-accessible code increase the
+  risk of server-side injection if input is not properly validated.
+severity: MEDIUM
+category: Integrations
+platform: servicenow
+query:
+  table: sys_ws_operation
+  field_conditions:
+    - field: "operation_script"
+      operator: "contains"
+      value: "eval("
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove eval() calls from scripted REST operation scripts. Use safe
+  alternatives such as JSON.parse() for data parsing. Ensure all user
+  inputs are validated and sanitized before use in any script operations.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-application-development/page/integrate/custom-web-services/concept/c_CustomWebServices.html"

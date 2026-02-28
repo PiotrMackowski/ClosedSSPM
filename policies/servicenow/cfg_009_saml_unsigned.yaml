@@ -1,0 +1,27 @@
+id: SNOW-CFG-009
+title: "SAML identity provider with unsigned assertions"
+description: >
+  A SAML 2.0 identity provider configuration does not require signed
+  assertions. Without assertion signing, an attacker who can intercept
+  SAML responses can forge authentication assertions, bypassing SSO
+  authentication entirely. This is a critical authentication bypass risk.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: saml2_update1
+  field_conditions:
+    - field: "want_assertions_signed"
+      operator: "not_equals"
+      value: "true"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Enable assertion signing on all active SAML identity provider configurations
+  by setting want_assertions_signed to true. Coordinate with the IdP
+  administrator to ensure the IdP is configured to sign assertions.
+  Use SHA-256 or stronger signing algorithm. Test SSO login after
+  enabling assertion signing to verify proper configuration.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/integrate/saml/concept/c_SAML2.0.html"

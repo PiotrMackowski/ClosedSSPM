@@ -86,6 +86,30 @@ var securityTables = []tableSpec{
 		Name:   "sc_cat_item",
 		Fields: []string{"sys_id", "name", "active", "visible_standalone", "category"},
 	},
+	{
+		Name:   "sys_ws_operation",
+		Fields: []string{"sys_id", "name", "http_method", "requires_acl_authorization", "active", "web_service_definition", "operation_script"},
+	},
+	{
+		Name:   "sys_certificate",
+		Fields: []string{"sys_id", "name", "type", "expires", "active", "format"},
+	},
+	{
+		Name:   "ldap_server_config",
+		Fields: []string{"sys_id", "name", "server_url", "ssl", "active", "login_distinguished_name"},
+	},
+	{
+		Name:   "saml2_update1",
+		Fields: []string{"sys_id", "name", "active", "is_default", "signing_algorithm", "want_assertions_signed"},
+	},
+	{
+		Name:   "sys_auth_profile",
+		Fields: []string{"sys_id", "name", "type", "active"},
+	},
+	{
+		Name:   "ip_address",
+		Fields: []string{"sys_id", "ip_address", "ip_version", "type", "active"},
+	},
 }
 
 // ServiceNowCollector implements the collector.Collector interface for ServiceNow.

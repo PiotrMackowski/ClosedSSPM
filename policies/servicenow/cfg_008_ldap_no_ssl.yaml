@@ -1,0 +1,26 @@
+id: SNOW-CFG-008
+title: "LDAP server connection without SSL/TLS encryption"
+description: >
+  An LDAP server configuration does not have SSL enabled. Without encryption,
+  LDAP bind credentials (including the login distinguished name and password)
+  are transmitted in cleartext. This allows network attackers to intercept
+  directory service credentials via man-in-the-middle attacks.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: ldap_server_config
+  field_conditions:
+    - field: "ssl"
+      operator: "not_equals"
+      value: "true"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Enable SSL on all LDAP server configurations by setting ssl to true.
+  Use LDAPS (port 636) or StartTLS to encrypt all LDAP communications.
+  Verify that the LDAP server's TLS certificate is trusted by adding it
+  to the instance trust store. Test the connection after enabling SSL.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/integrate/ldap/concept/c_LDAPIntegration.html"

@@ -3,7 +3,9 @@ package servicenow
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +17,17 @@ import (
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"golang.org/x/time/rate"
+)
+
+const (
+	// version is used in the User-Agent header.
+	version = "0.1.0"
+
+	// maxResponseBodySize limits API response bodies to 50MB to prevent memory exhaustion.
+	maxResponseBodySize = 50 * 1024 * 1024
+
+	// maxRedirects limits the number of HTTP redirects followed.
+	maxRedirects = 5
 )
 
 const (
@@ -79,10 +92,35 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 
 	pageSize := defaultPageSize
 
+	// Build a hardened HTTP client:
+	// - TLS 1.2 minimum (API Security Checklist)
+	// - Controlled redirect policy (prevent SSRF via open redirects)
+	// - Reasonable timeout
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+
+	redirectCount := 0
+	checkRedirect := func(req *http.Request, via []*http.Request) error {
+		redirectCount++
+		if redirectCount > maxRedirects {
+			return fmt.Errorf("exceeded maximum redirects (%d)", maxRedirects)
+		}
+		// Only allow redirects to the same host to prevent SSRF.
+		if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+			return fmt.Errorf("redirect to different host %q blocked", req.URL.Host)
+		}
+		return nil
+	}
+
 	c := &Client{
 		baseURL: instanceURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:       30 * time.Second,
+			Transport:     transport,
+			CheckRedirect: checkRedirect,
 		},
 		rateLimiter:  rate.NewLimiter(rate.Limit(rl), 1),
 		pageSize:     pageSize,
@@ -113,8 +151,11 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 	return c, nil
 }
 
-// authenticate sets authentication on the request.
+// authenticate sets authentication and standard headers on the request.
 func (c *Client) authenticate(ctx context.Context, req *http.Request) error {
+	// Always set User-Agent for auditability and rate-limit identification.
+	req.Header.Set("User-Agent", "ClosedSSPM/"+version)
+
 	switch c.authMethod {
 	case "basic":
 		req.SetBasicAuth(c.username, c.password)
@@ -126,6 +167,31 @@ func (c *Client) authenticate(ctx context.Context, req *http.Request) error {
 		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
 	return nil
+}
+
+// readLimitedBody reads at most maxResponseBodySize bytes from the response body.
+// Returns an error if the body exceeds the limit.
+func readLimitedBody(body io.Reader) ([]byte, error) {
+	limited := io.LimitReader(body, maxResponseBodySize+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxResponseBodySize {
+		return nil, errors.New("response body exceeds maximum allowed size")
+	}
+	return data, nil
+}
+
+// sanitizeErrorBody truncates and sanitizes response bodies for error messages
+// to prevent leaking sensitive information in logs.
+func sanitizeErrorBody(body []byte) string {
+	const maxErrorBodyLen = 256
+	s := string(body)
+	if len(s) > maxErrorBodyLen {
+		s = s[:maxErrorBodyLen] + "...(truncated)"
+	}
+	return s
 }
 
 // getOAuthToken returns a valid OAuth token, refreshing if necessary.
@@ -150,6 +216,7 @@ func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
 		return nil, fmt.Errorf("creating token request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "ClosedSSPM/"+version)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -158,12 +225,12 @@ func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, string(body))
+		body, _ := readLimitedBody(resp.Body)
+		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
 	}
 
 	var token OAuthToken
-	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&token); err != nil {
 		return nil, fmt.Errorf("decoding token response: %w", err)
 	}
 	token.expiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
@@ -219,12 +286,12 @@ func (c *Client) QueryTable(ctx context.Context, table string, fields []string) 
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, fmt.Errorf("table %s query failed (status %d): %s", table, resp.StatusCode, string(body))
+			body, _ := readLimitedBody(resp.Body)
+			return nil, fmt.Errorf("table %s query failed (status %d): %s", table, resp.StatusCode, sanitizeErrorBody(body))
 		}
 
 		var result QueryTableResponse
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&result); err != nil {
 			return nil, fmt.Errorf("decoding response for %s: %w", table, err)
 		}
 
