@@ -6,8 +6,7 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: read-all
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +16,8 @@ jobs:
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code

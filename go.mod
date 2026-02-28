@@ -1,6 +1,6 @@
 module github.com/PiotrMackowski/ClosedSSPM
 
-go 1.24.0
+go 1.24.13
 
 require (
 	github.com/mark3labs/mcp-go v0.44.1
