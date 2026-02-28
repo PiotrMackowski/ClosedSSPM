@@ -127,6 +127,78 @@ By default the binary uses its 40 embedded policies. To override with external p
 closedsspm audit --policies /path/to/my/policies --output report.html
 ```
 
+## CLI Reference
+
+### `closedsspm audit`
+
+Run a full security audit: connect to ServiceNow, collect data, evaluate policies, and generate a report.
+
+```
+Flags:
+  --instance string        ServiceNow instance URL (or set SNOW_INSTANCE)
+  --output string          Output file path (default "report.html")
+  --format string          Report format: html or json (default "html")
+  --policies string        Path to custom policies directory (default: embedded)
+  --save-snapshot string   Also save the raw snapshot to this file
+  --concurrency int        Max parallel API requests (default 5)
+  --rate-limit float       Max API requests per second (default 10)
+```
+
+### `closedsspm collect`
+
+Collect data from a ServiceNow instance and save a snapshot for offline analysis.
+
+```
+Flags:
+  --instance string    ServiceNow instance URL (or set SNOW_INSTANCE)
+  --output string      Output snapshot file path (default "snapshot.json")
+  --concurrency int    Max parallel API requests (default 5)
+  --rate-limit float   Max API requests per second (default 10)
+```
+
+### `closedsspm evaluate`
+
+Evaluate policies against a previously saved snapshot.
+
+```
+Flags:
+  --snapshot string   Path to snapshot file (default "snapshot.json")
+  --output string     Output file path (default "report.html")
+  --format string     Report format: html or json (default "html")
+  --policies string   Path to custom policies directory (default: embedded)
+```
+
+### `closedsspm mcp`
+
+Start a Model Context Protocol server over stdio for AI-assisted audit analysis.
+
+```
+Flags:
+  --snapshot string   Path to snapshot file (default "snapshot.json")
+  --policies string   Path to custom policies directory (default: embedded)
+```
+
+### `closedsspm checks list`
+
+List all available security checks.
+
+```
+Flags:
+  --policies string   Path to custom policies directory (default: embedded)
+```
+
+### Environment Variables
+
+All credentials are read from environment variables. **Never store credentials in config files.**
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SNOW_INSTANCE` | ServiceNow instance URL (e.g. `https://mycompany.service-now.com`) | Yes |
+| `SNOW_USERNAME` | Username for basic authentication | Yes (unless using OAuth) |
+| `SNOW_PASSWORD` | Password for basic authentication | Yes (unless using OAuth) |
+| `SNOW_CLIENT_ID` | OAuth 2.0 client ID | Yes (if using OAuth) |
+| `SNOW_CLIENT_SECRET` | OAuth 2.0 client secret | Yes (if using OAuth) |
+
 ## Architecture
 
 ```
@@ -209,16 +281,27 @@ closedsspm/
 
 </details>
 
-## MCP Tools
+## MCP Server Interface
 
-| Tool | Description |
-|------|-------------|
-| `list_findings` | List findings with optional severity/category filters |
-| `get_finding` | Get detailed finding by ID |
-| `get_summary` | Audit summary with posture score |
-| `query_snapshot` | Query raw ServiceNow data from the snapshot |
-| `suggest_remediation` | Remediation steps for a finding |
-| `list_tables` | List collected tables with record counts |
+The MCP server exposes 6 tools and 2 resources over **stdio transport** for AI-assisted security audit analysis.
+
+### Tools
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `list_findings` | `severity?` `category?` | List findings, optionally filtered by severity (CRITICAL/HIGH/MEDIUM/LOW/INFO) or category |
+| `get_finding` | `finding_id` (required) | Get detailed information about a specific finding |
+| `get_summary` | _(none)_ | Overall audit summary with posture score and finding counts by severity/category |
+| `query_snapshot` | `table` (required) `field?` `value?` `limit?` | Query raw ServiceNow records from the snapshot (default limit: 50, max: 500) |
+| `suggest_remediation` | `finding_id` (required) | Get remediation steps and context for a specific finding |
+| `list_tables` | _(none)_ | List all collected tables with record counts |
+
+### Resources
+
+| URI | Description |
+|-----|-------------|
+| `closedsspm://summary` | Audit posture summary (JSON) |
+| `closedsspm://snapshot/meta` | Snapshot metadata: platform, instance URL, collection time, table count (JSON) |
 
 ## Security Best Practices
 
@@ -256,6 +339,56 @@ remediation: "How to fix the issue"
 references:
   - "https://docs.example.com"
 ```
+
+## Testing
+
+Run the full test suite:
+
+```bash
+make test
+# or directly:
+go test ./...
+```
+
+Run static analysis:
+
+```bash
+make vet
+go vet ./...
+```
+
+All pull requests must pass CI (tests + `go vet`) before merging.
+
+## Contributing
+
+Contributions are welcome. Please follow these guidelines:
+
+1. **Open an issue first** — describe the bug or feature before starting work
+2. **Fork and branch** — create a feature branch from `main`
+3. **Follow existing patterns** — match the project's code style and structure
+4. **Add tests** — new features and bug fixes should include tests
+5. **All CI checks must pass** — tests, `go vet`, CodeQL, and Trivy scans
+6. **One PR per change** — keep pull requests focused and reviewable
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities (do **not** use public issues for security bugs).
+
+## Reporting Issues
+
+Found a bug or have a feature request? Open an issue on the [GitHub Issues](https://github.com/PiotrMackowski/ClosedSSPM/issues) page.
+
+When reporting a bug, please include:
+- ClosedSSPM version (`closedsspm --version`)
+- Operating system and architecture
+- Steps to reproduce the issue
+- Expected vs actual behavior
+- Any relevant error output (sanitize credentials before sharing)
+
+## Reporting Vulnerabilities
+
+**Do not report security vulnerabilities through public issues.**
+
+Please use [GitHub Security Advisories](https://github.com/PiotrMackowski/ClosedSSPM/security/advisories/new) to report vulnerabilities privately. See [SECURITY.md](SECURITY.md) for full details including response timelines and scope.
+
 
 ## License
 
