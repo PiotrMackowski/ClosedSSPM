@@ -18,8 +18,8 @@ func TestLoadPolicies(t *testing.T) {
 		t.Fatalf("LoadPolicies() error: %v", err)
 	}
 
-	if len(policies) != 40 {
-		t.Errorf("LoadPolicies() returned %d policies, want 40", len(policies))
+	if len(policies) != 41 {
+		t.Errorf("LoadPolicies() returned %d policies, want 41", len(policies))
 	}
 
 	// Check that all policies have required fields.
@@ -424,8 +424,8 @@ func TestLoadPoliciesFS(t *testing.T) {
 		t.Fatalf("LoadPoliciesFS() error: %v", err)
 	}
 
-	if len(pols) != 40 {
-		t.Errorf("LoadPoliciesFS() returned %d policies, want 40", len(pols))
+	if len(pols) != 41 {
+		t.Errorf("LoadPoliciesFS() returned %d policies, want 41", len(pols))
 	}
 
 	// Verify all policies have required fields.

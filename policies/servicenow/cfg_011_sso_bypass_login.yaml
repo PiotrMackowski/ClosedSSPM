@@ -1,0 +1,33 @@
+id: SNOW-CFG-011
+title: "SSO bypass via direct login.do access not restricted"
+description: >
+  The system property glide.authenticate.sso.redirect.url is configured
+  (indicating SSO is enabled) but the instance does not block direct
+  access to login.do. When SSO is configured without restricting the
+  local login endpoint, users and attackers can bypass SSO entirely by
+  navigating to https://<instance>.service-now.com/login.do — defeating
+  MFA, conditional access policies, and session controls enforced by the
+  identity provider. This is a critical SSO bypass vulnerability.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.authenticate.sso.redirect.url"
+    - field: "value"
+      operator: "not_empty"
+remediation: >
+  Restrict direct login.do access when SSO is enabled. Set the system
+  property glide.authenticate.multisso.enabled to true and configure
+  glide.authenticate.redirect to the SSO login page. Additionally, set
+  up ACLs or property glide.security.use_sso to enforce SSO for all
+  users. Consider IP-restricting login.do to internal networks only.
+  Test that SSO login works correctly after applying restrictions, and
+  verify that emergency local admin access is still possible via a
+  documented break-glass procedure (e.g. side_door or nav_to).
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/integrate/single-sign-on/concept/c_SingleSignOn.html"
+  - "https://support.servicenow.com/kb?id=kb_article_view&sysparm_article=KB0547642"
