@@ -7,12 +7,13 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/PiotrMackowski/ClosedSSPM)](go.mod)
 [![Release](https://img.shields.io/github/v/release/PiotrMackowski/ClosedSSPM?include_prereleases)](https://github.com/PiotrMackowski/ClosedSSPM/releases)
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/12061/baseline)](https://www.bestpractices.dev/projects/12061)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PiotrMackowski/ClosedSSPM/badge)](https://scorecard.dev/viewer/?uri=github.com/PiotrMackowski/ClosedSSPM)
 
 Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with deep ServiceNow coverage.
 
 ## Features
 
-- **40 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
+- **41 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
@@ -229,7 +230,7 @@ closedsspm/
 
 ## Security Checks
 
-40 built-in checks across 6 categories:
+41 built-in checks across 6 categories:
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -237,7 +238,7 @@ closedsspm/
 | **Roles** | 5 | Admin role assignments, elevated privileges, role includes |
 | **Scripts** | 6 | eval() usage, client-callable script includes, global UI scripts |
 | **Integrations** | 7 | Unauthenticated endpoints, basic auth, unvalidated MID servers |
-| **Instance Config** | 10 | HTTPS enforcement, session timeout, password policy, SAML signing |
+| **Instance Config** | 11 | HTTPS enforcement, session timeout, password policy, SAML signing, SSO bypass |
 | **Users** | 4 | Never-logged-in accounts, locked-out active users |
 
 <details>
@@ -281,6 +282,7 @@ closedsspm/
 | SNOW-CFG-008 | CRITICAL | Instance Config | LDAP server connection without SSL/TLS encryption |
 | SNOW-CFG-009 | CRITICAL | Instance Config | SAML identity provider with unsigned assertions |
 | SNOW-CFG-010 | HIGH | Instance Config | SAML identity provider using weak signing algorithm |
+| SNOW-CFG-011 | CRITICAL | Instance Config | SSO bypass via direct login.do access not restricted |
 | SNOW-USER-001 | MEDIUM | Users | Active user account that has never logged in |
 | SNOW-USER-002 | HIGH | Users | Locked out user account still active |
 | SNOW-USER-003 | MEDIUM | Users | User account sourced from external directory but active |
