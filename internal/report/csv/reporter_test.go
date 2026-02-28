@@ -21,10 +21,10 @@ func TestReporterGenerate(t *testing.T) {
 			Resource:    "test_table:abc",
 			Evidence: []finding.Evidence{
 				{
-					Table:        "test_table",
-					SysID:        "abc",
-					DisplayValue: "test_record",
-					Fields:       map[string]string{"field1": "val1", "active": "true"},
+				ResourceType: "test_table",
+				ResourceID:   "abc",
+				DisplayName:  "test_record",
+				Fields:       map[string]string{"field1": "val1", "active": "true"},
 				},
 			},
 			Remediation: "Fix the thing",
@@ -59,7 +59,7 @@ func TestReporterGenerate(t *testing.T) {
 	}
 
 	// Check header.
-	expectedHeader := "ID,PolicyID,Title,Description,Severity,Category,Resource,Remediation,EvidenceTable,EvidenceSysID,EvidenceDisplayValue"
+	expectedHeader := "ID,PolicyID,Title,Description,Severity,Category,Resource,Remediation,EvidenceResourceType,EvidenceResourceID,EvidenceDisplayName,EvidenceDescription"
 	if lines[0] != expectedHeader {
 		t.Errorf("Header mismatch:\ngot:  %s\nwant: %s", lines[0], expectedHeader)
 	}
@@ -105,8 +105,8 @@ func TestReporterGenerateEmpty(t *testing.T) {
 
 func TestEvidenceColumns(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
-		table, sysID, display := evidenceColumns(nil)
-		if table != "" || sysID != "" || display != "" {
+		resType, resID, name, desc := evidenceColumns(nil)
+		if resType != "" || resID != "" || name != "" || desc != "" {
 			t.Error("Empty evidence should return empty strings")
 		}
 	})
@@ -114,21 +114,25 @@ func TestEvidenceColumns(t *testing.T) {
 	t.Run("with data", func(t *testing.T) {
 		ev := []finding.Evidence{
 			{
-				Table:        "sys_user",
-				SysID:        "abc123",
-				DisplayValue: "admin",
+				ResourceType: "sys_user",
+				ResourceID:   "abc123",
+				DisplayName:  "admin",
+				Description:  "Admin user account",
 				Fields:       map[string]string{"active": "true"},
 			},
 		}
-		table, sysID, display := evidenceColumns(ev)
-		if table != "sys_user" {
-			t.Errorf("table = %q, want sys_user", table)
+		resType, resID, name, desc := evidenceColumns(ev)
+		if resType != "sys_user" {
+			t.Errorf("resType = %q, want sys_user", resType)
 		}
-		if sysID != "abc123" {
-			t.Errorf("sysID = %q, want abc123", sysID)
+		if resID != "abc123" {
+			t.Errorf("resID = %q, want abc123", resID)
 		}
-		if display != "admin" {
-			t.Errorf("display = %q, want admin", display)
+		if name != "admin" {
+			t.Errorf("name = %q, want admin", name)
+		}
+		if desc != "Admin user account" {
+			t.Errorf("desc = %q, want \"Admin user account\"", desc)
 		}
 	})
 }

@@ -233,7 +233,10 @@
       policyId: f.policy_id || "",
       title: f.title || "",
       searchText: [
-        f.title, f.policy_id, f.category, f.severity, f.resource, f.description
+        f.title, f.policy_id, f.category, f.severity, f.resource, f.description,
+        (f.evidence || []).map(function(e) {
+        return [e.resource_type, e.resource_id, e.display_name, e.description].filter(Boolean).join(" ");
+        }).join(" ")
       ].filter(Boolean).join(" ").toLowerCase()
     };
   });

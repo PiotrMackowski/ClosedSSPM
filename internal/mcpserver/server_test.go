@@ -38,7 +38,7 @@ func newTestAuditData() *AuditData {
 			Category:    "ACL",
 			Resource:    "sys_security_acl:acl1",
 			Evidence: []finding.Evidence{
-				{Table: "sys_security_acl", SysID: "acl1", DisplayValue: "test_acl"},
+			{ResourceType: "sys_security_acl", ResourceID: "acl1", DisplayName: "test_acl"},
 			},
 			Remediation: "Add a condition or script",
 			References:  []string{"https://docs.servicenow.com/acl"},
@@ -52,7 +52,7 @@ func newTestAuditData() *AuditData {
 			Category:    "Roles",
 			Resource:    "sys_user:u1",
 			Evidence: []finding.Evidence{
-				{Table: "sys_user", SysID: "u1", DisplayValue: "admin_user"},
+			{ResourceType: "sys_user", ResourceID: "u1", DisplayName: "admin_user"},
 			},
 			Remediation: "Review admin access",
 		},

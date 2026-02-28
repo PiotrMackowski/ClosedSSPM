@@ -160,10 +160,10 @@ func (e *Evaluator) evaluatePolicy(p Policy, snapshot *collector.Snapshot) ([]fi
 			Resource:    fmt.Sprintf("%s:%s", p.Query.Table, sysID),
 			Evidence: []finding.Evidence{
 				{
-					Table:        p.Query.Table,
-					SysID:        sysID,
-					DisplayValue: displayValue,
-					Fields:       recordToStringMap(record),
+				ResourceType: p.Query.Table,
+				ResourceID:   sysID,
+				DisplayName:  displayValue,
+				Fields:       recordToStringMap(record),
 				},
 			},
 			Remediation: p.Remediation,

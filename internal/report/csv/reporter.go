@@ -17,8 +17,8 @@ type Reporter struct{}
 // columns defines the CSV header row.
 var columns = []string{
 	"ID", "PolicyID", "Title", "Description", "Severity", "Category",
-	"Resource", "Remediation", "EvidenceTable", "EvidenceSysID",
-	"EvidenceDisplayValue",
+	"Resource", "Remediation", "EvidenceResourceType", "EvidenceResourceID",
+	"EvidenceDisplayName", "EvidenceDescription",
 }
 
 // Generate writes a CSV report to the given writer.
@@ -36,7 +36,7 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, _ *collecto
 	}
 
 	for _, f := range findings {
-		evTable, evSysID, evDisplay := evidenceColumns(f.Evidence)
+		evResType, evResID, evName, evDesc := evidenceColumns(f.Evidence)
 		row := []string{
 			f.ID,
 			f.PolicyID,
@@ -46,9 +46,10 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, _ *collecto
 			f.Category,
 			f.Resource,
 			f.Remediation,
-			evTable,
-			evSysID,
-			evDisplay,
+			evResType,
+			evResID,
+			evName,
+			evDesc,
 		}
 		if err := cw.Write(row); err != nil {
 			return fmt.Errorf("writing CSV row: %w", err)
@@ -58,11 +59,11 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, _ *collecto
 	return nil
 }
 
-// evidenceColumns returns the first evidence entry's table, sys_id, and display_value.
-func evidenceColumns(evidence []finding.Evidence) (table, sysID, displayValue string) {
+// evidenceColumns returns the first evidence entry's resource type, resource ID, display name, and description.
+func evidenceColumns(evidence []finding.Evidence) (resType, resID, displayName, description string) {
 	if len(evidence) == 0 {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	ev := evidence[0]
-	return ev.Table, ev.SysID, ev.DisplayValue
+	return ev.ResourceType, ev.ResourceID, ev.DisplayName, ev.Description
 }
