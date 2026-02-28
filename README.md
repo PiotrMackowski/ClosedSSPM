@@ -220,6 +220,12 @@ closedsspm/
     └── servicenow/         # ServiceNow policy definitions (YAML, embedded at build)
 ```
 
+## Subprojects
+
+| Repository | Purpose | Status |
+|------------|---------|--------|
+| [homebrew-closedsspm](https://github.com/PiotrMackowski/homebrew-closedsspm) | Homebrew tap — hosts the formula for `brew install closedsspm` | Active — automatically updated by goreleaser on each release |
+
 ## Security Checks
 
 40 built-in checks across 6 categories:
