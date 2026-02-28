@@ -71,6 +71,34 @@ func TestReporterGenerate(t *testing.T) {
 	if !strings.Contains(output, "CRITICAL") {
 		t.Error("Output should contain severity")
 	}
+
+	// Check search input is present.
+	if !strings.Contains(output, `id="search-input"`) {
+		t.Error("Output should contain search input")
+	}
+
+	// Check expand/collapse buttons are present.
+	if !strings.Contains(output, `id="expand-all-btn"`) {
+		t.Error("Output should contain expand-all button")
+	}
+	if !strings.Contains(output, `id="collapse-all-btn"`) {
+		t.Error("Output should contain collapse-all button")
+	}
+
+	// Check group-by dropdown is present.
+	if !strings.Contains(output, `id="group-by-select"`) {
+		t.Error("Output should contain group-by select")
+	}
+
+	// Check collapsible group CSS class is present.
+	if !strings.Contains(output, "group-findings") {
+		t.Error("Output should contain collapsible group-findings class in JS")
+	}
+
+	// Check sticky toolbar CSS.
+	if !strings.Contains(output, "position: sticky") {
+		t.Error("Output should contain sticky toolbar CSS")
+	}
 }
 
 func TestReporterGenerateNilSnapshot(t *testing.T) {

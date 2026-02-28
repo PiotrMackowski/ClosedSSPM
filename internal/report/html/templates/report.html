@@ -73,7 +73,7 @@
   /* Controls Toolbar */
   .toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
     padding: 1rem; margin: 2rem 0; display: flex; flex-wrap: wrap; gap: 1.5rem;
-    align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
   .toolbar-group { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
   .toolbar-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;
     letter-spacing: 0.05em; font-weight: 600; }
@@ -86,15 +86,47 @@
   .group-select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
     padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; }
   .group-select:focus { border-color: var(--info); }
+  .search-input { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; outline: none;
+    width: 220px; transition: border-color 0.2s ease; }
+  .search-input:focus { border-color: var(--info); }
+  .search-input::placeholder { color: var(--text-muted); }
   .count-display { margin-left: auto; font-size: 0.9rem; color: var(--text-muted); }
   .count-display strong { color: var(--text); }
-  h2.group-header { display: flex; align-items: center; justify-content: space-between; }
-  .group-count { font-size: 1rem; color: var(--text-muted); font-weight: normal; }
+
+  /* Collapsible group headers */
+  .group-section { margin-bottom: 0.5rem; }
+  .group-header { display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none; padding: 0.6rem 0; transition: color 0.15s ease; }
+  .group-header:hover { color: var(--info); }
+  .group-header .chevron { display: inline-block; width: 1rem; font-size: 0.85rem;
+    transition: transform 0.2s ease; margin-right: 0.5rem; flex-shrink: 0; color: var(--text-muted); }
+  .group-header .chevron.open { transform: rotate(90deg); }
+  .group-header-left { display: flex; align-items: center; }
+  .group-count { font-size: 0.9rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem; }
+  .group-findings { overflow: hidden; }
+  .group-findings.collapsed { display: none; }
+  .group-severity-summary { display: flex; gap: 0.4rem; }
+  .group-severity-summary .badge { font-size: 0.65rem; padding: 1px 6px; }
+
+  /* Expand/Collapse all */
+  .expand-collapse-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+    transition: all 0.2s ease; }
+  .expand-collapse-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+
+  /* No results message */
+  .no-results { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 1.1rem; }
+
+  /* Hide regrouped container until JS is ready. Category view is server-rendered visible. */
+  .regroup-container { display: none; }
 
   /* Responsive */
   @media (max-width: 768px) {
     body { padding: 1rem; }
     .summary-grid { grid-template-columns: 1fr 1fr; }
+    .search-input { width: 100%; }
+    .toolbar { position: static; }
   }
 </style>
 </head>
@@ -142,6 +174,10 @@
     <button class="filter-btn" data-filter="INFO" style="--btn-color: var(--info); --btn-text: #000">INFO</button>
   </div>
   <div class="toolbar-group">
+    <span class="toolbar-label">Search:</span>
+    <input type="text" id="search-input" class="search-input" placeholder="Filter findings..." autocomplete="off" spellcheck="false">
+  </div>
+  <div class="toolbar-group">
     <span class="toolbar-label">Group by:</span>
     <select id="group-by-select" class="group-select">
       <option value="category" selected>Category</option>
@@ -149,43 +185,57 @@
       <option value="severity">Severity</option>
     </select>
   </div>
+  <div class="toolbar-group">
+    <button class="expand-collapse-btn" id="expand-all-btn">Expand All</button>
+    <button class="expand-collapse-btn" id="collapse-all-btn">Collapse All</button>
+  </div>
   <div class="count-display">
-    Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> findings
+    Showing <strong id="visible-count">{{ .Summary.Total }}</strong> of <strong id="total-count">{{ .Summary.Total }}</strong> findings
   </div>
 </div>
 
-<!-- Findings by Category -->
+<!-- Server-rendered findings grouped by category (default view, collapsed, zero JS needed) -->
 <div id="findings-container">
 {{ range $category, $findings := .ByCategory }}
-<h2 class="group-header" data-group-name="{{ $category }}">{{ $category }}</h2>
-{{ range $findings }}
-<div class="finding" data-severity="{{ .Severity }}" data-category="{{ $category }}" data-policy-id="{{ .PolicyID }}" data-title="{{ .Title }}">
-  <div class="finding-header">
-    <div>
-      <span class="finding-title">{{ .Title }}</span>
-      <span class="finding-id">{{ .PolicyID }}</span>
+<div class="group-section" data-group-key="{{ $category }}">
+  <h2 class="group-header" data-group-name="{{ $category }}">
+    <div class="group-header-left">
+      <span class="chevron">&#9654;</span>
+      <span>{{ $category }}</span>
+      <span class="group-count">({{ len $findings }})</span>
     </div>
-    <span class="badge {{ severityClass .Severity }}">{{ .Severity }}</span>
-  </div>
-  <div class="finding-body">
-    <p>{{ .Description }}</p>
-    <div class="finding-resource">{{ .Resource }}</div>
-    {{ if .Evidence }}
-    <table class="evidence-table">
-      <tr><th>Field</th><th>Value</th></tr>
-      {{ range .Evidence }}
-      {{ range $k, $v := .Fields }}
-      <tr><td>{{ $k }}</td><td>{{ $v }}</td></tr>
-      {{ end }}
-      {{ end }}
-    </table>
-    {{ end }}
-    {{ if .Remediation }}
-    <div class="finding-remediation"><strong>Remediation:</strong> {{ .Remediation }}</div>
+  </h2>
+  <div class="group-findings collapsed">
+    {{ range $findings }}
+    <div class="finding" data-severity="{{ .Severity }}" data-category="{{ $category }}" data-policy-id="{{ .PolicyID }}" data-title="{{ .Title }}">
+      <div class="finding-header">
+        <div>
+          <span class="finding-title">{{ .Title }}</span>
+          <span class="finding-id">{{ .PolicyID }}</span>
+        </div>
+        <span class="badge {{ severityClass .Severity }}">{{ .Severity }}</span>
+      </div>
+      <div class="finding-body">
+        <p>{{ .Description }}</p>
+        <div class="finding-resource">{{ .Resource }}</div>
+        {{ if .Evidence }}
+        <table class="evidence-table">
+          <tr><th>Field</th><th>Value</th></tr>
+          {{ range .Evidence }}
+          {{ range $k, $v := .Fields }}
+          <tr><td>{{ $k }}</td><td>{{ $v }}</td></tr>
+          {{ end }}
+          {{ end }}
+        </table>
+        {{ end }}
+        {{ if .Remediation }}
+        <div class="finding-remediation"><strong>Remediation:</strong> {{ .Remediation }}</div>
+        {{ end }}
+      </div>
+    </div>
     {{ end }}
   </div>
 </div>
-{{ end }}
 {{ end }}
 </div>
 
@@ -205,25 +255,112 @@
 document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("findings-container");
   if (!container) return;
-  
-  const findings = Array.from(container.querySelectorAll(".finding"));
+
   const totalCountEl = document.getElementById("total-count");
   const visibleCountEl = document.getElementById("visible-count");
-  
-  if(totalCountEl) totalCountEl.textContent = findings.length;
-
-  const originalHeaders = Array.from(container.querySelectorAll("h2.group-header"));
-  const headersMap = {};
-  originalHeaders.forEach(h => {
-    headersMap[h.getAttribute("data-group-name")] = h;
-  });
-
+  const searchInput = document.getElementById("search-input");
   const filterBtns = document.querySelectorAll(".filter-btn");
   const groupBySelect = document.getElementById("group-by-select");
+  const expandAllBtn = document.getElementById("expand-all-btn");
+  const collapseAllBtn = document.getElementById("collapse-all-btn");
+
+  // Index all findings once. Use requestIdleCallback to avoid blocking.
+  const findingEls = Array.from(container.querySelectorAll(".finding"));
+  if (totalCountEl) totalCountEl.textContent = findingEls.length;
+  if (visibleCountEl) visibleCountEl.textContent = findingEls.length;
+
+  // Lightweight index: severity + searchable text per finding.
+  // Built in chunks so the browser stays responsive.
+  const findingData = new Array(findingEls.length);
+  let indexReady = false;
+  let indexPos = 0;
+  const CHUNK = 500;
+
+  function indexChunk() {
+    const end = Math.min(indexPos + CHUNK, findingEls.length);
+    for (let i = indexPos; i < end; i++) {
+      const el = findingEls[i];
+      findingData[i] = {
+        el,
+        severity: (el.getAttribute("data-severity") || "").toUpperCase(),
+        category: el.getAttribute("data-category") || "",
+        policyId: el.getAttribute("data-policy-id") || "",
+        title: el.getAttribute("data-title") || "",
+        searchText: [
+          el.getAttribute("data-title"),
+          el.getAttribute("data-policy-id"),
+          el.getAttribute("data-category"),
+          el.getAttribute("data-severity"),
+          el.querySelector(".finding-resource")?.textContent,
+          el.querySelector(".finding-body > p")?.textContent
+        ].filter(Boolean).join(" ").toLowerCase()
+      };
+    }
+    indexPos = end;
+    if (indexPos < findingEls.length) {
+      requestAnimationFrame(indexChunk);
+    } else {
+      indexReady = true;
+      // Add severity summaries to server-rendered headers now that index is built.
+      addSeveritySummaries();
+    }
+  }
+  requestAnimationFrame(indexChunk);
 
   let activeFilters = new Set(["ALL"]);
   let currentGroup = "category";
+  let searchTerm = "";
+  let debounceTimer = null;
+  const expandedGroups = new Set();
 
+  // --- Toggle a single group ---
+  function toggleGroup(section) {
+    const body = section.querySelector(".group-findings");
+    const chevron = section.querySelector(".chevron");
+    if (!body) return;
+    const key = section.getAttribute("data-group-key");
+    if (body.classList.contains("collapsed")) {
+      body.classList.remove("collapsed");
+      if (chevron) chevron.classList.add("open");
+      if (key) expandedGroups.add(key);
+    } else {
+      body.classList.add("collapsed");
+      if (chevron) chevron.classList.remove("open");
+      if (key) expandedGroups.delete(key);
+    }
+  }
+
+  // Attach click handlers to server-rendered group headers.
+  container.querySelectorAll(".group-header").forEach(header => {
+    header.addEventListener("click", () => toggleGroup(header.closest(".group-section")));
+  });
+
+  // Expand / Collapse all.
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener("click", () => {
+      container.querySelectorAll(".group-section").forEach(section => {
+        const body = section.querySelector(".group-findings");
+        const chevron = section.querySelector(".chevron");
+        const key = section.getAttribute("data-group-key");
+        if (body) body.classList.remove("collapsed");
+        if (chevron) chevron.classList.add("open");
+        if (key) expandedGroups.add(key);
+      });
+    });
+  }
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener("click", () => {
+      expandedGroups.clear();
+      container.querySelectorAll(".group-section").forEach(section => {
+        const body = section.querySelector(".group-findings");
+        const chevron = section.querySelector(".chevron");
+        if (body) body.classList.add("collapsed");
+        if (chevron) chevron.classList.remove("open");
+      });
+    });
+  }
+
+  // Severity filter buttons.
   filterBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       const filter = btn.getAttribute("data-filter");
@@ -232,109 +369,229 @@ document.addEventListener("DOMContentLoaded", () => {
         activeFilters.add("ALL");
       } else {
         activeFilters.delete("ALL");
-        if (activeFilters.has(filter)) {
-          activeFilters.delete(filter);
-        } else {
-          activeFilters.add(filter);
-        }
-        if (activeFilters.size === 0) {
-          activeFilters.add("ALL");
-        }
+        if (activeFilters.has(filter)) activeFilters.delete(filter);
+        else activeFilters.add(filter);
+        if (activeFilters.size === 0) activeFilters.add("ALL");
       }
-      updateUI();
+      applyFilters();
     });
   });
 
+  // Group-by dropdown.
   if (groupBySelect) {
     groupBySelect.addEventListener("change", (e) => {
       currentGroup = e.target.value;
-      updateUI();
+      expandedGroups.clear();
+      applyFilters();
     });
   }
 
-  function updateUI() {
+  // Search input (debounced 200ms).
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        searchTerm = searchInput.value.trim().toLowerCase();
+        applyFilters();
+      }, 200);
+    });
+  }
+
+  // --- Add severity badge summaries to group headers ---
+  function addSeveritySummaries() {
+    container.querySelectorAll(".group-section").forEach(section => {
+      const header = section.querySelector(".group-header");
+      if (!header || header.querySelector(".group-severity-summary")) return;
+      const findings = Array.from(section.querySelectorAll(".finding"));
+      const counts = {};
+      findings.forEach(f => {
+        const s = (f.getAttribute("data-severity") || "").toUpperCase();
+        counts[s] = (counts[s] || 0) + 1;
+      });
+      const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+      const badges = order.filter(s => counts[s])
+        .map(s => `<span class="badge ${s.toLowerCase()}">${counts[s]} ${s}</span>`)
+        .join("");
+      if (badges) {
+        const div = document.createElement("div");
+        div.className = "group-severity-summary";
+        div.innerHTML = badges;
+        header.appendChild(div);
+      }
+    });
+  }
+
+  function buildSeveritySummaryHTML(items) {
+    const counts = {};
+    items.forEach(d => { counts[d.severity] = (counts[d.severity] || 0) + 1; });
+    const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+    return order.filter(s => counts[s])
+      .map(s => `<span class="badge ${s.toLowerCase()}">${counts[s]} ${s}</span>`)
+      .join("");
+  }
+
+  // --- Apply filters: severity, search, group-by ---
+  function applyFilters() {
+    if (!indexReady) {
+      // Index still building; retry in 100ms.
+      setTimeout(applyFilters, 100);
+      return;
+    }
+
+    // Update button states.
     filterBtns.forEach(btn => {
-      if (activeFilters.has(btn.getAttribute("data-filter"))) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
+      btn.classList.toggle("active", activeFilters.has(btn.getAttribute("data-filter")));
     });
 
-    let visibleFindings = [];
-    findings.forEach(f => {
-      const sev = (f.getAttribute("data-severity") || "").toUpperCase();
-      if (activeFilters.has("ALL") || activeFilters.has(sev)) {
-        visibleFindings.push(f);
-      }
+    const needsSeverity = !activeFilters.has("ALL");
+    const needsSearch = searchTerm.length > 0;
+    const needsRegroup = currentGroup !== "category";
+
+    // Fast path: no filters and default grouping — restore server-rendered HTML.
+    if (!needsSeverity && !needsSearch && !needsRegroup) {
+      restoreServerRendered();
+      return;
+    }
+
+    // Filter findings.
+    const visible = findingData.filter(d => {
+      if (needsSeverity && !activeFilters.has(d.severity)) return false;
+      if (needsSearch && !d.searchText.includes(searchTerm)) return false;
+      return true;
     });
 
-    if (visibleCountEl) visibleCountEl.textContent = visibleFindings.length;
+    if (visibleCountEl) visibleCountEl.textContent = visible.length;
 
+    // Group.
     const groups = {};
-    visibleFindings.forEach(f => {
+    visible.forEach(d => {
       let key = "", title = "";
       if (currentGroup === "category") {
-        key = f.getAttribute("data-category");
-        title = key;
+        key = d.category; title = key;
       } else if (currentGroup === "policyId") {
-        key = f.getAttribute("data-policy-id");
-        title = `${key} - ${f.getAttribute("data-title")}`;
+        key = d.policyId; title = key + " \u2014 " + d.title;
       } else if (currentGroup === "severity") {
-        key = (f.getAttribute("data-severity") || "").toUpperCase();
-        title = key;
+        key = d.severity; title = key;
       }
-      if (!groups[key]) groups[key] = { title, elements: [] };
-      groups[key].elements.push(f);
+      if (!groups[key]) groups[key] = { title, items: [] };
+      groups[key].items.push(d);
     });
 
-    container.innerHTML = "";
-
+    // Sort keys.
     let keys = Object.keys(groups);
     if (currentGroup === "severity") {
       const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
       keys.sort((a, b) => {
-        let ia = order.indexOf(a);
-        let ib = order.indexOf(b);
-        if (ia === -1) ia = 99;
-        if (ib === -1) ib = 99;
-        return ia - ib;
+        let ia = order.indexOf(a), ib = order.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
       });
     } else {
       keys.sort();
     }
 
+    // Build new DOM.
+    const fragment = document.createDocumentFragment();
+    if (keys.length === 0) {
+      const msg = document.createElement("div");
+      msg.className = "no-results";
+      msg.textContent = "No findings match the current filters.";
+      fragment.appendChild(msg);
+    }
     keys.forEach(key => {
       const group = groups[key];
-      let header;
-      if (currentGroup === "category" && headersMap[key]) {
-        header = headersMap[key];
-        let countSpan = header.querySelector(".group-count");
-        if (!countSpan) {
-          countSpan = document.createElement("span");
-          countSpan.className = "group-count";
-          header.appendChild(countSpan);
-        }
-        countSpan.textContent = `(${group.elements.length})`;
-      } else {
-        header = document.createElement("h2");
-        header.className = "group-header";
-        
-        const titleSpan = document.createElement("span");
-        titleSpan.textContent = group.title;
-        header.appendChild(titleSpan);
-        
-        const countSpan = document.createElement("span");
-        countSpan.className = "group-count";
-        countSpan.textContent = `(${group.elements.length})`;
-        header.appendChild(countSpan);
+      const isExpanded = expandedGroups.has(key);
+
+      const section = document.createElement("div");
+      section.className = "group-section";
+      section.setAttribute("data-group-key", key);
+
+      const header = document.createElement("h2");
+      header.className = "group-header";
+
+      const left = document.createElement("div");
+      left.className = "group-header-left";
+      left.innerHTML = `<span class="chevron${isExpanded ? " open" : ""}">&#9654;</span><span>${escapeHTML(group.title)}</span><span class="group-count">(${group.items.length})</span>`;
+      header.appendChild(left);
+
+      if (currentGroup !== "severity") {
+        const summary = document.createElement("div");
+        summary.className = "group-severity-summary";
+        summary.innerHTML = buildSeveritySummaryHTML(group.items);
+        header.appendChild(summary);
       }
-      container.appendChild(header);
-      group.elements.forEach(el => container.appendChild(el));
+
+      header.addEventListener("click", () => toggleGroup(section));
+      section.appendChild(header);
+
+      const body = document.createElement("div");
+      body.className = "group-findings" + (isExpanded ? "" : " collapsed");
+      group.items.forEach(d => body.appendChild(d.el));
+      section.appendChild(body);
+
+      fragment.appendChild(section);
     });
+
+    container.innerHTML = "";
+    container.appendChild(fragment);
   }
 
-  updateUI();
+  // Restore the server-rendered category view (no DOM rebuild needed for most).
+  // We need to move findings back into their original category sections.
+  function restoreServerRendered() {
+    if (visibleCountEl) visibleCountEl.textContent = findingEls.length;
+
+    // Re-group by category and rebuild the server-like structure.
+    const groups = {};
+    findingData.forEach(d => {
+      if (!groups[d.category]) groups[d.category] = [];
+      groups[d.category].push(d);
+    });
+
+    const keys = Object.keys(groups).sort();
+    const fragment = document.createDocumentFragment();
+
+    keys.forEach(key => {
+      const items = groups[key];
+      const isExpanded = expandedGroups.has(key);
+
+      const section = document.createElement("div");
+      section.className = "group-section";
+      section.setAttribute("data-group-key", key);
+
+      const header = document.createElement("h2");
+      header.className = "group-header";
+      header.setAttribute("data-group-name", key);
+
+      const left = document.createElement("div");
+      left.className = "group-header-left";
+      left.innerHTML = `<span class="chevron${isExpanded ? " open" : ""}">&#9654;</span><span>${escapeHTML(key)}</span><span class="group-count">(${items.length})</span>`;
+      header.appendChild(left);
+
+      const summary = document.createElement("div");
+      summary.className = "group-severity-summary";
+      summary.innerHTML = buildSeveritySummaryHTML(items);
+      header.appendChild(summary);
+
+      header.addEventListener("click", () => toggleGroup(section));
+      section.appendChild(header);
+
+      const body = document.createElement("div");
+      body.className = "group-findings" + (isExpanded ? "" : " collapsed");
+      items.forEach(d => body.appendChild(d.el));
+      section.appendChild(body);
+
+      fragment.appendChild(section);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(fragment);
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
 });
 </script>
 </body>
