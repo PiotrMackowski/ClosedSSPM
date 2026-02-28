@@ -4,11 +4,70 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/connector"
+	"github.com/spf13/cobra"
 )
+
+// envHelp describes the environment variables used by the ServiceNow connector.
+const envHelp = `ServiceNow credentials (environment variables):
+  SNOW_INSTANCE      - Instance URL (e.g. https://mycompany.service-now.com)
+  SNOW_USERNAME      - Username for basic auth
+  SNOW_PASSWORD      - Password for basic auth
+  SNOW_CLIENT_ID     - OAuth client ID (alternative to basic auth)
+  SNOW_CLIENT_SECRET - OAuth client secret`
+
+func init() {
+	connector.Register(
+		"servicenow",
+		func() collector.Collector { return &ServiceNowCollector{} },
+		ConfigFromEnv,
+		envHelp,
+	)
+}
+
+// ConfigFromEnv builds a ConnectorConfig from ServiceNow environment variables
+// and CLI flags. This is the platform-specific config builder registered with
+// the connector registry.
+func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
+	instance := envOrFlag(cmd, "instance", "SNOW_INSTANCE")
+	username := os.Getenv("SNOW_USERNAME")
+	password := os.Getenv("SNOW_PASSWORD")
+	clientID := os.Getenv("SNOW_CLIENT_ID")
+	clientSecret := os.Getenv("SNOW_CLIENT_SECRET")
+
+	authMethod := "basic"
+	if clientID != "" && clientSecret != "" {
+		authMethod = "oauth"
+	}
+
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
+	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
+
+	return collector.ConnectorConfig{
+		InstanceURL:  instance,
+		AuthMethod:   authMethod,
+		Username:     username,
+		Password:     password,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Concurrency:  concurrency,
+		RateLimit:    rateLimit,
+	}
+}
+
+// envOrFlag returns the flag value if set, otherwise the environment variable.
+func envOrFlag(cmd *cobra.Command, flag, env string) string {
+	val, _ := cmd.Flags().GetString(flag)
+	if val != "" {
+		return val
+	}
+	return os.Getenv(env)
+}
 
 // tableSpec defines a ServiceNow table to collect and its relevant fields.
 type tableSpec struct {
