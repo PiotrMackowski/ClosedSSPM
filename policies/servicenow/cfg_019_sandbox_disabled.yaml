@@ -1,0 +1,30 @@
+id: SNOW-CFG-019
+title: "Script sandbox protection is disabled"
+description: >
+  The system property glide.script.use.sandbox is not set to true. Without
+  the script sandbox, server-side scripts can access restricted Java classes
+  and system resources directly. This removes a critical defense-in-depth
+  layer that prevents malicious or poorly written scripts from accessing
+  the underlying Java runtime, file system, or network resources beyond
+  the intended GlideSystem API surface.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.script.use.sandbox"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.script.use.sandbox to true in System Properties. Before enabling,
+  audit all script includes, business rules, and scheduled jobs for usage of
+  restricted Java classes (e.g. Packages.java.*, GlideHTTPRequest). Refactor
+  scripts to use supported GlideSystem APIs. Test thoroughly in a sub-production
+  instance as enabling the sandbox may break scripts that rely on direct Java
+  class access.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"
