@@ -1,0 +1,28 @@
+id: SNOW-CFG-012
+title: "CSRF token protection is disabled"
+description: >
+  The system property glide.security.use_csrf_token is not set to true.
+  Without CSRF token validation, attackers can craft malicious pages that
+  perform actions on behalf of authenticated users. This enables cross-site
+  request forgery attacks against any ServiceNow form or AJAX endpoint,
+  potentially leading to unauthorized data modification or privilege escalation.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.security.use_csrf_token"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.security.use_csrf_token to true in System Properties. This enables
+  CSRF token validation on all form submissions and AJAX requests. After
+  enabling, test critical workflows (especially custom UI pages and integrations)
+  to ensure they include the CSRF token in requests. Update any custom client
+  scripts that submit forms programmatically to include the sysparm_ck token.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"
