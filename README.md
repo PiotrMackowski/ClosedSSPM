@@ -459,6 +459,10 @@ When reporting a bug, please include:
 Please use [GitHub Security Advisories](https://github.com/PiotrMackowski/ClosedSSPM/security/advisories/new) to report vulnerabilities privately. See [SECURITY.md](SECURITY.md) for full details including response timelines and scope.
 
 
+## Development
+
+This project is developed with AI-assisted coding using [OpenCode](https://github.com/opencode-ai/opencode).
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE)
