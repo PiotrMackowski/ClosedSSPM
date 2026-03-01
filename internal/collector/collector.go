@@ -67,7 +67,7 @@ func (s *Snapshot) GetRecords(table string) []Record {
 type ConnectorConfig struct {
 	// InstanceURL is the base URL of the instance.
 	InstanceURL string
-	// AuthMethod is the authentication method ("basic" or "oauth").
+	// AuthMethod is the authentication method ("basic", "oauth", or "keypair").
 	AuthMethod string
 	// Username for basic auth.
 	Username string
@@ -77,6 +77,12 @@ type ConnectorConfig struct {
 	ClientID string
 	// ClientSecret for OAuth client credentials flow.
 	ClientSecret string
+	// PrivateKeyPath is the path to the RSA private key PEM file for key pair auth.
+	PrivateKeyPath string
+	// KeyID is the kid from the ServiceNow JWT Verifier Map.
+	KeyID string
+	// JWTUser is the ServiceNow username for the JWT sub claim (cannot be admin).
+	JWTUser string
 	// Concurrency is the max number of parallel API requests.
 	Concurrency int
 	// RateLimit is the max requests per second.
