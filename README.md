@@ -87,10 +87,23 @@ make all
 ### Run an Audit
 
 ```bash
-# Set credentials (never store these in config files)
+# --- Option 1: Basic auth ---
 export SNOW_INSTANCE=https://mycompany.service-now.com
 export SNOW_USERNAME=audit_user
 export SNOW_PASSWORD=secret
+
+# --- Option 2: OAuth (client credentials) ---
+export SNOW_INSTANCE=https://mycompany.service-now.com
+export SNOW_CLIENT_ID=your_client_id
+export SNOW_CLIENT_SECRET=your_client_secret
+
+# --- Option 3: Key pair (JWT bearer) ---
+export SNOW_INSTANCE=https://mycompany.service-now.com
+export SNOW_CLIENT_ID=your_client_id
+export SNOW_CLIENT_SECRET=your_client_secret
+export SNOW_PRIVATE_KEY_PATH=/path/to/private-key.pem
+export SNOW_KEY_ID=your_key_id
+export SNOW_JWT_USER=svc_audit_user
 
 # Full audit: collect + evaluate + report (ServiceNow is the default platform)
 closedsspm audit --output report.html
@@ -209,10 +222,21 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `SNOW_INSTANCE` | ServiceNow instance URL (e.g. `https://mycompany.service-now.com`) | Yes |
-| `SNOW_USERNAME` | Username for basic authentication | Yes (unless using OAuth) |
-| `SNOW_PASSWORD` | Password for basic authentication | Yes (unless using OAuth) |
-| `SNOW_CLIENT_ID` | OAuth 2.0 client ID | Yes (if using OAuth) |
-| `SNOW_CLIENT_SECRET` | OAuth 2.0 client secret | Yes (if using OAuth) |
+| `SNOW_USERNAME` | Username for basic authentication | For basic auth |
+| `SNOW_PASSWORD` | Password for basic authentication | For basic auth |
+| `SNOW_CLIENT_ID` | OAuth 2.0 client ID | For OAuth / key pair |
+| `SNOW_CLIENT_SECRET` | OAuth 2.0 client secret | For OAuth / key pair |
+| `SNOW_PRIVATE_KEY_PATH` | Path to RSA private key PEM file | For key pair |
+| `SNOW_KEY_ID` | Key ID from ServiceNow JWT Verifier Map | For key pair |
+| `SNOW_JWT_USER` | ServiceNow username for JWT `sub` claim (cannot be admin) | For key pair |
+
+**Authentication method is auto-detected** based on which variables are set:
+
+| Priority | Method | Required Variables |
+|----------|--------|--------------------|
+| 1 | Key pair (JWT bearer) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` + `SNOW_PRIVATE_KEY_PATH` |
+| 2 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
+| 3 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
 
 ## Architecture
 
