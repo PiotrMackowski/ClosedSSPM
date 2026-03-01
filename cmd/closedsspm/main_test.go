@@ -104,6 +104,44 @@ func TestWriteReportCSV(t *testing.T) {
 	}
 }
 
+func TestWriteReportSARIF(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "report.sarif")
+	snapshot := collector.NewSnapshot("servicenow", "https://test.service-now.com")
+
+	findings := []finding.Finding{
+		{
+			ID:       "TEST-001-a",
+			PolicyID: "TEST-001",
+			Title:    "Test Finding",
+			Severity: finding.High,
+			Category: "Test",
+			Resource: "test_table:abc",
+		},
+	}
+
+	err := writeReport(findings, snapshot, out, "sarif")
+	if err != nil {
+		t.Fatalf("writeReport(sarif) error: %v", err)
+	}
+
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reading output: %v", err)
+	}
+	// SARIF files must contain the SARIF schema and version.
+	content := string(data)
+	if !strings.Contains(content, "\"version\": \"2.1.0\"") {
+		t.Error("SARIF report should contain version 2.1.0")
+	}
+	if !strings.Contains(content, "\"$schema\"") {
+		t.Error("SARIF report should contain $schema")
+	}
+	if !strings.Contains(content, "TEST-001") {
+		t.Error("SARIF report should contain finding rule ID")
+	}
+}
+
 func TestWriteReportUnsupportedFormat(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "report.txt")
