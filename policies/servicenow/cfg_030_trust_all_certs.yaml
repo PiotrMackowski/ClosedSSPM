@@ -1,0 +1,31 @@
+id: SNOW-CFG-030
+title: "Outbound connections trust all SSL certificates"
+description: >
+  The system property com.glide.communications.trustmanager_trust_all is set
+  to true. When trust-all is enabled, the instance accepts any SSL/TLS
+  certificate for outbound connections without validation — including expired,
+  self-signed, and revoked certificates. This completely defeats TLS certificate
+  verification and enables man-in-the-middle attacks on all outbound
+  integrations, REST calls, SOAP requests, and MID Server communications.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "com.glide.communications.trustmanager_trust_all"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Set com.glide.communications.trustmanager_trust_all to false in System
+  Properties. Import proper CA certificates for any endpoints that use
+  private or internal certificate authorities via the certificate management
+  module (sys_certificate). If this was enabled for troubleshooting, disable
+  it immediately and resolve the underlying certificate trust issue instead.
+  Audit outbound integration logs for any signs of certificate-related errors
+  that may have been masked by this setting.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

@@ -1,0 +1,30 @@
+id: SNOW-CFG-032
+title: "ACL default security mode is not set to deny"
+description: >
+  The system property glide.sm.default_mode is not set to deny. Without a
+  default-deny ACL posture, any table or field without an explicit ACL rule
+  is accessible to all authenticated users. This violates the principle of
+  least privilege and can expose sensitive tables and fields that were not
+  intentionally left unprotected. Default-deny ensures that access must be
+  explicitly granted through ACL rules.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.sm.default_mode"
+    - field: "value"
+      operator: "not_equals"
+      value: "deny"
+remediation: >
+  Set glide.sm.default_mode to deny in System Properties. Before changing,
+  perform a comprehensive ACL audit to ensure all tables and fields that
+  should be accessible have explicit ACL rules. Create ACL rules for any
+  tables currently relying on the default-allow posture. Test thoroughly in
+  a sub-production instance as switching to default-deny will immediately
+  block access to any unprotected resources. Have a rollback plan ready.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_AccessControlRules.html"

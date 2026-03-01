@@ -1,0 +1,30 @@
+id: SNOW-CFG-031
+title: "SSLv3 protocol is not explicitly disabled for outbound connections"
+description: >
+  The system property glide.outbound.sslv3.disabled is not set to true. SSLv3
+  is a deprecated protocol with known vulnerabilities including POODLE
+  (CVE-2014-3566) which allows attackers to decrypt encrypted traffic. If
+  SSLv3 is not explicitly disabled, outbound connections may fall back to this
+  insecure protocol during TLS negotiation, exposing transmitted data to
+  interception and decryption.
+severity: CRITICAL
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.outbound.sslv3.disabled"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.outbound.sslv3.disabled to true in System Properties. This
+  prevents the instance from using SSLv3 for any outbound connections. Verify
+  that all integration endpoints support TLS 1.2 or higher. If any legacy
+  endpoints require SSLv3, prioritize upgrading those endpoints rather than
+  keeping this insecure protocol enabled.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"
+  - "https://nvd.nist.gov/vuln/detail/CVE-2014-3566"
