@@ -1,7 +1,11 @@
 // Package finding defines the core finding model used throughout ClosedSSPM.
 package finding
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // Severity represents the severity level of a security finding.
 type Severity string
@@ -30,6 +34,29 @@ func SeverityOrder(s Severity) int {
 	default:
 		return 5
 	}
+}
+
+// ParseSeverity converts a string to a Severity value.
+// It accepts case-insensitive input (e.g. "high", "HIGH", "High").
+func ParseSeverity(s string) (Severity, error) {
+	switch Severity(strings.ToUpper(s)) {
+	case Critical, High, Medium, Low, Info:
+		return Severity(strings.ToUpper(s)), nil
+	default:
+		return "", fmt.Errorf("invalid severity %q: must be one of CRITICAL, HIGH, MEDIUM, LOW, INFO", s)
+	}
+}
+
+// HasFindingsAtOrAbove returns true if any finding has severity at or above the threshold.
+// "Above" means more severe (lower SeverityOrder number).
+func HasFindingsAtOrAbove(findings []Finding, threshold Severity) bool {
+	thresholdOrder := SeverityOrder(threshold)
+	for _, f := range findings {
+		if SeverityOrder(f.Severity) <= thresholdOrder {
+			return true
+		}
+	}
+	return false
 }
 
 // Evidence represents a specific piece of evidence supporting a finding.

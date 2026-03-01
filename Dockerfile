@@ -5,6 +5,7 @@ RUN apk add --no-cache ca-certificates tzdata
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/closedsspm /usr/local/bin/closedsspm
 COPY $TARGETPLATFORM/closedsspm-mcp /usr/local/bin/closedsspm-mcp
+COPY entrypoint.sh /entrypoint.sh
 
 USER nobody:nobody
 

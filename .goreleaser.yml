@@ -129,6 +129,8 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
+    extra_files:
+      - entrypoint.sh
 
 homebrew_casks:
   - name: closedsspm

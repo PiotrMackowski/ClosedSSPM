@@ -196,3 +196,78 @@ func TestNewSummaryEmpty(t *testing.T) {
 		t.Errorf("PostureScore = %q, want %q", s.PostureScore, "A")
 	}
 }
+
+func TestParseSeverity(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    Severity
+		wantErr bool
+	}{
+		{"CRITICAL", Critical, false},
+		{"critical", Critical, false},
+		{"Critical", Critical, false},
+		{"HIGH", High, false},
+		{"high", High, false},
+		{"High", High, false},
+		{"MEDIUM", Medium, false},
+		{"medium", Medium, false},
+		{"LOW", Low, false},
+		{"low", Low, false},
+		{"INFO", Info, false},
+		{"info", Info, false},
+		{"", "", true},
+		{"UNKNOWN", "", true},
+		{"warning", "", true},
+		{"none", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := ParseSeverity(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ParseSeverity(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Errorf("ParseSeverity(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasFindingsAtOrAbove(t *testing.T) {
+	findings := []Finding{
+		{Severity: Medium},
+		{Severity: Low},
+		{Severity: Info},
+	}
+
+	tests := []struct {
+		name      string
+		threshold Severity
+		want      bool
+	}{
+		{"threshold CRITICAL — none above", Critical, false},
+		{"threshold HIGH — none above", High, false},
+		{"threshold MEDIUM — exact match", Medium, true},
+		{"threshold LOW — medium is above", Low, true},
+		{"threshold INFO — all match", Info, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := HasFindingsAtOrAbove(findings, tt.threshold)
+			if got != tt.want {
+				t.Errorf("HasFindingsAtOrAbove(threshold=%s) = %v, want %v", tt.threshold, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasFindingsAtOrAboveEmpty(t *testing.T) {
+	if HasFindingsAtOrAbove(nil, Critical) {
+		t.Error("expected false for nil findings")
+	}
+	if HasFindingsAtOrAbove([]Finding{}, Low) {
+		t.Error("expected false for empty findings")
+	}
+}

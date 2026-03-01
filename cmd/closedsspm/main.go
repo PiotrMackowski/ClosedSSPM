@@ -25,6 +25,7 @@ import (
 	htmlreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/html"
 	csvreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/csv"
 	jsonreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/json"
+	sarifreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/sarif"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 )
@@ -170,8 +171,29 @@ func writeReport(findings []finding.Finding, snapshot *collector.Snapshot, outpu
 	case "csv":
 		reporter := &csvreport.Reporter{}
 		return reporter.Generate(f, findings, snapshot)
+	case "sarif":
+		reporter := &sarifreport.Reporter{}
+		return reporter.Generate(f, findings, snapshot)
 	default:
-		return fmt.Errorf("unsupported output format: %s (use html, json, or csv)", format)
+		return fmt.Errorf("unsupported output format: %s (use html, json, csv, or sarif)", format)
+	}
+}
+
+// checkFailOn validates the --fail-on flag and exits with code 2 if findings
+// at or above the threshold exist. This distinguishes "audit found issues"
+// from "tool error" (exit code 1).
+func checkFailOn(cmd *cobra.Command, findings []finding.Finding) {
+	failOn, _ := cmd.Flags().GetString("fail-on")
+	if failOn == "" || failOn == "none" {
+		return
+	}
+	threshold, err := finding.ParseSeverity(failOn)
+	if err != nil {
+		log.Fatalf("invalid --fail-on value: %s", err)
+	}
+	if finding.HasFindingsAtOrAbove(findings, threshold) {
+		log.Printf("Findings at or above %s detected (--fail-on threshold)", threshold)
+		os.Exit(2)
 	}
 }
 
@@ -230,6 +252,8 @@ func newAuditCmd() *cobra.Command {
 			}
 			log.Printf("Report written to %s", output)
 
+			checkFailOn(cmd, findings)
+
 			return nil
 		},
 	}
@@ -237,11 +261,12 @@ func newAuditCmd() *cobra.Command {
 	cmd.Flags().String("platform", "servicenow", "SaaS platform to audit (available: "+strings.Join(connector.List(), ", ")+")")
 	cmd.Flags().String("instance", "", "Platform instance URL (or set via env var)")
 	cmd.Flags().String("output", "report.html", "Output file path")
-	cmd.Flags().String("format", "html", "Report format: html, json, or csv")
+	cmd.Flags().String("format", "html", "Report format: html, json, csv, or sarif")
 	cmd.Flags().String("save-snapshot", "", "Also save the raw snapshot to this file")
 	cmd.Flags().String("policies", "", "Path to policies directory")
 	cmd.Flags().Int("concurrency", 5, "Max parallel API requests")
 	cmd.Flags().Float64("rate-limit", 10.0, "Max API requests per second")
+	cmd.Flags().String("fail-on", "", "Exit with code 2 if findings at or above this severity exist (CRITICAL, HIGH, MEDIUM, LOW, INFO)")
 
 	return cmd
 }
@@ -319,14 +344,17 @@ func newEvaluateCmd() *cobra.Command {
 			}
 			log.Printf("Report written to %s", output)
 
+			checkFailOn(cmd, findings)
+
 			return nil
 		},
 	}
 
 	cmd.Flags().String("snapshot", "snapshot.json", "Path to snapshot file")
 	cmd.Flags().String("output", "report.html", "Output file path")
-	cmd.Flags().String("format", "html", "Report format: html, json, or csv")
+	cmd.Flags().String("format", "html", "Report format: html, json, csv, or sarif")
 	cmd.Flags().String("policies", "", "Path to policies directory")
+	cmd.Flags().String("fail-on", "", "Exit with code 2 if findings at or above this severity exist (CRITICAL, HIGH, MEDIUM, LOW, INFO)")
 
 	return cmd
 }

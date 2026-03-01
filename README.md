@@ -25,6 +25,9 @@ Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms 
 - **MCP server** — AI-assisted audit analysis via Model Context Protocol (works with Claude, OpenCode, etc.)
 - **Offline analysis** — collect data once, analyze many times with snapshot persistence
 - **Parallel collection** — concurrent API requests with configurable rate limiting
+- **SARIF output** — [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html) format for GitHub Code Scanning integration
+- **GitHub Action** — run audits directly in CI/CD pipelines with `PiotrMackowski/ClosedSSPM`
+- **`--fail-on` threshold** — exit with code 2 when findings meet or exceed a severity level
 
 ## Installation
 
@@ -160,11 +163,12 @@ Flags:
   --platform string       SaaS platform to audit (default "servicenow")
   --instance string       Platform instance URL (or set via env var)
   --output string         Output file path (default "report.html")
-  --format string         Report format: html, json, or csv (default "html")
+  --format string         Report format: html, json, csv, or sarif (default "html")
   --policies string       Path to custom policies directory (default: embedded)
   --save-snapshot string  Also save the raw snapshot to this file
   --concurrency int       Max parallel API requests (default 5)
   --rate-limit float      Max API requests per second (default 10)
+  --fail-on string        Exit with code 2 if findings at or above this severity (CRITICAL, HIGH, MEDIUM, LOW, INFO)
 ```
 
 ### `closedsspm collect`
@@ -188,8 +192,9 @@ Evaluate policies against a previously saved snapshot.
 Flags:
   --snapshot string   Path to snapshot file (default "snapshot.json")
   --output string     Output file path (default "report.html")
-  --format string     Report format: html, json, or csv (default "html")
+  --format string   Report format: html, json, csv, or sarif (default "html")
   --policies string   Path to custom policies directory (default: embedded)
+  --fail-on string  Exit with code 2 if findings at or above this severity (CRITICAL, HIGH, MEDIUM, LOW, INFO)
 ```
 
 ### `closedsspm mcp`
@@ -260,6 +265,7 @@ closedsspm/
 │       ├── csv/             # CSV report generator
 │       ├── html/            # HTML report generator
 │       └── json/            # JSON report generator
+│       ├── sarif/           # SARIF 2.1.0 report generator
 └── policies/
     └── servicenow/           # ServiceNow policy definitions (YAML, embedded at build)
 ```
@@ -307,6 +313,65 @@ The MCP server exposes 6 tools and 2 resources over **stdio transport** for AI-a
 | `closedsspm://summary` | Audit posture summary (JSON) |
 | `closedsspm://snapshot/meta` | Snapshot metadata: platform, instance URL, collection time, table count (JSON) |
 
+
+## GitHub Action
+
+Run ClosedSSPM audits directly in your CI/CD pipeline:
+
+```yaml
+- name: Run ClosedSSPM audit
+  id: audit
+  uses: PiotrMackowski/ClosedSSPM@v0  # or pin to a specific release tag
+  with:
+    instance: ${{ secrets.SNOW_INSTANCE }}
+    # --- Basic auth ---
+    username: ${{ secrets.SNOW_USERNAME }}
+    password: ${{ secrets.SNOW_PASSWORD }}
+    # --- OR OAuth (client credentials) ---
+    # client-id: ${{ secrets.SNOW_CLIENT_ID }}
+    # client-secret: ${{ secrets.SNOW_CLIENT_SECRET }}
+    # --- OR Key pair (JWT bearer) ---
+    # client-id: ${{ secrets.SNOW_CLIENT_ID }}
+    # client-secret: ${{ secrets.SNOW_CLIENT_SECRET }}
+    # private-key: ${{ secrets.SNOW_PRIVATE_KEY }}
+    # key-id: ${{ secrets.SNOW_KEY_ID }}
+    # jwt-user: ${{ secrets.SNOW_JWT_USER }}
+    format: sarif
+    fail-on: HIGH
+
+- name: Upload SARIF to GitHub Code Scanning
+  if: always()
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: ${{ steps.audit.outputs.sarif-path }}
+```
+
+### Action Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `instance` | Yes | — | Platform instance URL |
+| `platform` | No | `servicenow` | SaaS platform to audit |
+| `username` | No | — | Username for basic auth |
+| `password` | No | — | Password for basic auth |
+| `client-id` | No | — | OAuth 2.0 client ID |
+| `client-secret` | No | — | OAuth 2.0 client secret |
+| `private-key` | No | — | RSA private key PEM content for JWT key pair auth |
+| `key-id` | No | — | Key ID from ServiceNow JWT Verifier Map |
+| `jwt-user` | No | — | ServiceNow username for JWT `sub` claim (cannot be admin) |
+| `format` | No | `sarif` | Report format: html, json, csv, or sarif |
+| `fail-on` | No | `none` | Fail if findings at/above severity: CRITICAL, HIGH, MEDIUM, LOW, INFO |
+
+All credential inputs should be passed via [GitHub encrypted secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions). Authentication method is auto-detected based on which inputs are provided (same priority as the CLI).
+
+### Action Outputs
+
+| Output | Description |
+|--------|-------------|
+| `report-path` | Path to the generated report file |
+| `finding-count` | Total number of findings |
+| `posture-score` | Posture score grade (A–F) |
+| `sarif-path` | Path to SARIF file (only when format=sarif) |
 ## Security Best Practices
 
 - Credentials are **only** read from environment variables, never from config files
