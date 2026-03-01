@@ -16,7 +16,7 @@ Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms 
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **41 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
+- **69 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
@@ -143,7 +143,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 41 embedded policies. To override with external policies:
+By default the binary uses its 69 embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -272,65 +272,18 @@ closedsspm/
 
 ## Security Checks
 
-41 built-in checks across 6 categories:
+69 built-in checks across 6 categories:
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| **ACL** | 8 | Unprotected ACLs, wildcard roles, public access |
-| **Roles** | 5 | Admin role assignments, elevated privileges, role includes |
+| **ACL** | 9 | Unprotected ACLs, wildcard roles, public access, deny-unless audit |
+| **Roles** | 10 | Admin role assignments, elevated privileges, role includes, security_admin, impersonator, oauth_admin |
 | **Scripts** | 6 | eval() usage, client-callable script includes, global UI scripts |
 | **Integrations** | 7 | Unauthenticated endpoints, basic auth, unvalidated MID servers |
-| **Instance Config** | 11 | HTTPS enforcement, session timeout, password policy, SAML signing, SSO bypass |
-| **Users** | 4 | Never-logged-in accounts, locked-out active users |
+| **Instance Config** | 32 | HTTPS enforcement, session timeout, password policy, CSRF, XSS prevention, TLS, sandbox, SAML signing, SSO bypass |
+| **Users** | 5 | Never-logged-in accounts, locked-out active users, service account hygiene |
 
-<details>
-<summary>Full check list</summary>
-
-| ID | Severity | Category | Description |
-|----|----------|----------|-------------|
-| SNOW-ACL-001 | CRITICAL | ACL | ACL with no condition, no script, and no role requirement |
-| SNOW-ACL-002 | HIGH | ACL | ACL with wildcard role assignment |
-| SNOW-ACL-003 | MEDIUM | ACL | Inactive ACL that was previously active |
-| SNOW-ACL-004 | INFO | ACL | ACL with admin overrides enabled |
-| SNOW-ACL-005 | HIGH | ACL | ACL on sensitive table with weak protection |
-| SNOW-ACL-006 | MEDIUM | ACL | Script-based ACL using gs.hasRole admin check only |
-| SNOW-ACL-007 | LOW | ACL | ACL rule with no description |
-| SNOW-ACL-008 | HIGH | ACL | ACL allows unauthenticated access via public type |
-| SNOW-ROLE-001 | HIGH | Roles | Users with admin role |
-| SNOW-ROLE-002 | CRITICAL | Roles | Integration/service users with admin role |
-| SNOW-ROLE-003 | HIGH | Roles | Roles with elevated privilege flag enabled |
-| SNOW-ROLE-004 | MEDIUM | Roles | Roles with no assignable_by restriction |
-| SNOW-ROLE-005 | CRITICAL | Roles | Custom role that includes the admin role |
-| SNOW-SCRIPT-001 | CRITICAL | Scripts | Business rule script uses eval() or GlideEvaluator |
-| SNOW-SCRIPT-002 | HIGH | Scripts | Script include marked as client-callable |
-| SNOW-SCRIPT-003 | HIGH | Scripts | Global UI script active and running for all users |
-| SNOW-SCRIPT-004 | LOW | Scripts | Active business rule with no description |
-| SNOW-SCRIPT-005 | MEDIUM | Scripts | Active before business rule modifying data on sensitive tables |
-| SNOW-SCRIPT-006 | LOW | Scripts | Active script include with no description |
-| SNOW-INT-001 | CRITICAL | Integrations | Web service endpoint with authentication disabled |
-| SNOW-INT-002 | LOW | Integrations | Inactive web service endpoint still defined |
-| SNOW-INT-003 | HIGH | Integrations | REST message using basic authentication |
-| SNOW-INT-004 | INFO | Integrations | Active OAuth application registered |
-| SNOW-INT-005 | HIGH | Integrations | MID Server not in validated status |
-| SNOW-INT-006 | HIGH | Integrations | Scripted REST operation without ACL authorization |
-| SNOW-INT-007 | MEDIUM | Integrations | Scripted REST operation contains eval() or GlideRecord in script |
-| SNOW-CFG-001 | CRITICAL | Instance Config | Instance allows HTTP connections (HTTPS not enforced) |
-| SNOW-CFG-002 | HIGH | Instance Config | Session timeout set too high or unlimited |
-| SNOW-CFG-003 | HIGH | Instance Config | Password policy does not enforce complexity |
-| SNOW-CFG-004 | MEDIUM | Instance Config | Debug mode or logging verbosity enabled in production |
-| SNOW-CFG-005 | MEDIUM | Instance Config | High security plugin not activated |
-| SNOW-CFG-006 | MEDIUM | Instance Config | IP address access control not configured |
-| SNOW-CFG-007 | HIGH | Instance Config | SSL certificate approaching expiration or already expired |
-| SNOW-CFG-008 | CRITICAL | Instance Config | LDAP server connection without SSL/TLS encryption |
-| SNOW-CFG-009 | CRITICAL | Instance Config | SAML identity provider with unsigned assertions |
-| SNOW-CFG-010 | HIGH | Instance Config | SAML identity provider using weak signing algorithm |
-| SNOW-CFG-011 | CRITICAL | Instance Config | SSO bypass via direct login.do access not restricted |
-| SNOW-USER-001 | MEDIUM | Users | Active user account that has never logged in |
-| SNOW-USER-002 | HIGH | Users | Locked out user account still active |
-| SNOW-USER-003 | MEDIUM | Users | User account sourced from external directory but active |
-| SNOW-USER-004 | INFO | Users | Internal integration user account is active |
-
-</details>
+Run `closedsspm checks list` to see all individual rules.
 
 ## MCP Server Interface
 
