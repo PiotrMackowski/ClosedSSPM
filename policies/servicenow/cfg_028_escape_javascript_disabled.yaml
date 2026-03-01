@@ -1,0 +1,29 @@
+id: SNOW-CFG-028
+title: "JavaScript content escaping in HTML fields is disabled"
+description: >
+  The system property glide.html.escape_script is not set to true. Without
+  JavaScript escaping in HTML fields, script tags and JavaScript event
+  handlers embedded in HTML-type fields are rendered without sanitization.
+  This allows stored XSS attacks through HTML fields where attackers inject
+  malicious JavaScript that executes in the browsers of users viewing the
+  affected records.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.html.escape_script"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.html.escape_script to true in System Properties. This strips or
+  escapes JavaScript from HTML fields when rendered. After enabling, verify
+  that legitimate HTML content (such as email templates and knowledge articles)
+  does not rely on inline JavaScript. Refactor any HTML fields that require
+  scripting to use approved client script mechanisms instead.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

@@ -1,0 +1,28 @@
+id: SNOW-CFG-017
+title: "X-Frame-Options header is not enabled"
+description: >
+  The system property glide.set_x_frame_options is not set to true. Without
+  the X-Frame-Options response header, the ServiceNow instance can be embedded
+  in iframes on arbitrary domains. This enables clickjacking attacks where an
+  attacker overlays invisible frames to trick users into performing unintended
+  actions such as approving requests or modifying records.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.set_x_frame_options"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.set_x_frame_options to true in System Properties. This sends the
+  X-Frame-Options: SAMEORIGIN header on all responses, preventing the instance
+  from being framed by external sites. If legitimate iframe embedding is
+  required (e.g. a portal widget on another domain), use Content-Security-Policy
+  frame-ancestors directive to whitelist specific origins instead.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

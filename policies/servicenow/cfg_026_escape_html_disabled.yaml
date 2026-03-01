@@ -1,0 +1,28 @@
+id: SNOW-CFG-026
+title: "HTML sanitization for text fields is disabled"
+description: >
+  The system property glide.ui.escape_text is not set to true. Without HTML
+  escaping on text fields, user-supplied content rendered in the UI may contain
+  active HTML elements. This creates stored cross-site scripting (XSS)
+  vulnerabilities where an attacker can inject malicious HTML or JavaScript
+  into record fields that executes when other users view the record.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.ui.escape_text"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.ui.escape_text to true in System Properties. This enables HTML
+  entity encoding for text fields rendered in the UI. After enabling, verify
+  that fields intended to display rich HTML content (such as knowledge base
+  articles) are using appropriate field types that handle sanitization
+  separately. Test forms with special characters to confirm proper rendering.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

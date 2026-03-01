@@ -1,0 +1,28 @@
+id: SNOW-CFG-027
+title: "Jelly template script escaping is disabled"
+description: >
+  The system property glide.ui.escape_all_script is not set to true. Without
+  Jelly template escaping, dynamically generated UI content may include
+  unescaped user input in Jelly templates. This creates server-side XSS
+  vulnerabilities where malicious input can inject script elements into
+  rendered pages, compromising other users' sessions.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.ui.escape_all_script"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.ui.escape_all_script to true in System Properties. This escapes
+  script content in Jelly templates to prevent injection. After enabling, test
+  UI pages and forms that use custom Jelly templates, especially those that
+  dynamically insert user-controlled values. Fix any Jelly templates that
+  break due to double-escaping by using proper Jelly escaping functions.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"
