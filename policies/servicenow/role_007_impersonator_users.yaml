@@ -1,0 +1,29 @@
+id: SNOW-ROLE-007
+title: "User assigned the impersonator role"
+description: >
+  An active user has the impersonator role assigned. The impersonator role
+  allows a user to impersonate any other user in the instance, inheriting
+  their roles, permissions, and identity. This is extremely powerful and can
+  be abused to access sensitive data, approve requests, or perform actions
+  as another user without their knowledge or audit trail attribution.
+severity: HIGH
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_has_role
+  field_conditions:
+    - field: "role"
+      operator: "contains"
+      value: "impersonator"
+    - field: "state"
+      operator: "equals"
+      value: "active"
+remediation: >
+  Review all users with the impersonator role. This role should be restricted
+  to a very small number of administrators who require it for troubleshooting
+  or testing. Remove the role from users who do not have a documented need.
+  Enable impersonation logging and audit impersonation events regularly.
+  Consider using the impersonation allowlist to restrict which users can be
+  impersonated.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_Impersonation.html"

@@ -1,0 +1,29 @@
+id: SNOW-ROLE-009
+title: "User assigned the mid_server role"
+description: >
+  An active user has a MID Server administration role assigned. MID Server
+  roles grant control over the MID Server infrastructure that bridges the
+  instance with on-premises networks. Users with this role can configure,
+  deploy, and manage MID Servers, potentially gaining access to internal
+  network resources, credentials stored in MID Server configurations, and
+  discovery data from on-premises systems.
+severity: MEDIUM
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_has_role
+  field_conditions:
+    - field: "role"
+      operator: "contains"
+      value: "mid_server"
+    - field: "state"
+      operator: "equals"
+      value: "active"
+remediation: >
+  Review all users with MID Server roles. Restrict these roles to
+  infrastructure administrators who manage MID Server deployments. Remove from
+  users who do not actively maintain MID Server infrastructure. Audit MID
+  Server configurations for stored credentials and ensure credential management
+  follows least-privilege principles.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/product/mid-server/concept/c_MIDServer.html"

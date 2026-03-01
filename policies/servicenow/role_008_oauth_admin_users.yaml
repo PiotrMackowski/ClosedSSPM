@@ -1,0 +1,28 @@
+id: SNOW-ROLE-008
+title: "User assigned the oauth_admin role"
+description: >
+  An active user has the oauth_admin role assigned. The oauth_admin role grants
+  full control over OAuth application registrations, client credentials, and
+  token management. A user with this role can create rogue OAuth applications,
+  generate access tokens, and configure redirect URIs — potentially enabling
+  unauthorized API access or credential theft via malicious OAuth flows.
+severity: HIGH
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_has_role
+  field_conditions:
+    - field: "role"
+      operator: "contains"
+      value: "oauth_admin"
+    - field: "state"
+      operator: "equals"
+      value: "active"
+remediation: >
+  Review all users with the oauth_admin role. Restrict this role to integration
+  architects and administrators who manage OAuth configurations. Remove from
+  users who do not actively maintain OAuth application registrations. Audit
+  existing OAuth applications and client credentials for unauthorized entries.
+  Implement periodic access reviews for this role.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_OAuthApplications.html"
