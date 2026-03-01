@@ -1,0 +1,26 @@
+id: SNOW-CFG-023
+title: "Basic auth not required for PDF exports"
+description: >
+  The system property glide.basicauth.required.pdf is not set to true. Without
+  requiring basic authentication for PDF exports, any valid session can trigger
+  PDF generation and download of record data. Enforcing re-authentication on
+  PDF exports protects against data exfiltration through compromised sessions.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.basicauth.required.pdf"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.basicauth.required.pdf to true in System Properties. This requires
+  credential re-entry for PDF exports. Communicate this change to users who
+  generate PDF reports regularly. Ensure SSO users have local credentials
+  configured for the re-authentication prompt.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"
