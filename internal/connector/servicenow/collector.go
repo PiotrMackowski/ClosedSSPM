@@ -15,11 +15,16 @@ import (
 
 // envHelp describes the environment variables used by the ServiceNow connector.
 const envHelp = `ServiceNow credentials (environment variables):
-  SNOW_INSTANCE      - Instance URL (e.g. https://mycompany.service-now.com)
-  SNOW_USERNAME      - Username for basic auth
-  SNOW_PASSWORD      - Password for basic auth
-  SNOW_CLIENT_ID     - OAuth client ID (alternative to basic auth)
-  SNOW_CLIENT_SECRET - OAuth client secret`
+  SNOW_INSTANCE         - Instance URL (e.g. https://mycompany.service-now.com)
+  SNOW_USERNAME         - Username for basic auth
+  SNOW_PASSWORD         - Password for basic auth
+  SNOW_CLIENT_ID        - OAuth client ID (alternative to basic auth)
+  SNOW_CLIENT_SECRET    - OAuth client secret
+
+  Key pair auth (JWT bearer grant):
+  SNOW_PRIVATE_KEY_PATH - Path to RSA private key PEM file
+  SNOW_KEY_ID           - kid from ServiceNow JWT Verifier Map
+  SNOW_JWT_USER         - ServiceNow username for JWT sub claim (cannot be admin)`
 
 func init() {
 	connector.Register(
@@ -39,9 +44,14 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	password := os.Getenv("SNOW_PASSWORD")
 	clientID := os.Getenv("SNOW_CLIENT_ID")
 	clientSecret := os.Getenv("SNOW_CLIENT_SECRET")
+	privateKeyPath := os.Getenv("SNOW_PRIVATE_KEY_PATH")
+	keyID := os.Getenv("SNOW_KEY_ID")
+	jwtUser := os.Getenv("SNOW_JWT_USER")
 
 	authMethod := "basic"
-	if clientID != "" && clientSecret != "" {
+	if privateKeyPath != "" && clientID != "" && clientSecret != "" {
+		authMethod = "keypair"
+	} else if clientID != "" && clientSecret != "" {
 		authMethod = "oauth"
 	}
 
@@ -49,14 +59,17 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
 
 	return collector.ConnectorConfig{
-		InstanceURL:  instance,
-		AuthMethod:   authMethod,
-		Username:     username,
-		Password:     password,
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Concurrency:  concurrency,
-		RateLimit:    rateLimit,
+		InstanceURL:    instance,
+		AuthMethod:     authMethod,
+		Username:       username,
+		Password:       password,
+		ClientID:       clientID,
+		ClientSecret:   clientSecret,
+		PrivateKeyPath: privateKeyPath,
+		KeyID:          keyID,
+		JWTUser:        jwtUser,
+		Concurrency:    concurrency,
+		RateLimit:      rateLimit,
 	}
 }
 

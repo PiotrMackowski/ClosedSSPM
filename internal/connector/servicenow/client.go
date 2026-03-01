@@ -3,19 +3,25 @@ package servicenow
 
 import (
 	"context"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 )
 
@@ -59,11 +65,16 @@ type Client struct {
 	pageSize    int
 
 	// Auth
-	authMethod   string // "basic" or "oauth"
+	authMethod   string // "basic", "oauth", or "keypair"
 	username     string
 	password     string
 	clientID     string
 	clientSecret string
+
+	// Key pair auth
+	privateKey *rsa.PrivateKey
+	keyID      string
+	jwtUser    string
 
 	// OAuth token state (protected by mutex)
 	mu    sync.Mutex
@@ -129,6 +140,9 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		password:     config.Password,
 		clientID:     config.ClientID,
 		clientSecret: config.ClientSecret,
+		privateKey:   nil, // set below for keypair
+		keyID:        config.KeyID,
+		jwtUser:      config.JWTUser,
 	}
 
 	// Validate auth config
@@ -144,6 +158,24 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		if c.clientID == "" || c.clientSecret == "" {
 			return nil, fmt.Errorf("client_id and client_secret are required for OAuth")
 		}
+	case "keypair":
+		if c.clientID == "" || c.clientSecret == "" {
+			return nil, fmt.Errorf("client_id and client_secret are required for key pair auth")
+		}
+		if config.PrivateKeyPath == "" {
+			return nil, fmt.Errorf("private key path is required for key pair auth")
+		}
+		if c.keyID == "" {
+			return nil, fmt.Errorf("key_id is required for key pair auth")
+		}
+		if c.jwtUser == "" {
+			return nil, fmt.Errorf("jwt_user is required for key pair auth")
+		}
+		pk, err := loadPrivateKey(config.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("loading private key: %w", err)
+		}
+		c.privateKey = pk
 	default:
 		return nil, fmt.Errorf("unsupported auth method: %s", c.authMethod)
 	}
@@ -163,6 +195,12 @@ func (c *Client) authenticate(ctx context.Context, req *http.Request) error {
 		token, err := c.getOAuthToken(ctx)
 		if err != nil {
 			return fmt.Errorf("obtaining OAuth token: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+	case "keypair":
+		token, err := c.getKeyPairToken(ctx)
+		if err != nil {
+			return fmt.Errorf("obtaining key pair token: %w", err)
 		}
 		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
@@ -227,6 +265,98 @@ func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := readLimitedBody(resp.Body)
 		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
+	}
+
+	var token OAuthToken
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&token); err != nil {
+		return nil, fmt.Errorf("decoding token response: %w", err)
+	}
+	token.expiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+
+	c.token = &token
+	return c.token, nil
+}
+
+// loadPrivateKey reads and parses an RSA private key from a PEM file.
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading private key file: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("no PEM block found in %s", path)
+	}
+
+	// Try PKCS#8 first (modern format), fall back to PKCS#1.
+	if key, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
+		rsaKey, ok := key.(*rsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("private key is not RSA")
+		}
+		return rsaKey, nil
+	}
+
+	return x509.ParsePKCS1PrivateKey(block.Bytes)
+}
+
+// signJWT creates a signed JWT assertion for ServiceNow key pair authentication.
+func (c *Client) signJWT() (string, error) {
+	now := time.Now()
+	claims := jwt.RegisteredClaims{
+		Issuer:    c.clientID,
+		Subject:   c.jwtUser,
+		Audience:  jwt.ClaimStrings{c.clientID},
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(5 * time.Minute)),
+		ID:        uuid.New().String(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = c.keyID
+
+	return token.SignedString(c.privateKey)
+}
+
+// getKeyPairToken returns a valid OAuth token using JWT bearer grant, refreshing if necessary.
+func (c *Client) getKeyPairToken(ctx context.Context) (*OAuthToken, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.token != nil && !c.token.IsExpired() {
+		return c.token, nil
+	}
+
+	assertion, err := c.signJWT()
+	if err != nil {
+		return nil, fmt.Errorf("signing JWT assertion: %w", err)
+	}
+
+	tokenURL := c.baseURL + "/oauth_token.do"
+	data := url.Values{
+		"grant_type":    {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"assertion":     {assertion},
+		"client_id":     {c.clientID},
+		"client_secret": {c.clientSecret},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("creating token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "ClosedSSPM/"+version)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("requesting token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := readLimitedBody(resp.Body)
+		return nil, fmt.Errorf("key pair token request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
 	}
 
 	var token OAuthToken
