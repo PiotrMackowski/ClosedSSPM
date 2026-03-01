@@ -1,0 +1,60 @@
+name: 'ClosedSSPM'
+description: 'Audit SaaS platforms for security misconfigurations. Open source SSPM with 69+ ServiceNow checks.'
+author: 'PiotrMackowski'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  platform:
+    description: 'SaaS platform to audit'
+    required: false
+    default: 'servicenow'
+  instance:
+    description: 'Platform instance URL (e.g. https://mycompany.service-now.com). Pass via secrets: ${{ secrets.SNOW_INSTANCE }}'
+    required: true
+  username:
+    description: 'Username for basic authentication. Pass via secrets: ${{ secrets.SNOW_USERNAME }}'
+    required: false
+  password:
+    description: 'Password for basic authentication. Pass via secrets: ${{ secrets.SNOW_PASSWORD }}'
+    required: false
+  client-id:
+    description: 'OAuth 2.0 client ID. Pass via secrets: ${{ secrets.SNOW_CLIENT_ID }}'
+    required: false
+  client-secret:
+    description: 'OAuth 2.0 client secret. Pass via secrets: ${{ secrets.SNOW_CLIENT_SECRET }}'
+    required: false
+  private-key:
+    description: 'RSA private key PEM content for JWT key pair auth. Pass via secrets: ${{ secrets.SNOW_PRIVATE_KEY }}'
+    required: false
+  key-id:
+    description: 'Key ID from ServiceNow JWT Verifier Map. Pass via secrets: ${{ secrets.SNOW_KEY_ID }}'
+    required: false
+  jwt-user:
+    description: 'ServiceNow username for JWT sub claim (cannot be admin). Pass via secrets: ${{ secrets.SNOW_JWT_USER }}'
+    required: false
+  format:
+    description: 'Report format: html, json, csv, or sarif'
+    required: false
+    default: 'sarif'
+  fail-on:
+    description: 'Fail (exit 2) if findings at or above this severity: CRITICAL, HIGH, MEDIUM, LOW, INFO, or none'
+    required: false
+    default: 'none'
+
+outputs:
+  report-path:
+    description: 'Path to the generated report file'
+  finding-count:
+    description: 'Total number of findings'
+  posture-score:
+    description: 'Posture score grade (A-F)'
+  sarif-path:
+    description: 'Path to SARIF file (only when format=sarif)'
+
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/piotrmackowski/closedsspm:latest'
+  entrypoint: '/entrypoint.sh'
