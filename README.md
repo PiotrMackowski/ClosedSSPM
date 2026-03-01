@@ -461,7 +461,7 @@ Please use [GitHub Security Advisories](https://github.com/PiotrMackowski/Closed
 
 ## Development
 
-This project is developed with AI-assisted coding using [OpenCode](https://github.com/opencode-ai/opencode).
+This project is developed with AI-assisted coding using [OpenCode](https://github.com/anomalyco/opencode).
 
 ## License
 
