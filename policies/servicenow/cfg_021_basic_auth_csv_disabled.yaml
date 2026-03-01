@@ -1,0 +1,28 @@
+id: SNOW-CFG-021
+title: "Basic auth not required for CSV exports"
+description: >
+  The system property glide.basicauth.required.csv is not set to true. Without
+  requiring basic authentication for CSV exports, users who obtain a valid
+  session (e.g. via XSS or session hijacking) can export large datasets in
+  CSV format without re-authenticating. Enforcing basic auth on exports adds
+  a second authentication factor that protects against bulk data exfiltration.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.basicauth.required.csv"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.basicauth.required.csv to true in System Properties. This requires
+  users to provide their credentials again when exporting data to CSV format.
+  Communicate this change to users who regularly export reports, as they will
+  be prompted for credentials on export. SSO users may need local credentials
+  configured for this to work.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

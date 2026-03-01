@@ -1,0 +1,27 @@
+id: SNOW-CFG-022
+title: "Basic auth not required for Excel exports"
+description: >
+  The system property glide.basicauth.required.excel is not set to true.
+  Without requiring basic authentication for Excel exports, session-based
+  access is sufficient to export potentially large datasets. Enforcing
+  re-authentication on Excel exports prevents bulk data exfiltration through
+  hijacked or shared sessions.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.basicauth.required.excel"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.basicauth.required.excel to true in System Properties. This
+  requires credential re-entry when exporting data to Excel format. Notify
+  users who regularly export reports. Ensure SSO users have local credentials
+  available if needed for the re-authentication prompt.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

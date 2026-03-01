@@ -1,0 +1,28 @@
+id: SNOW-CFG-016
+title: "Strict action security is disabled"
+description: >
+  The system property glide.security.strict.actions is not set to true. Without
+  strict action security, UI actions and server-side operations may execute
+  without proper role and ACL verification. Enabling this property ensures that
+  all actions are subject to security constraints, preventing unauthorized
+  execution of privileged operations.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.security.strict.actions"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.security.strict.actions to true in System Properties. Before
+  enabling, review UI actions and server-side scripts that may be affected.
+  Test in a sub-production instance to identify any workflows that rely on
+  lenient action security. Update scripts to use proper role checks where
+  needed.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

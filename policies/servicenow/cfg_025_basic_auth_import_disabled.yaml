@@ -1,0 +1,28 @@
+id: SNOW-CFG-025
+title: "Basic auth not required for import processor"
+description: >
+  The system property glide.basicauth.required.importprocessor is not set to
+  true. Without requiring basic authentication for the import processor,
+  data imports can be initiated with session-based access alone. This could
+  allow attackers with a hijacked session to inject malicious data into the
+  instance via the import processor endpoint.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.basicauth.required.importprocessor"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.basicauth.required.importprocessor to true in System Properties.
+  Before enabling, identify all automated imports and scheduled data loads that
+  use the import processor. Update their configurations to include basic
+  authentication credentials. Test import workflows in a sub-production
+  instance after enabling.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

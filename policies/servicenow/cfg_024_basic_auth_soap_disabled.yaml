@@ -1,0 +1,29 @@
+id: SNOW-CFG-024
+title: "Basic auth not required for SOAP requests"
+description: >
+  The system property glide.basicauth.required.soap is not set to true.
+  Without requiring basic authentication for SOAP API access, integrations
+  may rely solely on session cookies or weak authentication mechanisms.
+  Enforcing basic auth on SOAP endpoints ensures that every API call is
+  explicitly authenticated, preventing unauthorized programmatic access to
+  instance data.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.basicauth.required.soap"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.basicauth.required.soap to true in System Properties. Before
+  enabling, inventory all SOAP-based integrations and ensure they use
+  explicit basic authentication credentials. Update integration configurations
+  that rely on session-based authentication. Test all SOAP integrations in
+  a sub-production instance after enabling.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

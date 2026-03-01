@@ -1,0 +1,28 @@
+id: SNOW-CFG-015
+title: "Strict transaction update security is disabled"
+description: >
+  The system property glide.security.strict.updates is not set to true. Without
+  strict update security, server-side scripts and business rules may modify
+  records without proper authorization checks. Enabling this property enforces
+  that all record updates pass through ACL evaluation, preventing unauthorized
+  modifications via scripted operations.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.security.strict.updates"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.security.strict.updates to true in System Properties. Before
+  enabling, audit business rules and scripts that update records to ensure
+  they have appropriate elevated privilege blocks where needed. Test in a
+  sub-production instance first, as enabling this may break scripts that
+  rely on bypassing ACLs for record updates.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

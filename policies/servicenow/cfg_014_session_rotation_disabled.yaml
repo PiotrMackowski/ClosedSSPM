@@ -1,0 +1,27 @@
+id: SNOW-CFG-014
+title: "Session ID rotation on login is disabled"
+description: >
+  The system property glide.ui.rotate_sessions is not set to true. Without
+  session rotation, the session ID remains the same before and after
+  authentication. This makes the instance vulnerable to session fixation
+  attacks, where an attacker sets a known session ID and waits for a victim
+  to authenticate with it.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.ui.rotate_sessions"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.ui.rotate_sessions to true in System Properties. This ensures a
+  new session ID is issued upon successful authentication, invalidating any
+  pre-authentication session token. Verify that SSO and external authentication
+  integrations continue to work correctly after enabling this property.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

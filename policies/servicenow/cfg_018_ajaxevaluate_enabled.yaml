@@ -1,0 +1,30 @@
+id: SNOW-CFG-018
+title: "AJAXEvaluate endpoint is enabled"
+description: >
+  The system property glide.script.allow.ajaxevaluate is set to true.
+  AJAXEvaluate allows arbitrary server-side JavaScript execution via client
+  requests. This is a severe security risk as it enables authenticated users
+  to execute arbitrary GlideRecord queries, access sensitive data, and
+  potentially escalate privileges by running server-side code without
+  restriction.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.script.allow.ajaxevaluate"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Set glide.script.allow.ajaxevaluate to false in System Properties. Migrate
+  any client scripts that use AJAXEvaluate to use GlideAjax with properly
+  scoped Script Includes instead. GlideAjax provides controlled server-side
+  execution with explicit function exposure, unlike AJAXEvaluate which allows
+  arbitrary code execution. Audit client scripts for AJAXEvaluate usage before
+  disabling to prevent broken functionality.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

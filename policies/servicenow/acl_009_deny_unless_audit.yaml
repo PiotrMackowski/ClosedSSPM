@@ -1,0 +1,31 @@
+id: SNOW-ACL-009
+title: "Deny-unless ACL rule detected (audit inventory)"
+description: >
+  An active ACL rule with a deny-unless type has been detected. Deny-unless
+  ACL rules invert the standard access control logic by denying access to
+  everyone except those who match specific conditions. While these rules can
+  be powerful for restricting access, they require careful management. This
+  detection serves as an inventory of deny-unless rules for security review
+  to ensure they are intentional, correctly scoped, and not inadvertently
+  blocking legitimate access.
+severity: INFO
+category: ACL
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "type"
+      operator: "contains"
+      value: "deny_unless"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review each deny-unless ACL rule to confirm it is intentional and correctly
+  configured. Verify that the conditions match the intended access restrictions.
+  Document the business justification for each deny-unless rule. Ensure that
+  deny-unless rules do not inadvertently block service accounts, integrations,
+  or legitimate user access. Consider converting overly broad deny-unless rules
+  to standard allow-based ACLs where possible.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/c_AccessControlRules.html"

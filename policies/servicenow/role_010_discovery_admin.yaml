@@ -1,0 +1,29 @@
+id: SNOW-ROLE-010
+title: "User assigned the discovery_admin role"
+description: >
+  An active user has the discovery_admin role assigned. The discovery_admin
+  role grants full control over Discovery and Service Mapping configurations,
+  including credential management for scanning on-premises infrastructure.
+  Users with this role can access stored credentials used to authenticate
+  against network devices, servers, and cloud accounts, and can modify
+  discovery schedules and scan ranges.
+severity: MEDIUM
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_has_role
+  field_conditions:
+    - field: "role"
+      operator: "contains"
+      value: "discovery_admin"
+    - field: "state"
+      operator: "equals"
+      value: "active"
+remediation: >
+  Review all users with the discovery_admin role. Restrict this role to
+  infrastructure and discovery administrators who actively manage Discovery
+  and Service Mapping. Remove from users who do not need access to discovery
+  credentials or scan configurations. Audit discovery credentials for
+  overly permissive access and rotate credentials regularly.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/product/discovery/concept/c_Discovery.html"

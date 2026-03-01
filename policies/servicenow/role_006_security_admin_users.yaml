@@ -1,0 +1,28 @@
+id: SNOW-ROLE-006
+title: "User assigned the security_admin role"
+description: >
+  An active user has the security_admin role assigned. The security_admin role
+  grants the ability to manage ACLs, security properties, and authentication
+  configurations. This is a highly privileged role that can modify the security
+  posture of the entire instance. Each assignment should be reviewed to confirm
+  it is authorized and necessary for the user's job function.
+severity: HIGH
+category: Roles
+platform: servicenow
+query:
+  table: sys_user_has_role
+  field_conditions:
+    - field: "role"
+      operator: "contains"
+      value: "security_admin"
+    - field: "state"
+      operator: "equals"
+      value: "active"
+remediation: >
+  Review all users with the security_admin role. Remove the role from users
+  who do not require it for their job function. Consider using more granular
+  roles that provide only the specific security administration capabilities
+  needed. Document the business justification for each security_admin
+  assignment and implement periodic access reviews.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_SecurityAdminRole.html"

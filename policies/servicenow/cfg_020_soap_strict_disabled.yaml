@@ -1,0 +1,28 @@
+id: SNOW-CFG-020
+title: "SOAP strict security is disabled"
+description: >
+  The system property glide.soap.strict_security is not set to true. Without
+  strict SOAP security, the SOAP API may accept requests with relaxed
+  authentication and authorization checks. This can allow unauthorized access
+  to data and operations exposed via SOAP web services, including record
+  queries, inserts, and updates.
+severity: HIGH
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.soap.strict_security"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.soap.strict_security to true in System Properties. This enforces
+  full ACL evaluation on all SOAP API requests. Before enabling, audit SOAP
+  integrations to ensure they authenticate with accounts that have appropriate
+  roles and ACL access. Test all SOAP-based integrations in a sub-production
+  instance after enabling.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"

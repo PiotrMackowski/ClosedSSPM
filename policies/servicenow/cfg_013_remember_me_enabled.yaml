@@ -1,0 +1,27 @@
+id: SNOW-CFG-013
+title: "Remember Me functionality is not disabled"
+description: >
+  The system property glide.ui.forgetme is not set to true. When Remember Me
+  is enabled, the login page presents a checkbox that stores a persistent
+  authentication cookie. This extends session lifetime beyond the browser
+  session, increasing the risk of unauthorized access from shared or
+  unattended workstations.
+severity: MEDIUM
+category: Instance Config
+platform: servicenow
+query:
+  table: sys_properties
+  field_conditions:
+    - field: "name"
+      operator: "equals"
+      value: "glide.ui.forgetme"
+    - field: "value"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Set glide.ui.forgetme to true in System Properties to remove the Remember Me
+  checkbox from the login page. This forces users to re-authenticate at the
+  start of each browser session, reducing the window of opportunity for
+  session hijacking on shared devices.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/reference/r_AvailableSystemProperties.html"
