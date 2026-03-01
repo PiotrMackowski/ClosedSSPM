@@ -1,0 +1,26 @@
+id: SF-IAM-003
+title: "User has ACCOUNTADMIN as default role"
+description: >
+  The user account has ACCOUNTADMIN set as its default role. ACCOUNTADMIN is
+  the most privileged role in Snowflake and should never be used as a default
+  role for day-to-day operations. Users should operate with least-privilege
+  roles and only elevate to ACCOUNTADMIN when necessary.
+severity: CRITICAL
+category: IAM
+platform: snowflake
+query:
+  table: users
+  field_conditions:
+    - field: "default_role"
+      operator: "equals"
+      value: "ACCOUNTADMIN"
+    - field: "disabled"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Change the default role to a lower-privilege role appropriate for the
+  user's day-to-day tasks. Use ALTER USER <username> SET DEFAULT_ROLE =
+  '<appropriate_role>'. Users can still switch to ACCOUNTADMIN via USE ROLE
+  when elevated access is genuinely needed.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-access-control-considerations"

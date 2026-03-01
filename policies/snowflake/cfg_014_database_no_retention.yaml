@@ -1,0 +1,23 @@
+id: SF-CFG-014
+title: "Database has zero data retention days"
+description: >
+  A database is configured with zero retention days for Time Travel.
+  Without Time Travel retention, accidentally dropped or modified data
+  cannot be recovered. This also eliminates the ability to query
+  historical data for forensic analysis after a security incident.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: databases
+  field_conditions:
+    - field: "retention_time"
+      operator: "equals"
+      value: "0"
+remediation: >
+  Set a retention period for the database by running ALTER DATABASE
+  <name> SET DATA_RETENTION_TIME_IN_DAYS = 1 (or higher based on
+  your recovery and compliance requirements). Business Critical
+  edition supports up to 90 days.
+references:
+  - "https://docs.snowflake.com/en/user-guide/data-time-travel"

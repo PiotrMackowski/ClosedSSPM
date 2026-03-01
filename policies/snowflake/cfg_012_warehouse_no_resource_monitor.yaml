@@ -1,0 +1,23 @@
+id: SF-CFG-012
+title: "Warehouse has no resource monitor assigned"
+description: >
+  A warehouse does not have a resource monitor assigned. Without a
+  resource monitor, runaway queries or misconfigured workloads can
+  consume unlimited credits, leading to unexpected costs. Resource
+  monitors also help detect anomalous usage patterns that may
+  indicate compromised credentials.
+severity: LOW
+category: CFG
+platform: snowflake
+query:
+  table: warehouses
+  field_conditions:
+    - field: "resource_monitor"
+      operator: "empty"
+remediation: >
+  Create a resource monitor and assign it to the warehouse. Use
+  CREATE RESOURCE MONITOR with appropriate credit quotas and
+  triggers. Assign it using ALTER WAREHOUSE <name> SET
+  RESOURCE_MONITOR = '<monitor_name>'.
+references:
+  - "https://docs.snowflake.com/en/user-guide/resource-monitors"

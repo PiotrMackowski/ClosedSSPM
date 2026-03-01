@@ -1,0 +1,23 @@
+id: SF-CFG-013
+title: "Warehouse auto-suspend is disabled"
+description: >
+  A warehouse has auto-suspend disabled (set to 0 or null). Without
+  auto-suspend, warehouses run continuously even when idle, consuming
+  credits unnecessarily. This also means that compromised or
+  misconfigured workloads will run indefinitely.
+severity: LOW
+category: CFG
+platform: snowflake
+query:
+  table: warehouses
+  field_conditions:
+    - field: "auto_suspend"
+      operator: "equals"
+      value: "0"
+remediation: >
+  Enable auto-suspend for the warehouse by running ALTER WAREHOUSE
+  <name> SET AUTO_SUSPEND = 300 (5 minutes) or another appropriate
+  timeout. This ensures idle warehouses stop consuming credits and
+  limits the impact of runaway workloads.
+references:
+  - "https://docs.snowflake.com/en/user-guide/warehouses-overview"

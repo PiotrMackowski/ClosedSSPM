@@ -1,0 +1,26 @@
+id: SF-CFG-003
+title: "PREVENT_UNLOAD_TO_INLINE_URL disabled"
+description: >
+  The parameter PREVENT_UNLOAD_TO_INLINE_URL is set to false. This
+  allows COPY INTO <location> commands to unload data to arbitrary
+  cloud storage URLs with inline credentials, creating a data
+  exfiltration risk and potential credential exposure.
+severity: HIGH
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "PREVENT_UNLOAD_TO_INLINE_URL"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable this parameter by running ALTER ACCOUNT SET
+  PREVENT_UNLOAD_TO_INLINE_URL = TRUE. This forces all data unloads
+  to use named stages backed by storage integrations, preventing
+  ad-hoc data exfiltration to uncontrolled locations.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

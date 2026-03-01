@@ -1,0 +1,23 @@
+id: SF-AUDIT-001
+title: "Failed login attempt detected"
+description: >
+  A failed login attempt was recorded in the last 30 days. While
+  individual failures may be benign (typos, expired credentials),
+  patterns of failed logins can indicate brute-force attacks, credential
+  stuffing, or compromised credential testing.
+severity: LOW
+category: AUDIT
+platform: snowflake
+query:
+  table: login_history
+  field_conditions:
+    - field: "is_success"
+      operator: "equals"
+      value: "NO"
+remediation: >
+  Investigate failed login patterns by reviewing the source IPs, user
+  accounts, and timing of failures. Enable network policies to restrict
+  access to known IPs. Ensure MFA is enabled for all accounts. Consider
+  setting up alerts for repeated failed logins from the same source.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/account-usage/login_history"

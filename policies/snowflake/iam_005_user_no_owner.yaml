@@ -1,0 +1,24 @@
+id: SF-IAM-005
+title: "User account has no owner assigned"
+description: >
+  The user account does not have an owner set. Ownerless accounts lack
+  clear accountability and may not be properly managed, reviewed, or
+  deprovisioned when no longer needed. Every account should have an
+  identifiable owner for governance purposes.
+severity: MEDIUM
+category: IAM
+platform: snowflake
+query:
+  table: users
+  field_conditions:
+    - field: "owner"
+      operator: "empty"
+    - field: "disabled"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Assign an owner to all user accounts. Use GRANT OWNERSHIP ON USER
+  <username> TO ROLE <owner_role>. Ensure the owning role is actively
+  managed and included in periodic access reviews.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/grant-ownership"

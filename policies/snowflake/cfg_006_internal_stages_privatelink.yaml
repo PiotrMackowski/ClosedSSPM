@@ -1,0 +1,26 @@
+id: SF-CFG-006
+title: "ENABLE_INTERNAL_STAGES_PRIVATELINK disabled"
+description: >
+  The parameter ENABLE_INTERNAL_STAGES_PRIVATELINK is not enabled. When
+  using AWS PrivateLink or Azure Private Link, internal stage traffic
+  should also be routed through the private connection to prevent data
+  from traversing the public internet.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "ENABLE_INTERNAL_STAGES_PRIVATELINK"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable private connectivity for internal stages by running ALTER
+  ACCOUNT SET ENABLE_INTERNAL_STAGES_PRIVATELINK = TRUE. This is only
+  applicable if you have PrivateLink configured for your Snowflake
+  account.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

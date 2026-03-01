@@ -1,0 +1,27 @@
+id: SF-CFG-002
+title: "REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_CREATION disabled"
+description: >
+  The parameter REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_CREATION is not
+  enabled. Without this requirement, users can create external stages
+  with inline credentials (access keys, secret keys), which risks
+  credential exposure in query logs and metadata.
+severity: HIGH
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_CREATION"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable this parameter by running ALTER ACCOUNT SET
+  REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_CREATION = TRUE. Migrate
+  existing stages with inline credentials to use storage integrations.
+  Storage integrations manage credentials securely without exposing
+  them in DDL statements.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

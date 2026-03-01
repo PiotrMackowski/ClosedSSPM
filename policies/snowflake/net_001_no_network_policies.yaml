@@ -1,0 +1,22 @@
+id: SF-NET-001
+title: "No network policies configured"
+description: >
+  The Snowflake account has no network policies defined. Without network
+  policies, any IP address on the internet can attempt to authenticate.
+  Network policies provide IP allowlisting and blocklisting to restrict
+  access to known, trusted networks.
+severity: HIGH
+category: NET
+platform: snowflake
+query:
+  table: network_policies
+  field_conditions:
+    - field: "name"
+      operator: "empty"
+remediation: >
+  Create at least one network policy to restrict access to known IP
+  ranges. Use CREATE NETWORK POLICY to define allowed and blocked IP
+  addresses. Apply the policy at the account level using ALTER ACCOUNT
+  SET NETWORK_POLICY = '<policy_name>'.
+references:
+  - "https://docs.snowflake.com/en/user-guide/network-policies"

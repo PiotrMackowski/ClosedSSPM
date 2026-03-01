@@ -9,14 +9,14 @@
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/12061/baseline)](https://www.bestpractices.dev/projects/12061)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PiotrMackowski/ClosedSSPM/badge)](https://scorecard.dev/viewer/?uri=github.com/PiotrMackowski/ClosedSSPM)
 
-Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with deep ServiceNow coverage.
+Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, with deep coverage for ServiceNow and Snowflake.
 
 ![ClosedSSPM HTML Report](docs/screenshots/report.jpg)
 
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **69 security checks** covering ACLs, roles, scripts, integrations, instance config, and users
+- **99 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, and more
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
@@ -119,6 +119,31 @@ closedsspm collect --output snapshot.json
 closedsspm evaluate --snapshot snapshot.json --output report.html
 ```
 
+### Snowflake Audit
+
+```bash
+# --- Option 1: Basic auth ---
+export SNOWFLAKE_ACCOUNT=xy12345.us-east-1
+export SNOWFLAKE_USER=audit_user
+export SNOWFLAKE_PASSWORD=secret
+
+# --- Option 2: Key pair (JWT) ---
+export SNOWFLAKE_ACCOUNT=xy12345.us-east-1
+export SNOWFLAKE_USER=audit_user
+export SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.p8
+
+# --- Option 3: OAuth ---
+export SNOWFLAKE_ACCOUNT=xy12345.us-east-1
+export SNOWFLAKE_TOKEN=your_oauth_access_token
+
+# Optional: override defaults
+export SNOWFLAKE_ROLE=SECURITYADMIN       # default: SECURITYADMIN
+export SNOWFLAKE_WAREHOUSE=COMPUTE_WH     # default: COMPUTE_WH
+
+# Run the audit
+closedsspm audit --platform snowflake --output report.html
+```
+
 ### List Available Checks
 
 ```bash
@@ -146,7 +171,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 69 embedded policies. To override with external policies:
+By default the binary uses its 99 embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -243,6 +268,27 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | 2 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
 | 3 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
 
+#### Snowflake (`--platform snowflake`)
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SNOWFLAKE_ACCOUNT` | Account identifier (e.g. `xy12345.us-east-1`) | Yes |
+| `SNOWFLAKE_USER` | Username | For basic / key pair auth |
+| `SNOWFLAKE_PASSWORD` | Password | For basic auth |
+| `SNOWFLAKE_PRIVATE_KEY_PATH` | Path to RSA private key PEM file | For key pair (JWT) |
+| `SNOWFLAKE_TOKEN` | OAuth access token | For OAuth |
+| `SNOWFLAKE_ROLE` | Role to assume (default: `SECURITYADMIN`) | No |
+| `SNOWFLAKE_WAREHOUSE` | Warehouse for queries (default: `COMPUTE_WH`) | No |
+| `SNOWFLAKE_DATABASE` | Database (default: `SNOWFLAKE` for ACCOUNT_USAGE views) | No |
+
+**Authentication method is auto-detected** based on which variables are set:
+
+| Priority | Method | Required Variables |
+|----------|--------|--------------------|
+| 1 | Key pair (JWT) | `SNOWFLAKE_USER` + `SNOWFLAKE_PRIVATE_KEY_PATH` |
+| 2 | OAuth | `SNOWFLAKE_TOKEN` |
+| 3 | Basic | `SNOWFLAKE_USER` + `SNOWFLAKE_PASSWORD` |
+
 ## Architecture
 
 ```
@@ -257,7 +303,8 @@ closedsspm/
 │   ├── collector/            # Collector interface & snapshot model
 │   ├── connector/
 │   │   ├── registry.go       # Platform connector registry
-│   │   └── servicenow/       # ServiceNow API client & collector
+│   │   ├── servicenow/       # ServiceNow API client & collector
+│   │   └── snowflake/        # Snowflake SQL client & collector
 │   ├── finding/              # Finding model & severity
 │   ├── mcpserver/            # MCP server implementation
 │   ├── policy/               # Policy engine (YAML loading & evaluation)
@@ -267,7 +314,8 @@ closedsspm/
 │       └── json/            # JSON report generator
 │       ├── sarif/           # SARIF 2.1.0 report generator
 └── policies/
-    └── servicenow/           # ServiceNow policy definitions (YAML, embedded at build)
+    ├── servicenow/           # ServiceNow policy definitions (YAML, embedded at build)
+    └── snowflake/            # Snowflake policy definitions (YAML, embedded at build)
 ```
 
 ## Subprojects
@@ -278,7 +326,9 @@ closedsspm/
 
 ## Security Checks
 
-69 built-in checks across 6 categories:
+99 built-in checks across two platforms.
+
+### ServiceNow (69 checks)
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -288,6 +338,17 @@ closedsspm/
 | **Integrations** | 7 | Unauthenticated endpoints, basic auth, unvalidated MID servers |
 | **Instance Config** | 32 | HTTPS enforcement, session timeout, password policy, CSRF, XSS prevention, TLS, sandbox, SAML signing, SSO bypass |
 | **Users** | 5 | Never-logged-in accounts, locked-out active users, service account hygiene |
+
+### Snowflake (30 checks)
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| **IAM** | 5 | MFA not enabled, ACCOUNTADMIN default role, disabled users with roles, missing email/owner |
+| **ACL** | 6 | ACCOUNTADMIN/SECURITYADMIN grants, MANAGE GRANTS privilege, GRANT OPTION, role ownership |
+| **Network** | 2 | Missing network policies, no blocked IP list |
+| **Config** | 14 | Unencrypted copy, storage integration, data exfiltration controls, encryption rekeying, session/password policies, warehouse monitors |
+| **Data Sharing** | 1 | Outbound share review |
+| **Audit** | 2 | Failed logins, logins without MFA |
 
 Run `closedsspm checks list` to see all individual rules.
 

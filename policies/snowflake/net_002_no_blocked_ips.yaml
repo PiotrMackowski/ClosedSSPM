@@ -1,0 +1,24 @@
+id: SF-NET-002
+title: "Network policy has no blocked IP list"
+description: >
+  A network policy does not define any blocked IP addresses. While an
+  allowlist restricts access to known IPs, a blocklist provides an
+  additional layer of defense against known malicious sources or
+  ranges that should never have access.
+severity: LOW
+category: NET
+platform: snowflake
+query:
+  table: network_policies
+  field_conditions:
+    - field: "name"
+      operator: "not_empty"
+    - field: "blocked_ip_list"
+      operator: "empty"
+remediation: >
+  Review your network policy and add known-bad IP ranges to the
+  blocked IP list. Use ALTER NETWORK POLICY <name> SET
+  BLOCKED_IP_LIST = ('<ip1>', '<ip2>'). Consider blocking geographic
+  regions where your organization does not operate.
+references:
+  - "https://docs.snowflake.com/en/user-guide/network-policies"

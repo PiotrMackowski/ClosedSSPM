@@ -1,0 +1,22 @@
+id: SF-CFG-010
+title: "No session policy defined"
+description: >
+  No session policies are configured in the Snowflake account. Without
+  session policies, there is no enforcement of idle session timeouts.
+  Long-lived sessions increase the risk of unauthorized access through
+  unattended workstations or stolen session tokens.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: session_policies
+  field_conditions:
+    - field: "name"
+      operator: "empty"
+remediation: >
+  Create a session policy using CREATE SESSION POLICY that enforces
+  idle timeouts appropriate for your organization (e.g., 15-30
+  minutes). Apply the policy at the account level using ALTER ACCOUNT
+  SET SESSION POLICY = <db.schema.policy_name>.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/create-session-policy"

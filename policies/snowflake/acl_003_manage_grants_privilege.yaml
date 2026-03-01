@@ -1,0 +1,22 @@
+id: SF-ACL-003
+title: "Role granted MANAGE GRANTS privilege"
+description: >
+  A role has been granted the global MANAGE GRANTS privilege. This
+  privilege allows the role to grant or revoke any privilege on any
+  object to any role, effectively enabling privilege escalation. Only
+  SECURITYADMIN and ACCOUNTADMIN should manage grants.
+severity: HIGH
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_roles
+  field_conditions:
+    - field: "privilege"
+      operator: "equals"
+      value: "MANAGE GRANTS"
+remediation: >
+  Revoke the MANAGE GRANTS privilege from non-administrative roles.
+  Use REVOKE MANAGE GRANTS ON ACCOUNT FROM ROLE <role_name>. Centralize
+  grant management through SECURITYADMIN as recommended by Snowflake.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/grant-privilege"

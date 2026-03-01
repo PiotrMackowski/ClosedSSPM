@@ -1,0 +1,26 @@
+id: SF-CFG-001
+title: "ALLOW_UNENCRYPTED_VALUE_FOR_COPY enabled"
+description: >
+  The account parameter ALLOW_UNENCRYPTED_VALUE_FOR_COPY is set to true.
+  This allows COPY operations to load data from unencrypted files,
+  bypassing encryption requirements for data at rest. All data loaded
+  into Snowflake should come from encrypted sources.
+severity: HIGH
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "ALLOW_UNENCRYPTED_VALUE_FOR_COPY"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Disable this parameter by running ALTER ACCOUNT SET
+  ALLOW_UNENCRYPTED_VALUE_FOR_COPY = FALSE. Ensure all external stages
+  and data sources use encryption. Audit existing COPY commands for
+  unencrypted file references.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

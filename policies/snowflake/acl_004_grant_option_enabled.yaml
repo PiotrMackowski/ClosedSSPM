@@ -1,0 +1,23 @@
+id: SF-ACL-004
+title: "Grant issued with GRANT OPTION enabled"
+description: >
+  A privilege grant was issued with the WITH GRANT OPTION flag. This
+  allows the grantee role to further delegate the privilege to other
+  roles, creating a decentralized and harder-to-audit permission chain.
+  Uncontrolled delegation can lead to unintended privilege spread.
+severity: MEDIUM
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_roles
+  field_conditions:
+    - field: "grant_option"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review grants with GRANT OPTION and determine if delegation is truly
+  required. Revoke and re-grant without WITH GRANT OPTION where possible.
+  Centralize privilege management through SECURITYADMIN to maintain a
+  clear audit trail.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/grant-privilege"

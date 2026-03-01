@@ -1,0 +1,24 @@
+id: SF-IAM-002
+title: "Disabled user still has a default role assigned"
+description: >
+  A disabled user account still has a default role configured. While the account
+  cannot currently authenticate, having roles assigned to disabled accounts
+  increases risk if the account is accidentally re-enabled, as it would
+  immediately inherit those privileges.
+severity: MEDIUM
+category: IAM
+platform: snowflake
+query:
+  table: users
+  field_conditions:
+    - field: "disabled"
+      operator: "equals"
+      value: "true"
+    - field: "default_role"
+      operator: "not_empty"
+remediation: >
+  Remove role assignments from disabled user accounts. Use ALTER USER
+  <username> SET DEFAULT_ROLE = '' to clear the default role. If the account
+  is no longer needed, consider dropping it entirely.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/alter-user"

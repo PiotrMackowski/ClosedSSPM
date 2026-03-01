@@ -1,0 +1,25 @@
+id: SF-CFG-008
+title: "SSO login not enforced (SAML_IDENTITY_PROVIDER not configured)"
+description: >
+  The account parameter SAML_IDENTITY_PROVIDER is empty, indicating
+  that SAML-based single sign-on is not configured at the account level.
+  Without centralized SSO, user authentication relies solely on Snowflake
+  local credentials, bypassing organizational identity governance.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "SAML_IDENTITY_PROVIDER"
+    - field: "value"
+      operator: "empty"
+remediation: >
+  Configure SAML SSO by setting up a security integration with your
+  identity provider. Use CREATE SECURITY INTEGRATION with TYPE =
+  SAML2 and configure the appropriate IdP metadata. This enables
+  centralized authentication and MFA enforcement through your IdP.
+references:
+  - "https://docs.snowflake.com/en/user-guide/admin-security-fed-auth-overview"

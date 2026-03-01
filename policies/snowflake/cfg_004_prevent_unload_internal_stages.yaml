@@ -1,0 +1,26 @@
+id: SF-CFG-004
+title: "PREVENT_UNLOAD_TO_INTERNAL_STAGES disabled"
+description: >
+  The parameter PREVENT_UNLOAD_TO_INTERNAL_STAGES is set to false.
+  Internal stages (user and table stages) are accessible to anyone
+  with appropriate table privileges. Data unloaded to internal stages
+  can be downloaded by users who should not have direct data access.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "PREVENT_UNLOAD_TO_INTERNAL_STAGES"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable this parameter by running ALTER ACCOUNT SET
+  PREVENT_UNLOAD_TO_INTERNAL_STAGES = TRUE. Direct data unloads to
+  named external stages with proper access controls and audit logging
+  instead of internal stages.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

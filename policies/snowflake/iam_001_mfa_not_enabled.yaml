@@ -1,0 +1,26 @@
+id: SF-IAM-001
+title: "User does not have MFA enabled"
+description: >
+  The user account does not have multi-factor authentication (MFA) enabled.
+  Without MFA, accounts are vulnerable to credential stuffing, phishing, and
+  brute-force attacks. MFA adds a critical second layer of defense beyond
+  passwords alone.
+severity: HIGH
+category: IAM
+platform: snowflake
+query:
+  table: users
+  field_conditions:
+    - field: "has_mfa"
+      operator: "equals"
+      value: "false"
+    - field: "disabled"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Enable MFA for all user accounts. Use ALTER USER <username> SET
+  EXT_AUTHN_DUO = TRUE or enroll users through the Snowflake web UI.
+  Prioritize accounts with elevated roles such as ACCOUNTADMIN or
+  SECURITYADMIN.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-mfa"
