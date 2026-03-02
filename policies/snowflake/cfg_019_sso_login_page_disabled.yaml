@@ -1,0 +1,26 @@
+id: SF-CFG-019
+title: "SSO login page redirect not enabled"
+description: >
+  The SSO_LOGIN_PAGE parameter is set to false. When disabled, users are
+  presented with the standard Snowflake login page rather than being
+  redirected to the configured identity provider (IdP). This allows users to
+  bypass SSO and authenticate with local credentials, weakening centralized
+  authentication controls.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "SSO_LOGIN_PAGE"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable SSO login page redirect by running ALTER ACCOUNT SET SSO_LOGIN_PAGE
+  = TRUE. Ensure a SAML or SCIM integration with your IdP is properly
+  configured before enabling this setting.
+references:
+  - "https://docs.snowflake.com/en/user-guide/admin-security-fed-auth-overview"

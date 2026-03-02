@@ -1,0 +1,26 @@
+id: SF-ACL-008
+title: "OWNERSHIP privilege on ACCOUNT granted to non-standard role"
+description: >
+  A role holds the OWNERSHIP privilege on the ACCOUNT object. This grants full
+  control over the Snowflake account, including the ability to drop or alter
+  any object and manage all access controls. Only ACCOUNTADMIN should hold
+  account-level ownership.
+severity: CRITICAL
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_roles
+  field_conditions:
+    - field: "privilege"
+      operator: "equals"
+      value: "OWNERSHIP"
+    - field: "granted_on"
+      operator: "equals"
+      value: "ACCOUNT"
+remediation: >
+  Review the grant and ensure only ACCOUNTADMIN holds OWNERSHIP on the
+  ACCOUNT object. Revoke the privilege from any other role using REVOKE
+  OWNERSHIP ON ACCOUNT FROM ROLE <role_name>. Audit the role hierarchy to
+  prevent future drift.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-access-control-considerations"

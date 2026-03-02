@@ -16,7 +16,7 @@ Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms 
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **99 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, and more
+- **113 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, and more
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
@@ -175,7 +175,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 99 embedded policies. To override with external policies:
+By default the binary uses its 113 embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -332,7 +332,7 @@ closedsspm/
 
 ## Security Checks
 
-99 built-in checks across two platforms.
+113 built-in checks across two platforms.
 
 ### ServiceNow (69 checks)
 
@@ -345,16 +345,16 @@ closedsspm/
 | **Instance Config** | 32 | HTTPS enforcement, session timeout, password policy, CSRF, XSS prevention, TLS, sandbox, SAML signing, SSO bypass |
 | **Users** | 5 | Never-logged-in accounts, locked-out active users, service account hygiene |
 
-### Snowflake (30 checks)
+### Snowflake (44 checks)
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| **IAM** | 5 | MFA not enabled, ACCOUNTADMIN default role, disabled users with roles, missing email/owner |
-| **ACL** | 6 | ACCOUNTADMIN/SECURITYADMIN grants, MANAGE GRANTS privilege, GRANT OPTION, role ownership |
+| **IAM** | 8 | MFA not enabled, ACCOUNTADMIN/SYSADMIN default role, password-only auth, disabled users with roles, missing email/owner, MFA enrollment prompt |
+| **ACL** | 8 | ACCOUNTADMIN/SECURITYADMIN/SYSADMIN grants, MANAGE GRANTS privilege, GRANT OPTION, role ownership, ACCOUNT ownership |
 | **Network** | 2 | Missing network policies, no blocked IP list |
-| **Config** | 14 | Unencrypted copy, storage integration, data exfiltration controls, encryption rekeying, session/password policies, warehouse monitors |
+| **Config** | 22 | Unencrypted copy, storage integration, data exfiltration controls, encryption rekeying, session/password policies, warehouse monitors, MFA caching, session keep-alive, OAuth role blocking, network policy enforcement |
 | **Data Sharing** | 1 | Outbound share review |
-| **Audit** | 2 | Failed logins, logins without MFA |
+| **Audit** | 3 | Failed logins, logins without MFA, password-only logins |
 
 Run `closedsspm checks list` to see all individual rules.
 

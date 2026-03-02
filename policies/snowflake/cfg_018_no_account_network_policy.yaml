@@ -1,0 +1,25 @@
+id: SF-CFG-018
+title: "No network policy set at account level"
+description: >
+  No network policy is configured at the account level. Without an
+  account-level network policy, connections from any IP address are permitted.
+  Account-level network policies provide a baseline IP allowlist that applies
+  to all users unless overridden by a more specific user-level policy.
+severity: HIGH
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "NETWORK_POLICY"
+    - field: "value"
+      operator: "empty"
+remediation: >
+  Create and assign an account-level network policy using CREATE NETWORK
+  POLICY and ALTER ACCOUNT SET NETWORK_POLICY = '<policy_name>'. Define
+  allowed IP ranges that correspond to your corporate network, VPN, and any
+  trusted third-party services.
+references:
+  - "https://docs.snowflake.com/en/user-guide/network-policies"

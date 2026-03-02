@@ -1,0 +1,26 @@
+id: SF-CFG-015
+title: "CLIENT_SESSION_KEEP_ALIVE enabled at account level"
+description: >
+  The account parameter CLIENT_SESSION_KEEP_ALIVE is enabled. When active,
+  client sessions are kept alive indefinitely even when idle, which prevents
+  automatic session expiration. This increases the window of opportunity for
+  session hijacking and consumes unnecessary resources.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "CLIENT_SESSION_KEEP_ALIVE"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Disable session keep-alive by running ALTER ACCOUNT SET
+  CLIENT_SESSION_KEEP_ALIVE = FALSE. Rely on session timeout policies to
+  automatically terminate idle sessions. Combine with network policies to
+  restrict session origins.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"
