@@ -1,0 +1,22 @@
+id: SF-NET-003
+title: "Network policy IP restrictions summary"
+description: >
+  A network policy is configured in the account. This informational finding
+  surfaces the policy details including allowed and blocked IP lists for
+  review. Verify that the allowed ranges follow least-privilege networking
+  and that no overly broad CIDR blocks (e.g. 0.0.0.0/0) are present.
+severity: INFO
+category: NET
+platform: snowflake
+query:
+  table: network_policies
+  field_conditions:
+    - field: "name"
+      operator: "not_empty"
+remediation: >
+  Review the allowed IP list for overly broad ranges. Ensure only corporate
+  networks, VPNs, and trusted third-party services are included. Remove any
+  0.0.0.0/0 or excessively wide CIDR blocks. Periodically audit IP ranges
+  as network infrastructure changes.
+references:
+  - "https://docs.snowflake.com/en/user-guide/network-policies"
