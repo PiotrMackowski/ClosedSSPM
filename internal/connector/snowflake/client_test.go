@@ -148,6 +148,35 @@ func TestNewClient_OAuthMissingToken(t *testing.T) {
 	}
 }
 
+func TestNewClient_PATMissingCredentials(t *testing.T) {
+	tests := []struct {
+		name      string
+		username  string
+		token     string
+		errSubstr string
+	}{
+		{"missing username", "", "pat-token-value", "username is required for PAT auth"},
+		{"missing token", "admin", "", "PAT token is required"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := collector.ConnectorConfig{
+				Account:    "test-account",
+				AuthMethod: "pat",
+				Username:   tt.username,
+				Password:   tt.token,
+			}
+			_, err := NewClient(config)
+			if err == nil {
+				t.Error("NewClient() should return error")
+			} else if !contains(err.Error(), tt.errSubstr) {
+				t.Errorf("error = %q, want substring %q", err.Error(), tt.errSubstr)
+			}
+		})
+	}
+}
+
 func TestNewClient_AccountNormalization(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -22,6 +22,9 @@ const envHelp = `Snowflake credentials (environment variables):
   Key pair auth (JWT):
   SNOWFLAKE_PRIVATE_KEY_PATH - Path to RSA private key PEM file
 
+  Programmatic access token (PAT):
+  SNOWFLAKE_PAT             - Programmatic access token
+
   OAuth:
   SNOWFLAKE_TOKEN           - OAuth access token
 
@@ -47,6 +50,7 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	password := os.Getenv("SNOWFLAKE_PASSWORD")
 	privateKeyPath := os.Getenv("SNOWFLAKE_PRIVATE_KEY_PATH")
 	token := os.Getenv("SNOWFLAKE_TOKEN")
+	pat := os.Getenv("SNOWFLAKE_PAT")
 	role := os.Getenv("SNOWFLAKE_ROLE")
 	warehouse := os.Getenv("SNOWFLAKE_WAREHOUSE")
 	database := os.Getenv("SNOWFLAKE_DATABASE")
@@ -54,14 +58,18 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	authMethod := "basic"
 	if privateKeyPath != "" {
 		authMethod = "keypair"
+	} else if pat != "" {
+		authMethod = "pat"
 	} else if token != "" {
 		authMethod = "oauth"
 	}
 
-	// For OAuth, pass the token via Password field (gosnowflake convention).
+	// For OAuth/PAT, pass the token via Password field (gosnowflake convention).
 	effectivePassword := password
 	if authMethod == "oauth" {
 		effectivePassword = token
+	} else if authMethod == "pat" {
+		effectivePassword = pat
 	}
 
 	concurrency, _ := cmd.Flags().GetInt("concurrency")

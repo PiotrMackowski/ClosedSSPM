@@ -106,8 +106,17 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		}
 		sfConfig.Authenticator = sf.AuthTypeOAuth
 		sfConfig.Token = config.Password
+	case "pat":
+		if config.Username == "" {
+			return nil, fmt.Errorf("username is required for PAT auth")
+		}
+		if config.Password == "" {
+			return nil, fmt.Errorf("PAT token is required (set SNOWFLAKE_PAT)")
+		}
+		sfConfig.Authenticator = sf.AuthTypePat
+		sfConfig.Token = config.Password
 	default:
-		return nil, fmt.Errorf("unsupported auth method: %s (use basic, keypair, or oauth)", config.AuthMethod)
+		return nil, fmt.Errorf("unsupported auth method: %s (use basic, keypair, oauth, or pat)", config.AuthMethod)
 	}
 
 	dsn, err := sf.DSN(sfConfig)

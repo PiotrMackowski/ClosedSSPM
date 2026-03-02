@@ -136,6 +136,10 @@ export SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.p8
 export SNOWFLAKE_ACCOUNT=xy12345.us-east-1
 export SNOWFLAKE_TOKEN=your_oauth_access_token
 
+# --- Option 4: Programmatic Access Token (PAT) ---
+export SNOWFLAKE_ACCOUNT=xy12345.us-east-1
+export SNOWFLAKE_USER=audit_user
+export SNOWFLAKE_PAT=your_programmatic_access_token
 # Optional: override defaults
 export SNOWFLAKE_ROLE=SECURITYADMIN       # default: SECURITYADMIN
 export SNOWFLAKE_WAREHOUSE=COMPUTE_WH     # default: COMPUTE_WH
@@ -277,6 +281,7 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | `SNOWFLAKE_PASSWORD` | Password | For basic auth |
 | `SNOWFLAKE_PRIVATE_KEY_PATH` | Path to RSA private key PEM file | For key pair (JWT) |
 | `SNOWFLAKE_TOKEN` | OAuth access token | For OAuth |
+| `SNOWFLAKE_PAT` | Programmatic access token | For PAT auth |
 | `SNOWFLAKE_ROLE` | Role to assume (default: `SECURITYADMIN`) | No |
 | `SNOWFLAKE_WAREHOUSE` | Warehouse for queries (default: `COMPUTE_WH`) | No |
 | `SNOWFLAKE_DATABASE` | Database (default: `SNOWFLAKE` for ACCOUNT_USAGE views) | No |
@@ -286,8 +291,9 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | Priority | Method | Required Variables |
 |----------|--------|--------------------|
 | 1 | Key pair (JWT) | `SNOWFLAKE_USER` + `SNOWFLAKE_PRIVATE_KEY_PATH` |
-| 2 | OAuth | `SNOWFLAKE_TOKEN` |
-| 3 | Basic | `SNOWFLAKE_USER` + `SNOWFLAKE_PASSWORD` |
+| 2 | PAT | `SNOWFLAKE_USER` + `SNOWFLAKE_PAT` |
+| 3 | OAuth | `SNOWFLAKE_TOKEN` |
+| 4 | Basic | `SNOWFLAKE_USER` + `SNOWFLAKE_PASSWORD` |
 
 ## Architecture
 
