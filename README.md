@@ -16,7 +16,7 @@ Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms 
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **114 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, and more
+- **141 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, SAST scanning, and more
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
@@ -175,7 +175,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 114 embedded policies. To override with external policies:
+By default the binary uses its 141 embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -332,9 +332,9 @@ closedsspm/
 
 ## Security Checks
 
-114 built-in checks across two platforms.
+141 built-in checks across two platforms.
 
-### ServiceNow (69 checks)
+### ServiceNow (86 checks)
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -344,8 +344,9 @@ closedsspm/
 | **Integrations** | 7 | Unauthenticated endpoints, basic auth, unvalidated MID servers |
 | **Instance Config** | 32 | HTTPS enforcement, session timeout, password policy, CSRF, XSS prevention, TLS, sandbox, SAML signing, SSO bypass |
 | **Users** | 5 | Never-logged-in accounts, locked-out active users, service account hygiene |
+| **SAST** | 17 | Hardcoded credentials, eval(), GlideEvaluator, insecure HTTP, query injection, XSS sinks, workflow bypass |
 
-### Snowflake (45 checks)
+### Snowflake (55 checks)
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -355,6 +356,7 @@ closedsspm/
 | **Config** | 22 | Unencrypted copy, storage integration, data exfiltration controls, encryption rekeying, session/password policies, warehouse monitors, MFA caching, session keep-alive, OAuth role blocking, network policy enforcement |
 | **Data Sharing** | 1 | Outbound share review |
 | **Audit** | 3 | Failed logins, logins without MFA, password-only logins |
+| **SAST** | 10 | AWS keys in procedures/UDFs, private keys, eval(), new Function(), SQL injection, subprocess/os.system |
 
 Run `closedsspm checks list` to see all individual rules.
 
