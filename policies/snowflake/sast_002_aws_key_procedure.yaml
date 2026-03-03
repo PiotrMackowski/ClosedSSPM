@@ -1,0 +1,21 @@
+id: SF-SAST-002
+title: "AWS access key in stored procedure"
+description: >
+  A stored procedure contains what appears to be an AWS access key ID
+  (starting with AKIA or ASIA). Embedding cloud provider keys in
+  procedure code creates a serious credential exposure risk.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: procedures
+  field_conditions:
+    - field: "PROCEDURE_DEFINITION"
+      operator: "matches_regex"
+      value: "(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}"
+remediation: >
+  Remove AWS keys from stored procedures. Use Snowflake storage
+  integrations (CREATE STORAGE INTEGRATION) for AWS access, or store
+  keys in Snowflake secrets and retrieve them at runtime.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration"

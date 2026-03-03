@@ -9,17 +9,17 @@
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/12061/baseline)](https://www.bestpractices.dev/projects/12061)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PiotrMackowski/ClosedSSPM/badge)](https://scorecard.dev/viewer/?uri=github.com/PiotrMackowski/ClosedSSPM)
 
-Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, with deep coverage for ServiceNow and Snowflake.
+Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with ServiceNow and Snowflake.
 
 ![ClosedSSPM HTML Report](docs/screenshots/report.jpg)
 
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **114 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, and more
+- **100+ security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, secret scanning
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
-- **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
+- **HTML reports** — self-contained, dark-themed HTML reports with posture scoring
 - **JSON output** — machine-readable output for pipeline integration
 - **CSV export** — spreadsheet-friendly output for compliance workflows
 - **MCP server** — AI-assisted audit analysis via Model Context Protocol (works with Claude, OpenCode, etc.)
@@ -108,6 +108,10 @@ export SNOW_PRIVATE_KEY_PATH=/path/to/private-key.pem
 export SNOW_KEY_ID=your_key_id
 export SNOW_JWT_USER=svc_audit_user
 
+# --- Option 4: API Key ---
+export SNOW_INSTANCE=https://mycompany.service-now.com
+export SNOW_API_KEY=your_api_key
+
 # Full audit: collect + evaluate + report (ServiceNow is the default platform)
 closedsspm audit --output report.html
 
@@ -161,7 +165,7 @@ closedsspm checks list
 closedsspm mcp --snapshot snapshot.json
 ```
 
-Add to your MCP client configuration (e.g. Claude Desktop):
+Add to your MCP client configuration:
 ```json
 {
   "mcpServers": {
@@ -175,7 +179,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 114 embedded policies. To override with external policies:
+By default the binary uses its embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -247,7 +251,7 @@ Flags:
 
 ### Environment Variables
 
-All credentials are read from environment variables. **Never store credentials in config files.**
+All credentials are read from environment variables. 
 
 Each platform uses its own set of environment variables. The `--platform` flag (default: `servicenow`) determines which variables are read.
 
@@ -263,14 +267,18 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | `SNOW_PRIVATE_KEY_PATH` | Path to RSA private key PEM file | For key pair |
 | `SNOW_KEY_ID` | Key ID from ServiceNow JWT Verifier Map | For key pair |
 | `SNOW_JWT_USER` | ServiceNow username for JWT `sub` claim (cannot be admin) | For key pair |
+| `SNOW_API_KEY` | API key token (from REST API Key table) | For API key auth |
 
 **Authentication method is auto-detected** based on which variables are set:
 
 | Priority | Method | Required Variables |
 |----------|--------|--------------------|
-| 1 | Key pair (JWT bearer) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` + `SNOW_PRIVATE_KEY_PATH` |
-| 2 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
-| 3 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
+| 1 | API key | `SNOW_API_KEY` |
+| 2 | Key pair (JWT bearer) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` + `SNOW_PRIVATE_KEY_PATH` |
+| 3 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
+| 4 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
+
+> **New to API key auth in Servicenow?** See [`docs/setup_apikey_auth.py`](docs/setup_apikey_auth.py)
 
 #### Snowflake (`--platform snowflake`)
 
@@ -332,9 +340,7 @@ closedsspm/
 
 ## Security Checks
 
-114 built-in checks across two platforms.
-
-### ServiceNow (69 checks)
+### ServiceNow (86 checks)
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -344,8 +350,9 @@ closedsspm/
 | **Integrations** | 7 | Unauthenticated endpoints, basic auth, unvalidated MID servers |
 | **Instance Config** | 32 | HTTPS enforcement, session timeout, password policy, CSRF, XSS prevention, TLS, sandbox, SAML signing, SSO bypass |
 | **Users** | 5 | Never-logged-in accounts, locked-out active users, service account hygiene |
+| **SAST** | 17 | Hardcoded credentials, eval(), GlideEvaluator, insecure HTTP, query injection, XSS sinks, workflow bypass |
 
-### Snowflake (45 checks)
+### Snowflake (55 checks)
 
 | Category | Count | Examples |
 |----------|-------|---------|
@@ -355,6 +362,7 @@ closedsspm/
 | **Config** | 22 | Unencrypted copy, storage integration, data exfiltration controls, encryption rekeying, session/password policies, warehouse monitors, MFA caching, session keep-alive, OAuth role blocking, network policy enforcement |
 | **Data Sharing** | 1 | Outbound share review |
 | **Audit** | 3 | Failed logins, logins without MFA, password-only logins |
+| **SAST** | 10 | AWS keys in procedures/UDFs, private keys, eval(), new Function(), SQL injection, subprocess/os.system |
 
 Run `closedsspm checks list` to see all individual rules.
 
@@ -403,6 +411,8 @@ Run ClosedSSPM audits directly in your CI/CD pipeline:
     # private-key: ${{ secrets.SNOW_PRIVATE_KEY }}
     # key-id: ${{ secrets.SNOW_KEY_ID }}
     # jwt-user: ${{ secrets.SNOW_JWT_USER }}
+    # --- OR API Key ---
+    # api-key: ${{ secrets.SNOW_API_KEY }}
     format: sarif
     fail-on: HIGH
 
@@ -426,6 +436,7 @@ Run ClosedSSPM audits directly in your CI/CD pipeline:
 | `private-key` | No | — | RSA private key PEM content for JWT key pair auth |
 | `key-id` | No | — | Key ID from ServiceNow JWT Verifier Map |
 | `jwt-user` | No | — | ServiceNow username for JWT `sub` claim (cannot be admin) |
+| `api-key` | No | — | ServiceNow API key token |
 | `format` | No | `sarif` | Report format: html, json, csv, or sarif |
 | `fail-on` | No | `none` | Fail if findings at/above severity: CRITICAL, HIGH, MEDIUM, LOW, INFO |
 
@@ -441,18 +452,16 @@ All credential inputs should be passed via [GitHub encrypted secrets](https://do
 | `sarif-path` | Path to SARIF file (only when format=sarif) |
 ## Security Best Practices
 
-- Credentials are **only** read from environment variables, never from config files
 - Snapshots may contain sensitive data — treat them as confidential
 - The MCP server uses **stdio transport only** (no network exposure)
 - The tool is **read-only** — it never writes to your SaaS platform
-- ServiceNow audit user should have **read-only** roles (minimum required permissions)
+- ServiceNow audit user should have **read-only** roles 
 
 ### Minimum ServiceNow Permissions
 
 Create a dedicated audit user with these roles:
 - `itil` (read access to most tables)
 - `security_admin` (read access to ACLs and security config)
-- Disable `web_service_access_only` is NOT recommended for this user; use OAuth where possible
 
 ## Writing Custom Policies
 
@@ -506,7 +515,7 @@ Contributions are welcome. Please follow these guidelines:
 5. **All CI checks must pass** — tests, `go vet`, CodeQL, and Trivy scans
 6. **One PR per change** — keep pull requests focused and reviewable
 
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities (do **not** use public issues for security bugs).
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## Reporting Issues
 
@@ -517,14 +526,11 @@ When reporting a bug, please include:
 - Operating system and architecture
 - Steps to reproduce the issue
 - Expected vs actual behavior
-- Any relevant error output (sanitize credentials before sharing)
+- Any relevant error output 
 
 ## Reporting Vulnerabilities
 
-**Do not report security vulnerabilities through public issues.**
-
 Please use [GitHub Security Advisories](https://github.com/PiotrMackowski/ClosedSSPM/security/advisories/new) to report vulnerabilities privately. See [SECURITY.md](SECURITY.md) for full details including response timelines and scope.
-
 
 ## Development
 

@@ -1,0 +1,21 @@
+id: SNOW-SAST-011
+title: "GlideEvaluator usage in MID Server script"
+description: >
+  A MID Server script file uses GlideEvaluator to dynamically evaluate code at
+  runtime. MID Server scripts run outside the instance security boundary, making
+  dynamic code execution especially dangerous if inputs are not validated.
+severity: HIGH
+category: SAST
+platform: servicenow
+query:
+  table: ecc_agent_script_file
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "GlideEvaluator"
+remediation: >
+  Replace GlideEvaluator with direct function calls. If dynamic evaluation is
+  unavoidable, use GlideScopedEvaluator with strict input validation and
+  allowlisting of permitted operations.
+references:
+  - "https://developer.servicenow.com/dev.do#!/reference/api/xanadu/server/no-namespace/GlideScopedEvaluatorAPI"

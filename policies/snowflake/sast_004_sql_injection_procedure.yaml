@@ -1,0 +1,22 @@
+id: SF-SAST-004
+title: "Potential SQL injection via EXECUTE IMMEDIATE in stored procedure"
+description: >
+  A stored procedure uses EXECUTE IMMEDIATE with string concatenation
+  (|| operator or CONCAT function). If the concatenated value includes
+  unsanitized input, this enables SQL injection attacks.
+severity: HIGH
+category: SAST
+platform: snowflake
+query:
+  table: procedures
+  field_conditions:
+    - field: "PROCEDURE_DEFINITION"
+      operator: "matches_regex"
+      value: "(?i)EXECUTE\\s+IMMEDIATE\\s+.*(?:\\|\\||CONCAT\\s*\\()"
+remediation: >
+  Use parameterized queries with bind variables instead of string
+  concatenation in EXECUTE IMMEDIATE. In Snowflake Scripting, use
+  the USING clause or bind variables (:variable) to pass dynamic
+  values safely.
+references:
+  - "https://docs.snowflake.com/en/developer-guide/snowflake-scripting/execute-immediate"

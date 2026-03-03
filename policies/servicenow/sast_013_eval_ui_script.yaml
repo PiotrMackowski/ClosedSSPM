@@ -1,0 +1,25 @@
+id: SNOW-SAST-013
+title: "eval() usage in UI script"
+description: >
+  A UI script calls eval() to execute a dynamically constructed string as code
+  in the browser. This is a critical cross-site scripting (XSS) vector because
+  any attacker-controlled data that reaches eval() can execute arbitrary
+  client-side JavaScript in the user's browser session.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_ui_script
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "eval("
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove all uses of eval(). Replace with JSON.parse() for data deserialization
+  or direct function references for dynamic dispatch. Never pass user-controlled
+  data to eval() under any circumstances.
+references:
+  - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_direct_eval!"

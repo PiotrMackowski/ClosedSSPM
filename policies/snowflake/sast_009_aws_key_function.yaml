@@ -1,0 +1,21 @@
+id: SF-SAST-009
+title: "AWS access key in user-defined function"
+description: >
+  A user-defined function contains what appears to be an AWS access
+  key ID (starting with AKIA or ASIA). Embedding cloud provider keys
+  in UDF code creates a serious credential exposure risk.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: functions
+  field_conditions:
+    - field: "FUNCTION_DEFINITION"
+      operator: "matches_regex"
+      value: "(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}"
+remediation: >
+  Remove AWS keys from user-defined functions. Use Snowflake storage
+  integrations for AWS access, or use external functions with API
+  integrations for external service calls.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration"

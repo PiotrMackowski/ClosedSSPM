@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
@@ -16,7 +18,7 @@ import (
 // FieldCondition describes a condition to check on a record field.
 type FieldCondition struct {
 	Field    string `yaml:"field"`
-	Operator string `yaml:"operator"` // "empty", "not_empty", "equals", "not_equals", "contains", "regex", "greater_than", "less_than"
+	Operator string `yaml:"operator"` // "empty", "not_empty", "equals", "not_equals", "contains", "matches_regex", "not_matches_regex"
 	Value    string `yaml:"value,omitempty"`
 }
 
@@ -175,6 +177,33 @@ func (e *Evaluator) evaluatePolicy(p Policy, snapshot *collector.Snapshot) ([]fi
 	return findings, nil
 }
 
+// regexCache caches compiled regular expressions to avoid recompilation per-record.
+var (
+	regexCache   = make(map[string]*regexp.Regexp)
+	regexCacheMu sync.RWMutex
+)
+
+// getCompiledRegex returns a compiled regexp, using a cache to avoid recompilation.
+func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
+	regexCacheMu.RLock()
+	re, ok := regexCache[pattern]
+	regexCacheMu.RUnlock()
+	if ok {
+		return re, nil
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	regexCacheMu.Lock()
+	regexCache[pattern] = re
+	regexCacheMu.Unlock()
+
+	return re, nil
+}
+
 // matchesFieldConditions checks if a record matches all field conditions.
 func matchesFieldConditions(record collector.Record, conditions []FieldCondition) bool {
 	for _, cond := range conditions {
@@ -198,6 +227,22 @@ func matchesFieldConditions(record collector.Record, conditions []FieldCondition
 			}
 		case "contains":
 			if !strings.Contains(val, cond.Value) {
+				return false
+			}
+		case "matches_regex":
+			re, err := getCompiledRegex(cond.Value)
+			if err != nil {
+				return false // invalid regex, treat as non-match
+			}
+			if !re.MatchString(val) {
+				return false
+			}
+		case "not_matches_regex":
+			re, err := getCompiledRegex(cond.Value)
+			if err != nil {
+				return false // invalid regex, treat as non-match
+			}
+			if re.MatchString(val) {
 				return false
 			}
 		default:

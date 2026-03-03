@@ -1,0 +1,26 @@
+id: SNOW-SAST-019
+title: "Potential GlideRecord query injection in business rule"
+description: >
+  A business rule builds a GlideRecord encoded query by concatenating a string
+  literal with a variable using the + operator. If the variable contains
+  unsanitized user input, an attacker can manipulate the query to access or
+  modify unauthorized records.
+severity: HIGH
+category: SAST
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "(?i)addEncodedQuery\\s*\\(\\s*[\"'][^\"']*[\"']\\s*\\+"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Use parameterized GlideRecord methods (addQuery, addEncodedQuery with fully
+  static strings) instead of string concatenation. Validate and sanitize all
+  user-supplied input before using it in queries. Use addQuery() with separate
+  field, operator, and value arguments.
+references:
+  - "https://developer.servicenow.com/dev.do#!/reference/api/xanadu/server/no-namespace/GlideRecordAPI"

@@ -1,0 +1,22 @@
+id: SF-SAST-007
+title: "subprocess or os.system usage in Python stored procedure"
+description: >
+  A stored procedure uses subprocess, os.system, or os.popen to
+  execute system commands. This creates a command injection risk and
+  may allow sandbox escape in Snowpark Python procedures.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: procedures
+  field_conditions:
+    - field: "PROCEDURE_DEFINITION"
+      operator: "matches_regex"
+      value: "(?i)(?:subprocess\\.\\w+|os\\.system|os\\.popen)\\s*\\("
+remediation: >
+  Remove subprocess and os.system calls from Python stored procedures.
+  Use Snowflake-native APIs for data operations. If external service
+  calls are needed, use external functions or API integrations instead
+  of shell commands.
+references:
+  - "https://docs.snowflake.com/en/developer-guide/stored-procedure/stored-procedures-python"

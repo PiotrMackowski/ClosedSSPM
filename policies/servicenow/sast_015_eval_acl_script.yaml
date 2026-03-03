@@ -1,0 +1,24 @@
+id: SNOW-SAST-015
+title: "eval() usage in ACL script"
+description: >
+  An Access Control List (ACL) rule script calls eval() to execute dynamically
+  constructed code. ACL scripts control data access decisions, so code injection
+  via eval() could allow an attacker to bypass access controls entirely.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_security_acl
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "eval("
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove all uses of eval() from ACL scripts. Use direct conditional logic and
+  GlideRecord queries to make access control decisions. Never construct access
+  control logic from dynamic strings.
+references:
+  - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_direct_eval!"

@@ -18,8 +18,8 @@ func TestLoadPolicies(t *testing.T) {
 		t.Fatalf("LoadPolicies() error: %v", err)
 	}
 
-	if len(policies) != 69 {
-		t.Errorf("LoadPolicies() returned %d policies, want 69", len(policies))
+	if len(policies) != 86 {
+		t.Errorf("LoadPolicies() returned %d policies, want 86", len(policies))
 	}
 
 	// Check that all policies have required fields.
@@ -417,6 +417,108 @@ func TestEvaluateDisplayValueObject(t *testing.T) {
 	}
 }
 
+func TestEvaluateMatchesRegex(t *testing.T) {
+	policies := []Policy{
+		{
+			ID:       "TEST-REGEX",
+			Title:    "Regex match test",
+			Severity: finding.High,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "script", Operator: "matches_regex", Value: `(?i)password\s*=\s*["'][^"']{8,}["']`},
+				},
+			},
+			Remediation: "Fix",
+		},
+		{
+			ID:       "TEST-NOT-REGEX",
+			Title:    "Not regex match test",
+			Severity: finding.Medium,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "url", Operator: "not_matches_regex", Value: `^https://`},
+				},
+			},
+			Remediation: "Fix",
+		},
+	}
+
+	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot.AddTableData(&collector.TableData{
+		Table: "test_table",
+		Records: []collector.Record{
+			{"sys_id": "r1", "name": "hardcoded_pass", "script": `var password = "SuperSecret123"`, "url": "https://secure.example.com"},
+			{"sys_id": "r2", "name": "safe_script", "script": "var x = gs.getProperty('key')", "url": "http://insecure.example.com"},
+			{"sys_id": "r3", "name": "also_hardcoded", "script": `Password = "MyP@ssw0rd!"`, "url": ""},
+		},
+		Count: 3,
+	})
+
+	evaluator := NewEvaluator(policies)
+	findings, err := evaluator.Evaluate(snapshot)
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	counts := make(map[string]int)
+	for _, f := range findings {
+		counts[f.PolicyID]++
+	}
+
+	// MATCHES_REGEX: r1 (password = "SuperSecret123") and r3 (Password = "MyP@ssw0rd!") should match.
+	if counts["TEST-REGEX"] != 2 {
+		t.Errorf("TEST-REGEX findings = %d, want 2", counts["TEST-REGEX"])
+	}
+
+	// NOT_MATCHES_REGEX (url not starting with https://): r2 (http://) and r3 (empty).
+	if counts["TEST-NOT-REGEX"] != 2 {
+		t.Errorf("TEST-NOT-REGEX findings = %d, want 2", counts["TEST-NOT-REGEX"])
+	}
+}
+
+func TestEvaluateInvalidRegex(t *testing.T) {
+	policies := []Policy{
+		{
+			ID:       "TEST-BAD-REGEX",
+			Title:    "Invalid regex test",
+			Severity: finding.Low,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "script", Operator: "matches_regex", Value: `[invalid(`},
+				},
+			},
+			Remediation: "Fix",
+		},
+	}
+
+	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot.AddTableData(&collector.TableData{
+		Table:   "test_table",
+		Records: []collector.Record{{"sys_id": "r1", "script": "anything"}},
+		Count:   1,
+	})
+
+	evaluator := NewEvaluator(policies)
+	findings, err := evaluator.Evaluate(snapshot)
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	// Invalid regex should produce 0 findings (treated as non-match).
+	if len(findings) != 0 {
+		t.Errorf("Invalid regex should produce 0 findings, got %d", len(findings))
+	}
+}
+
 func TestLoadPoliciesFS(t *testing.T) {
 	// Load from embedded filesystem.
 	pols, err := LoadPoliciesFS(policies.Embedded, ".")
@@ -424,8 +526,8 @@ func TestLoadPoliciesFS(t *testing.T) {
 		t.Fatalf("LoadPoliciesFS() error: %v", err)
 	}
 
-	if len(pols) != 114 {
-		t.Errorf("LoadPoliciesFS() returned %d policies, want 114", len(pols))
+	if len(pols) != 141 {
+		t.Errorf("LoadPoliciesFS() returned %d policies, want 141", len(pols))
 	}
 
 	// Verify all policies have required fields.

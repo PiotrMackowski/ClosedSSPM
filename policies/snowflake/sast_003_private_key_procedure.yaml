@@ -1,0 +1,22 @@
+id: SF-SAST-003
+title: "Private key embedded in stored procedure"
+description: >
+  A stored procedure contains a PEM-encoded private key. Embedding
+  private keys in code exposes them to anyone who can view the procedure
+  definition and defeats the purpose of key-based authentication.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: procedures
+  field_conditions:
+    - field: "PROCEDURE_DEFINITION"
+      operator: "matches_regex"
+      value: "-----BEGIN[A-Z ]*PRIVATE KEY-----"
+remediation: >
+  Remove private keys from stored procedures. Store keys in Snowflake
+  secrets or external secret managers. Use Snowflake key pair
+  authentication configured at the user level rather than embedding
+  keys in code.
+references:
+  - "https://docs.snowflake.com/en/user-guide/key-pair-auth"

@@ -1,0 +1,22 @@
+id: SF-SAST-011
+title: "eval() usage in JavaScript user-defined function"
+description: >
+  A user-defined function uses eval() which dynamically executes
+  arbitrary code at runtime. This is a code injection risk if the
+  evaluated string includes any external input.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: functions
+  field_conditions:
+    - field: "FUNCTION_DEFINITION"
+      operator: "contains"
+      value: "eval("
+remediation: >
+  Remove eval() calls from UDFs. Use explicit control flow and data
+  parsing instead of dynamic code evaluation. If dynamic behavior is
+  needed, use structured approaches like JSON parsing or switch/case
+  statements.
+references:
+  - "https://docs.snowflake.com/en/developer-guide/udf/javascript/udf-javascript-introduction"

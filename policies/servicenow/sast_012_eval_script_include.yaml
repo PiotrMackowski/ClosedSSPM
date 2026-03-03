@@ -1,0 +1,24 @@
+id: SNOW-SAST-012
+title: "eval() usage in script include"
+description: >
+  A script include calls eval() to execute a dynamically constructed string as
+  code. This is a critical code injection risk because any attacker-controlled
+  data that reaches eval() can execute arbitrary server-side JavaScript.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_script_include
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "eval("
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove all uses of eval(). Replace with JSON.parse() for data deserialization,
+  direct function calls for logic dispatch, or GlideScopedEvaluator if dynamic
+  evaluation is absolutely required with strict input validation.
+references:
+  - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_direct_eval!"

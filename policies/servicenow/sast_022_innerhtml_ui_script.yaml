@@ -1,0 +1,26 @@
+id: SNOW-SAST-022
+title: "innerHTML assignment in UI script"
+description: >
+  A UI script assigns a value to innerHTML which renders raw HTML in the
+  browser. If the assigned value contains unsanitized user input, an attacker
+  can inject malicious scripts leading to cross-site scripting (XSS) attacks
+  that steal session tokens or perform actions as the victim user.
+severity: HIGH
+category: SAST
+platform: servicenow
+query:
+  table: sys_ui_script
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "(?i)\\.innerHTML\\s*="
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Replace innerHTML assignments with textContent or innerText for plain text
+  content. If HTML rendering is required, use DOMPurify or the ServiceNow
+  GlideSPScriptable API to sanitize input before rendering. Never assign
+  user-controlled data directly to innerHTML.
+references:
+  - "https://developer.mozilla.org/en-US/docs/Web/API/Element/innerHTML#security_considerations"

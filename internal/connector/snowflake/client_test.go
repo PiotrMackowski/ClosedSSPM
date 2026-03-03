@@ -322,7 +322,7 @@ func TestSnowflakeCollectorTables(t *testing.T) {
 		found[name] = true
 	}
 
-	expected := []string{"users", "roles", "network_policies", "grants_to_users", "account_parameters"}
+	expected := []string{"users", "roles", "network_policies", "grants_to_users", "account_parameters", "procedures", "functions"}
 	for _, name := range expected {
 		if !found[name] {
 			t.Errorf("Tables() missing expected table %q", name)
