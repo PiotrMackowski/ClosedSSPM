@@ -14,7 +14,7 @@ Steps performed:
 
 Usage:
   python setup_apikey_auth.py \\
-    --instance https://dev12345.service-now.com \\
+    --instance https://mycompany.service-now.com \
     --username admin \\
     --password 'secret'
 
@@ -291,9 +291,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --instance https://dev12345.service-now.com --username admin --password secret
+  %(prog)s --instance https://mycompany.service-now.com --username admin --password secret
 
-  %(prog)s --instance https://dev12345.service-now.com --username admin --password secret \\
+  %(prog)s --instance https://mycompany.service-now.com --username admin --password secret \
     --key-name "CI Audit Key" --key-user svc_audit --key-expires "2027-06-01 00:00:00"
 """,
     )

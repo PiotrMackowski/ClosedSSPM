@@ -12,12 +12,19 @@ All steps use the ServiceNow Table REST API with basic auth (admin credentials).
 - The **API Key and HMAC Authentication** plugin (`com.glide.tokenbased_auth`) must be active
 - `curl` (or the Python script) available on your machine
 
+### Set your instance URL
+
+All commands below use `$SNOW_INSTANCE`. Set it once:
+
+```bash
+export SNOW_INSTANCE=https://mycompany.service-now.com
+```
 ### Verify the plugin is active
 
 ```bash
 curl -s -u 'admin:PASSWORD' \
   -H 'Accept: application/json' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_plugins?sysparm_query=id=com.glide.tokenbased_auth&sysparm_fields=id,name,active' \
+  "$SNOW_INSTANCE/api/now/table/sys_plugins?sysparm_query=id=com.glide.tokenbased_auth&sysparm_fields=id,name,active" \
   | python3 -m json.tool
 ```
 
@@ -34,7 +41,7 @@ ServiceNow ships with a built-in "Table GET API Access Policy" that governs GET 
 ```bash
 curl -s -u 'admin:PASSWORD' \
   -H 'Accept: application/json' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_api_access_policy?sysparm_query=name=Table%20GET%20API%20Access%20Policy&sysparm_fields=sys_id,name,active,apply_all_tables' \
+  "$SNOW_INSTANCE/api/now/table/sys_api_access_policy?sysparm_query=name=Table%20GET%20API%20Access%20Policy&sysparm_fields=sys_id,name,active,apply_all_tables" \
   | python3 -m json.tool
 ```
 
@@ -47,7 +54,7 @@ curl -s -u 'admin:PASSWORD' -X PATCH \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
   -d '{"active": "true", "apply_all_tables": "true"}' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_api_access_policy/POLICY_SYS_ID' \
+  "$SNOW_INSTANCE/api/now/table/sys_api_access_policy/POLICY_SYS_ID" \
   | python3 -m json.tool
 ```
 
@@ -64,7 +71,7 @@ An authentication profile tells ServiceNow which header/parameter carries the AP
 ```bash
 curl -s -u 'admin:PASSWORD' \
   -H 'Accept: application/json' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_token_auth_parameter?sysparm_query=parameter_name=x-sn-apikey^type=auth_header&sysparm_fields=sys_id,parameter_name,type' \
+  "$SNOW_INSTANCE/api/now/table/sys_token_auth_parameter?sysparm_query=parameter_name=x-sn-apikey^type=auth_header&sysparm_fields=sys_id,parameter_name,type" \
   | python3 -m json.tool
 ```
 
@@ -82,7 +89,7 @@ curl -s -u 'admin:PASSWORD' -X POST \
     "active": "true",
     "sys_class_name": "http_key_auth"
   }' \
-  'https://INSTANCE.service-now.com/api/now/table/http_key_auth' \
+  "$SNOW_INSTANCE/api/now/table/http_key_auth" \
   | python3 -m json.tool
 ```
 
@@ -102,7 +109,7 @@ curl -s -u 'admin:PASSWORD' -X POST \
     "api_access_policy": "POLICY_SYS_ID",
     "inbound_auth_profile": "AUTH_PROFILE_SYS_ID"
   }' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_auth_profile_mapping' \
+  "$SNOW_INSTANCE/api/now/table/sys_auth_profile_mapping" \
   | python3 -m json.tool
 ```
 
@@ -117,7 +124,7 @@ API keys are stored in the `api_key` table. Each key is associated with a user a
 ```bash
 curl -s -u 'admin:PASSWORD' \
   -H 'Accept: application/json' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_user?sysparm_query=user_name=admin&sysparm_fields=sys_id,user_name' \
+  "$SNOW_INSTANCE/api/now/table/sys_user?sysparm_query=user_name=admin&sysparm_fields=sys_id,user_name" \
   | python3 -m json.tool
 ```
 
@@ -133,7 +140,7 @@ curl -s -u 'admin:PASSWORD' -X POST \
     "active": "true",
     "expires": "2027-01-01 00:00:00"
   }' \
-  'https://INSTANCE.service-now.com/api/now/table/api_key' \
+  "$SNOW_INSTANCE/api/now/table/api_key" \
   | python3 -m json.tool
 ```
 
@@ -146,7 +153,7 @@ curl -s -u 'admin:PASSWORD' -X PATCH \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
   -d '{"expires": "2027-01-01 00:00:00"}' \
-  'https://INSTANCE.service-now.com/api/now/table/api_key/KEY_SYS_ID' \
+  "$SNOW_INSTANCE/api/now/table/api_key/KEY_SYS_ID" \
   | python3 -m json.tool
 ```
 
@@ -158,7 +165,7 @@ curl -s -u 'admin:PASSWORD' -X PATCH \
 curl -s -w "\nHTTP %{http_code}\n" \
   -H 'Accept: application/json' \
   -H 'x-sn-apikey: YOUR_API_KEY_TOKEN' \
-  'https://INSTANCE.service-now.com/api/now/table/sys_user?sysparm_limit=1&sysparm_fields=user_name'
+  "$SNOW_INSTANCE/api/now/table/sys_user?sysparm_limit=1&sysparm_fields=user_name"
 ```
 
 Expected: HTTP 200 with a JSON response containing a user record.
@@ -168,7 +175,7 @@ Expected: HTTP 200 with a JSON response containing a user record.
 ## Step 6: Run ClosedSSPM with API Key Auth
 
 ```bash
-export SNOW_INSTANCE=https://INSTANCE.service-now.com
+# SNOW_INSTANCE should already be set from the Prerequisites section
 export SNOW_API_KEY=YOUR_API_KEY_TOKEN
 
 closedsspm audit --output report.html
@@ -204,17 +211,17 @@ pip install requests
 
 # Run the setup
 python docs/setup_apikey_auth.py \
-  --instance https://INSTANCE.service-now.com \
+  --instance $SNOW_INSTANCE \
   --username admin \
   --password 'YOUR_PASSWORD'
 
 # Optional: specify a custom key name, user, or expiry
 python docs/setup_apikey_auth.py \
-  --instance https://INSTANCE.service-now.com \
+  --instance $SNOW_INSTANCE \
   --username admin \
   --password 'YOUR_PASSWORD' \
   --key-name "CI Audit Key" \
-  --key-user admin \
+  --key-user svc_audit \
   --key-expires "2027-06-01 00:00:00"
 ```
 
