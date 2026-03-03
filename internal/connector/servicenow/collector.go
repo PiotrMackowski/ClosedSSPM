@@ -226,10 +226,10 @@ func (c *ServiceNowCollector) Collect(ctx context.Context, config collector.Conn
 
 	// Collect tables in parallel with bounded concurrency.
 	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		sem     = make(chan struct{}, concurrency)
-		errs    []error
+		mu   sync.Mutex
+		wg   sync.WaitGroup
+		sem  = make(chan struct{}, concurrency)
+		errs []error
 	)
 
 	for _, ts := range securityTables {
