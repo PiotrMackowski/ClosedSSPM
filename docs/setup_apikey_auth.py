@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-ServiceNow API Key Auth Setup for ClosedSSPM.
+General ServiceNow API Key Auth Setup
 
-Configures x-sn-apikey header authentication so ClosedSSPM can audit
-without basic auth. Idempotent — safe to run repeatedly.
+Configures x-sn-apikey header authentication.
 
 Required env vars:
     SNOW_INSTANCE   https://mycompany.service-now.com
@@ -13,6 +12,7 @@ Required env vars:
 Requires: pip install requests
 """
 
+import stat
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -39,7 +39,7 @@ AUTH_PARAM = ("x-sn-apikey", "auth_header")
 # What we create
 PROFILE_NAME = "ClosedSSPM API Key Auth"
 KEY_NAME = "ClosedSSPM Audit Key"
-KEY_EXPIRY_DAYS = 365
+KEY_EXPIRY_DAYS = 1
 
 # ---------------------------------------------------------------------------
 # ServiceNow REST client — thin wrapper, one method per HTTP verb
@@ -104,7 +104,7 @@ def heading(n: int, msg: str):
     print(f"\n[{n}] {msg}")
 
 # ---------------------------------------------------------------------------
-# Steps — each one is idempotent
+# Steps
 # ---------------------------------------------------------------------------
 
 def verify_plugin(c: Snow):
@@ -193,10 +193,16 @@ def create_key(c: Snow, username: str) -> dict:
     print(f"  created: {KEY_NAME} (expires {expires})")
     token = key.get("token", "")
     if token:
-        print(f"\n  ┌─ SAVE THIS — shown only once ──────────────────────────")
-        print(f"  │ export SNOW_API_KEY='{token}'")
-        print(f"  └────────────────────────────────────────────────────────")
+        save_token_securely(token)  
     return key
+
+def save_token_securely(token: str):
+    file_path = "snow_secrets.env"
+    with open(file_path, "w") as f:
+        f.write(f"export SNOW_API_KEY='{token}'\n")       
+    # Restrict permissions to owner read/write only (chmod 600)
+    os.chmod(file_path, stat.S_IRUSR | stat.S_IWUSR)
+    print(f"  [Secure] Token saved to {file_path}. Run 'source {file_path}' to use it.")
 
 # ---------------------------------------------------------------------------
 # Main
@@ -216,11 +222,7 @@ def main():
     link_profile(c, policy_id, profile_id)
     create_key(c, username)
 
-    print(f"\nDone. Run ClosedSSPM:")
-    print(f"  export SNOW_INSTANCE={instance}")
-    print(f"  export SNOW_API_KEY='<token>'")
-    print(f"  closedsspm audit --output report.html")
-
-
+    print(f"\nDone! Your API key is ready for use. Test with:\n  curl -H 'x-sn-apikey: $SNOW_API_KEY' {instance}/api/now/table/sys_user")
+    
 if __name__ == "__main__":
     main()

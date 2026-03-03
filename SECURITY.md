@@ -1,11 +1,5 @@
 # Security Policy
 
-## Supported Versions
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.x.x   | :white_check_mark: |
-
 Security updates are applied to the latest release only. We recommend always running the most recent version.
 
 ## Reporting a Vulnerability
@@ -14,7 +8,7 @@ Security updates are applied to the latest release only. We recommend always run
 
 Instead, use [GitHub Security Advisories](https://github.com/PiotrMackowski/ClosedSSPM/security/advisories/new) to report vulnerabilities privately.
 
-You should receive an initial response within **72 hours**. If the issue is confirmed, a fix will be released as soon as possible, typically within **7 days** depending on complexity.
+You should receive an initial response within **72 hours**. We will work with you to understand the issue, assess its impact, and coordinate a fix. We may also request additional information or proof of concept code to reproduce the vulnerability.
 
 ### What to Include
 
@@ -28,7 +22,6 @@ You should receive an initial response within **72 hours**. If the issue is conf
 - Acknowledgment within 72 hours
 - Regular updates on remediation progress
 - Credit in the release notes (unless you prefer anonymity)
-- CVE assignment for confirmed vulnerabilities where appropriate
 
 ## Security Design
 
@@ -48,13 +41,11 @@ ClosedSSPM is designed with security as a core principle:
 Dependencies are monitored by:
 
 - **Dependabot** — automated version update PRs for Go modules and GitHub Actions
-- **CodeQL** — weekly static analysis scanning
-- **Go vulnerability database** — checked via `govulncheck` (planned)
+- **CodeQL** — static analysis scanning
 
 ## Snapshot Data Handling
 
 Snapshots collected by ClosedSSPM may contain sensitive configuration data from your SaaS instance. Treat snapshot files as confidential:
-
 - Do not commit snapshots to version control
 - Do not share snapshots in public channels
 - Delete snapshots after analysis is complete

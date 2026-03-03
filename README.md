@@ -9,17 +9,17 @@
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/12061/baseline)](https://www.bestpractices.dev/projects/12061)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PiotrMackowski/ClosedSSPM/badge)](https://scorecard.dev/viewer/?uri=github.com/PiotrMackowski/ClosedSSPM)
 
-Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, with deep coverage for ServiceNow and Snowflake.
+Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with ServiceNow and Snowflake.
 
 ![ClosedSSPM HTML Report](docs/screenshots/report.jpg)
 
 ## Features
 
 - **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **141 security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, SAST scanning, and more
+- **100+ security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, secret scanning
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
-- **HTML reports** — self-contained, dark-themed HTML reports with posture scoring (A–F)
+- **HTML reports** — self-contained, dark-themed HTML reports with posture scoring
 - **JSON output** — machine-readable output for pipeline integration
 - **CSV export** — spreadsheet-friendly output for compliance workflows
 - **MCP server** — AI-assisted audit analysis via Model Context Protocol (works with Claude, OpenCode, etc.)
@@ -165,7 +165,7 @@ closedsspm checks list
 closedsspm mcp --snapshot snapshot.json
 ```
 
-Add to your MCP client configuration (e.g. Claude Desktop):
+Add to your MCP client configuration:
 ```json
 {
   "mcpServers": {
@@ -179,7 +179,7 @@ Add to your MCP client configuration (e.g. Claude Desktop):
 
 ### Custom Policies Directory
 
-By default the binary uses its 141 embedded policies. To override with external policies:
+By default the binary uses its embedded policies. To override with external policies:
 
 ```bash
 closedsspm audit --policies /path/to/my/policies --output report.html
@@ -251,7 +251,7 @@ Flags:
 
 ### Environment Variables
 
-All credentials are read from environment variables. **Never store credentials in config files.**
+All credentials are read from environment variables. 
 
 Each platform uses its own set of environment variables. The `--platform` flag (default: `servicenow`) determines which variables are read.
 
@@ -278,7 +278,7 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | 3 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
 | 4 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
 
-> **New to API key auth?** Run [`docs/setup_apikey_auth.py`](docs/setup_apikey_auth.py) — it configures everything via REST API (idempotent, well-commented).
+> **New to API key auth in Servicenow?** See [`docs/setup_apikey_auth.py`](docs/setup_apikey_auth.py)
 
 #### Snowflake (`--platform snowflake`)
 
@@ -339,8 +339,6 @@ closedsspm/
 | [homebrew-closedsspm](https://github.com/PiotrMackowski/homebrew-closedsspm) | Homebrew tap — hosts the formula for `brew install closedsspm` | Active — automatically updated by goreleaser on each release |
 
 ## Security Checks
-
-141 built-in checks across two platforms.
 
 ### ServiceNow (86 checks)
 
@@ -454,18 +452,16 @@ All credential inputs should be passed via [GitHub encrypted secrets](https://do
 | `sarif-path` | Path to SARIF file (only when format=sarif) |
 ## Security Best Practices
 
-- Credentials are **only** read from environment variables, never from config files
 - Snapshots may contain sensitive data — treat them as confidential
 - The MCP server uses **stdio transport only** (no network exposure)
 - The tool is **read-only** — it never writes to your SaaS platform
-- ServiceNow audit user should have **read-only** roles (minimum required permissions)
+- ServiceNow audit user should have **read-only** roles 
 
 ### Minimum ServiceNow Permissions
 
 Create a dedicated audit user with these roles:
 - `itil` (read access to most tables)
 - `security_admin` (read access to ACLs and security config)
-- Disable `web_service_access_only` is NOT recommended for this user; use OAuth where possible
 
 ## Writing Custom Policies
 
@@ -519,7 +515,7 @@ Contributions are welcome. Please follow these guidelines:
 5. **All CI checks must pass** — tests, `go vet`, CodeQL, and Trivy scans
 6. **One PR per change** — keep pull requests focused and reviewable
 
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities (do **not** use public issues for security bugs).
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## Reporting Issues
 
@@ -530,14 +526,11 @@ When reporting a bug, please include:
 - Operating system and architecture
 - Steps to reproduce the issue
 - Expected vs actual behavior
-- Any relevant error output (sanitize credentials before sharing)
+- Any relevant error output 
 
 ## Reporting Vulnerabilities
 
-**Do not report security vulnerabilities through public issues.**
-
 Please use [GitHub Security Advisories](https://github.com/PiotrMackowski/ClosedSSPM/security/advisories/new) to report vulnerabilities privately. See [SECURITY.md](SECURITY.md) for full details including response timelines and scope.
-
 
 ## Development
 
