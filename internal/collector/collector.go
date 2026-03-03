@@ -67,12 +67,14 @@ func (s *Snapshot) GetRecords(table string) []Record {
 type ConnectorConfig struct {
 	// InstanceURL is the base URL of the instance.
 	InstanceURL string
-	// AuthMethod is the authentication method ("basic", "oauth", or "keypair").
+	// AuthMethod is the authentication method ("basic", "oauth", "keypair", or "apikey").
 	AuthMethod string
 	// Username for basic auth.
 	Username string
 	// Password for basic auth.
 	Password string
+	// APIKey for ServiceNow REST API key auth (x-sn-apikey header).
+	APIKey string
 	// ClientID for OAuth client credentials flow.
 	ClientID string
 	// ClientSecret for OAuth client credentials flow.

@@ -18,6 +18,7 @@ const envHelp = `ServiceNow credentials (environment variables):
   SNOW_INSTANCE         - Instance URL (e.g. https://mycompany.service-now.com)
   SNOW_USERNAME         - Username for basic auth
   SNOW_PASSWORD         - Password for basic auth
+  SNOW_API_KEY          - REST API key (alternative to basic auth; x-sn-apikey header)
   SNOW_CLIENT_ID        - OAuth client ID (alternative to basic auth)
   SNOW_CLIENT_SECRET    - OAuth client secret
 
@@ -42,6 +43,7 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	instance := envOrFlag(cmd, "instance", "SNOW_INSTANCE")
 	username := os.Getenv("SNOW_USERNAME")
 	password := os.Getenv("SNOW_PASSWORD")
+	apiKey := os.Getenv("SNOW_API_KEY")
 	clientID := os.Getenv("SNOW_CLIENT_ID")
 	clientSecret := os.Getenv("SNOW_CLIENT_SECRET")
 	privateKeyPath := os.Getenv("SNOW_PRIVATE_KEY_PATH")
@@ -49,7 +51,9 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	jwtUser := os.Getenv("SNOW_JWT_USER")
 
 	authMethod := "basic"
-	if privateKeyPath != "" && clientID != "" && clientSecret != "" {
+	if apiKey != "" {
+		authMethod = "apikey"
+	} else if privateKeyPath != "" && clientID != "" && clientSecret != "" {
 		authMethod = "keypair"
 	} else if clientID != "" && clientSecret != "" {
 		authMethod = "oauth"
@@ -63,6 +67,7 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		AuthMethod:     authMethod,
 		Username:       username,
 		Password:       password,
+		APIKey:         apiKey,
 		ClientID:       clientID,
 		ClientSecret:   clientSecret,
 		PrivateKeyPath: privateKeyPath,

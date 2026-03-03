@@ -65,11 +65,12 @@ type Client struct {
 	pageSize    int
 
 	// Auth
-	authMethod   string // "basic", "oauth", or "keypair"
+	authMethod   string // "basic", "oauth", "keypair", or "apikey"
 	username     string
 	password     string
 	clientID     string
 	clientSecret string
+	apiKey       string
 
 	// Key pair auth
 	privateKey *rsa.PrivateKey
@@ -143,6 +144,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		privateKey:   nil, // set below for keypair
 		keyID:        config.KeyID,
 		jwtUser:      config.JWTUser,
+		apiKey:       config.APIKey,
 	}
 
 	// Validate auth config
@@ -157,6 +159,10 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 	case "oauth":
 		if c.clientID == "" || c.clientSecret == "" {
 			return nil, fmt.Errorf("client_id and client_secret are required for OAuth")
+		}
+	case "apikey":
+		if c.apiKey == "" {
+			return nil, fmt.Errorf("api_key is required for apikey auth")
 		}
 	case "keypair":
 		if c.clientID == "" || c.clientSecret == "" {
@@ -203,6 +209,8 @@ func (c *Client) authenticate(ctx context.Context, req *http.Request) error {
 			return fmt.Errorf("obtaining key pair token: %w", err)
 		}
 		req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+	case "apikey":
+		req.Header.Set("x-sn-apikey", c.apiKey)
 	}
 	return nil
 }
