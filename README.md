@@ -278,7 +278,7 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | 3 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
 | 4 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
 
-> **New to API key auth?** See the [ServiceNow API Key Setup Guide](docs/servicenow-apikey-setup.md) for step-by-step configuration using REST API calls, or use the [automated setup script](docs/setup_apikey_auth.py).
+> **New to API key auth?** Run [`docs/setup_apikey_auth.py`](docs/setup_apikey_auth.py) — it configures everything via REST API (idempotent, well-commented).
 
 #### Snowflake (`--platform snowflake`)
 
