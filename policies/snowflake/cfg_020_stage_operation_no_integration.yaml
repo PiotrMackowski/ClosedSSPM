@@ -1,0 +1,26 @@
+id: SF-CFG-020
+title: "Storage integration not required for stage operations"
+description: >
+  The parameter REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_OPERATION is disabled.
+  This allows COPY and GET/PUT operations on external stages without a storage
+  integration, meaning users can specify inline cloud credentials or access
+  arbitrary external locations. This increases the risk of data exfiltration.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_OPERATION"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable this parameter by running ALTER ACCOUNT SET
+  REQUIRE_STORAGE_INTEGRATION_FOR_STAGE_OPERATION = TRUE. Ensure all
+  external stages use named storage integrations that are centrally managed
+  and audited.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

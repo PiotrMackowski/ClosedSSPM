@@ -1,0 +1,25 @@
+id: SF-IAM-008
+title: "MFA enrollment prompt disabled at account level"
+description: >
+  The account parameter DISABLE_MFA_ENROLLMENT_PROMPT is set to true. When
+  disabled, users are not automatically prompted to enroll in multi-factor
+  authentication on login. This reduces MFA adoption and leaves accounts
+  without a second authentication factor.
+severity: MEDIUM
+category: IAM
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "DISABLE_MFA_ENROLLMENT_PROMPT"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Re-enable MFA enrollment prompts by running ALTER ACCOUNT SET
+  DISABLE_MFA_ENROLLMENT_PROMPT = FALSE. Combine with a mandatory MFA policy
+  and user communication to drive enrollment across the organization.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-mfa"

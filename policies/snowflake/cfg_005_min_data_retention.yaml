@@ -1,0 +1,26 @@
+id: SF-CFG-005
+title: "MIN_DATA_RETENTION_TIME_IN_DAYS set below recommended level"
+description: >
+  The account parameter MIN_DATA_RETENTION_TIME_IN_DAYS is set to 0.
+  Without a minimum retention period, Time Travel data can be
+  immediately purged, eliminating the ability to recover from
+  accidental or malicious data modifications and deletions.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "MIN_DATA_RETENTION_TIME_IN_DAYS"
+    - field: "value"
+      operator: "equals"
+      value: "0"
+remediation: >
+  Set a minimum retention period by running ALTER ACCOUNT SET
+  MIN_DATA_RETENTION_TIME_IN_DAYS = 1 (or higher based on your
+  recovery requirements). This ensures Time Travel data is preserved
+  for at least the specified number of days.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

@@ -1,0 +1,25 @@
+id: SF-IAM-007
+title: "User has SYSADMIN as default role"
+description: >
+  The user account has SYSADMIN set as its default role. SYSADMIN can create
+  and manage warehouses, databases, and other objects. Using it as a default
+  role violates least-privilege principles and increases the risk of
+  accidental or unauthorized changes to infrastructure.
+severity: MEDIUM
+category: IAM
+platform: snowflake
+query:
+  table: users
+  field_conditions:
+    - field: "default_role"
+      operator: "equals"
+      value: "SYSADMIN"
+    - field: "disabled"
+      operator: "not_equals"
+      value: "true"
+remediation: >
+  Change the default role to a lower-privilege role appropriate for the
+  user's daily tasks. Use ALTER USER <username> SET DEFAULT_ROLE = '<role>'.
+  Users can switch to SYSADMIN via USE ROLE when elevated access is needed.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-access-control-considerations"

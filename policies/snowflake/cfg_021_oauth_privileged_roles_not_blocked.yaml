@@ -1,0 +1,26 @@
+id: SF-CFG-021
+title: "Privileged roles not blocked for external OAuth sessions"
+description: >
+  The parameter EXTERNAL_OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST is
+  disabled. When false, external OAuth tokens can assume privileged roles such
+  as ACCOUNTADMIN and SECURITYADMIN. An attacker who compromises an OAuth
+  token could escalate to full account control.
+severity: HIGH
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "EXTERNAL_OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable this parameter by running ALTER ACCOUNT SET
+  EXTERNAL_OAUTH_ADD_PRIVILEGED_ROLES_TO_BLOCKED_LIST = TRUE. This prevents
+  external OAuth sessions from using ACCOUNTADMIN, ORGADMIN, and SECURITYADMIN
+  roles.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

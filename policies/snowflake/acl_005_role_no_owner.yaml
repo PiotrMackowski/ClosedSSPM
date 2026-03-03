@@ -1,0 +1,22 @@
+id: SF-ACL-005
+title: "Role has no owner assigned"
+description: >
+  A Snowflake role does not have an owner. Ownerless roles lack clear
+  governance and accountability, making it difficult to determine who
+  is responsible for reviewing and managing the role's privilege
+  assignments during periodic access reviews.
+severity: MEDIUM
+category: ACL
+platform: snowflake
+query:
+  table: roles
+  field_conditions:
+    - field: "owner"
+      operator: "empty"
+remediation: >
+  Assign ownership of the role to an appropriate administrative role.
+  Use GRANT OWNERSHIP ON ROLE <role_name> TO ROLE <owner_role>.
+  Ensure the SECURITYADMIN hierarchy includes all custom roles for
+  centralized management.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/grant-ownership"

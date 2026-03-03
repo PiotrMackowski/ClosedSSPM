@@ -1,0 +1,23 @@
+id: SF-ACL-002
+title: "SECURITYADMIN role granted to user"
+description: >
+  A user has been granted the SECURITYADMIN role. This role can manage
+  all grants and create or alter users and roles. While less powerful
+  than ACCOUNTADMIN, SECURITYADMIN can effectively escalate privileges
+  by granting any role to any user, including itself.
+severity: MEDIUM
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_users
+  field_conditions:
+    - field: "role"
+      operator: "equals"
+      value: "SECURITYADMIN"
+remediation: >
+  Limit SECURITYADMIN grants to dedicated security personnel. Review
+  whether custom roles with narrower grants-management scope could
+  replace SECURITYADMIN for specific use cases. Document the business
+  justification for each SECURITYADMIN assignment.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-access-control-considerations"

@@ -1,0 +1,23 @@
+id: SF-SHARE-001
+title: "Outbound data share detected"
+description: >
+  An outbound data share exists, meaning data from this account is being
+  shared with external Snowflake accounts. Outbound shares should be
+  periodically reviewed to ensure sensitive data is not being shared
+  with unauthorized parties and that sharing agreements are still valid.
+severity: MEDIUM
+category: SHARE
+platform: snowflake
+query:
+  table: shares
+  field_conditions:
+    - field: "kind"
+      operator: "equals"
+      value: "OUTBOUND"
+remediation: >
+  Review all outbound shares and verify they are still required. Confirm
+  that shared databases do not contain sensitive or regulated data unless
+  appropriate data sharing agreements are in place. Use SHOW GRANTS TO
+  SHARE <share_name> to audit exactly which objects are being shared.
+references:
+  - "https://docs.snowflake.com/en/user-guide/data-sharing-intro"

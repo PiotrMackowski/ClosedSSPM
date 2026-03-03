@@ -1,0 +1,25 @@
+id: SF-CFG-022
+title: "Client encryption key size below recommended minimum"
+description: >
+  The CLIENT_ENCRYPTION_KEY_SIZE parameter is set to 128 bits. While 128-bit
+  AES encryption is still considered secure, 256-bit keys provide a larger
+  security margin and are recommended for sensitive workloads. Upgrading to
+  256-bit keys has negligible performance impact on modern hardware.
+severity: LOW
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "CLIENT_ENCRYPTION_KEY_SIZE"
+    - field: "value"
+      operator: "equals"
+      value: "128"
+remediation: >
+  Increase the client encryption key size by running ALTER ACCOUNT SET
+  CLIENT_ENCRYPTION_KEY_SIZE = 256. Verify that all client drivers and tools
+  in use support 256-bit encryption keys.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

@@ -1,0 +1,26 @@
+id: SF-CFG-016
+title: "Client MFA token caching enabled"
+description: >
+  The account parameter ALLOW_CLIENT_MFA_CACHING is enabled. This allows MFA
+  tokens to be cached on the client side, meaning subsequent logins can bypass
+  the MFA challenge for a period of time. This weakens the protection MFA
+  provides against stolen credentials.
+severity: HIGH
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "ALLOW_CLIENT_MFA_CACHING"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Disable MFA token caching by running ALTER ACCOUNT SET
+  ALLOW_CLIENT_MFA_CACHING = FALSE. Require fresh MFA verification for every
+  login session to maintain the security benefits of multi-factor
+  authentication.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-mfa"

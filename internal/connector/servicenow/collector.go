@@ -179,8 +179,8 @@ var securityTables = []tableSpec{
 		Fields: []string{"sys_id", "name", "type", "active"},
 	},
 	{
-		Name:   "ip_address",
-		Fields: []string{"sys_id", "ip_address", "ip_version", "type", "active"},
+		Name:   "ip_access",
+		Fields: []string{"sys_id", "range_start", "range_end", "type", "active", "description", "flow", "ports"},
 	},
 }
 

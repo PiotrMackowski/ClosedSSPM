@@ -87,6 +87,17 @@ type ConnectorConfig struct {
 	Concurrency int
 	// RateLimit is the max requests per second.
 	RateLimit float64
+
+	// --- Snowflake-specific fields ---
+
+	// Account is the Snowflake account identifier (e.g. "xy12345.us-east-1").
+	Account string
+	// Warehouse is the Snowflake warehouse to use for queries.
+	Warehouse string
+	// Role is the Snowflake role to assume (e.g. SECURITYADMIN).
+	Role string
+	// Database is the Snowflake database (default: SNOWFLAKE for ACCOUNT_USAGE views).
+	Database string
 }
 
 // Collector is the interface that all SaaS platform collectors must implement.

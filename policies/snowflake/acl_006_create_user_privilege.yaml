@@ -1,0 +1,22 @@
+id: SF-ACL-006
+title: "CREATE USER privilege granted to non-admin role"
+description: >
+  A role has been granted the CREATE USER privilege. This allows the
+  role to create new user accounts, potentially bypassing identity
+  governance processes. User creation should be restricted to
+  SECURITYADMIN or a dedicated identity management role.
+severity: HIGH
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_roles
+  field_conditions:
+    - field: "privilege"
+      operator: "equals"
+      value: "CREATE USER"
+remediation: >
+  Revoke the CREATE USER privilege from non-administrative roles.
+  Centralize user provisioning through SECURITYADMIN or an automated
+  identity lifecycle management process integrated with your IdP.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/grant-privilege"

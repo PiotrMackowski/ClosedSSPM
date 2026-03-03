@@ -1,0 +1,26 @@
+id: SF-CFG-007
+title: "PERIODIC_DATA_REKEYING disabled"
+description: >
+  The parameter PERIODIC_DATA_REKEYING is not enabled. Snowflake
+  encrypts all data at rest, but without periodic rekeying, the same
+  encryption keys remain in use indefinitely. Regular key rotation
+  limits exposure from any single compromised key.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "PERIODIC_DATA_REKEYING"
+    - field: "value"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable periodic data rekeying by running ALTER ACCOUNT SET
+  PERIODIC_DATA_REKEYING = TRUE. This feature is available on
+  Business Critical edition and above. Encryption keys will be
+  automatically rotated on a regular schedule.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-encryption"

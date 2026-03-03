@@ -1,0 +1,25 @@
+id: SF-CFG-017
+title: "Unredacted query syntax errors enabled"
+description: >
+  The account parameter ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR is enabled. When
+  active, SQL syntax error messages include the full query text without
+  redaction. This can expose sensitive data such as table names, column names,
+  and literal values in error logs and client responses.
+severity: LOW
+category: CFG
+platform: snowflake
+query:
+  table: account_parameters
+  field_conditions:
+    - field: "key"
+      operator: "equals"
+      value: "ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR"
+    - field: "value"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Disable unredacted error messages by running ALTER ACCOUNT SET
+  ENABLE_UNREDACTED_QUERY_SYNTAX_ERROR = FALSE. Redacted errors still provide
+  enough context for debugging while preventing information leakage.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/parameters"

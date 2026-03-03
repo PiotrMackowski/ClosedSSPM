@@ -1,0 +1,23 @@
+id: SF-CFG-011
+title: "Security integration is disabled"
+description: >
+  A security integration exists but is not enabled. Disabled security
+  integrations may indicate incomplete SSO or SCIM configuration.
+  Any security integration that is no longer needed should be dropped
+  rather than left in a disabled state.
+severity: MEDIUM
+category: CFG
+platform: snowflake
+query:
+  table: security_integrations
+  field_conditions:
+    - field: "enabled"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Review disabled security integrations and either enable them to
+  complete the SSO/SCIM configuration or drop them if no longer
+  needed. Use ALTER SECURITY INTEGRATION <name> SET ENABLED = TRUE
+  or DROP SECURITY INTEGRATION <name>.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration"

@@ -1,0 +1,23 @@
+id: SF-ACL-007
+title: "SYSADMIN role directly granted to user"
+description: >
+  A user has been directly granted the SYSADMIN role. SYSADMIN can create and
+  manage all warehouses, databases, and schemas. Direct grants to users bypass
+  the role hierarchy and make access review harder. Prefer granting SYSADMIN
+  to intermediate custom roles instead.
+severity: MEDIUM
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_users
+  field_conditions:
+    - field: "role"
+      operator: "equals"
+      value: "SYSADMIN"
+remediation: >
+  Review all direct SYSADMIN grants. Where possible, create functional roles
+  that inherit from SYSADMIN for specific use cases rather than granting
+  SYSADMIN directly to individual users. Document business justification for
+  any remaining direct grants.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-access-control-considerations"

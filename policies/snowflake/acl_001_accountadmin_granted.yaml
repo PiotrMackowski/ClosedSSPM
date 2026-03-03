@@ -1,0 +1,23 @@
+id: SF-ACL-001
+title: "ACCOUNTADMIN role granted to user"
+description: >
+  A user has been granted the ACCOUNTADMIN role. ACCOUNTADMIN has unrestricted
+  access to the entire Snowflake account including billing, resource management,
+  and all data. The number of users with this role should be minimized to
+  reduce the blast radius of credential compromise.
+severity: HIGH
+category: ACL
+platform: snowflake
+query:
+  table: grants_to_users
+  field_conditions:
+    - field: "role"
+      operator: "equals"
+      value: "ACCOUNTADMIN"
+remediation: >
+  Review all ACCOUNTADMIN grants and remove those that are not strictly
+  necessary. Create custom roles with specific privileges for each use
+  case. Snowflake recommends limiting ACCOUNTADMIN to no more than two
+  or three individuals.
+references:
+  - "https://docs.snowflake.com/en/user-guide/security-access-control-considerations"
