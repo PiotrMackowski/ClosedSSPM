@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-General ServiceNow API Key Auth Setup
+ServiceNow API Key Auth Setup for ClosedSSPM.
 
-Configures x-sn-apikey header authentication.
+Configures x-sn-apikey header authentication so ClosedSSPM can audit
+without basic auth. Both basic and API key auth work after setup.
+Idempotent — safe to run repeatedly.
 
 Required env vars:
     SNOW_INSTANCE   https://mycompany.service-now.com
@@ -10,9 +12,12 @@ Required env vars:
     SNOW_PASSWORD   admin password
 
 Requires: pip install requests
+
+IMPORTANT: After running, open the API key record in the browser to copy
+the token — the REST API returns an encrypted blob, not the usable
+`now_...` token. The script prints the URL to visit.
 """
 
-import stat
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -36,10 +41,14 @@ POLICY_NAME = "Table GET API Access Policy"
 # The header parameter the plugin registers for API key auth
 AUTH_PARAM = ("x-sn-apikey", "auth_header")
 
+# Built-in basic auth profile — must also be mapped to the policy so
+# adding the API key profile doesn't lock out basic auth
+BASIC_AUTH_NAME = "BasicAuth for none public processors"
+
 # What we create
 PROFILE_NAME = "ClosedSSPM API Key Auth"
 KEY_NAME = "ClosedSSPM Audit Key"
-KEY_EXPIRY_DAYS = 1
+KEY_EXPIRY_DAYS = 365
 
 # ---------------------------------------------------------------------------
 # ServiceNow REST client — thin wrapper, one method per HTTP verb
@@ -104,7 +113,7 @@ def heading(n: int, msg: str):
     print(f"\n[{n}] {msg}")
 
 # ---------------------------------------------------------------------------
-# Steps
+# Steps — each one is idempotent
 # ---------------------------------------------------------------------------
 
 def verify_plugin(c: Snow):
@@ -113,8 +122,8 @@ def verify_plugin(c: Snow):
     heading(1, "Verify API Key plugin")
     try:
         p = find_one(c, "sys_plugins", f"id={PLUGIN}", "id,name,active", PLUGIN)
-    except SystemExit:
-        # Some instances restrict sys_plugins — assume active
+    except (SystemExit, requests.HTTPError):
+        # Some instances restrict sys_plugins (403) — assume active
         print("  (sys_plugins not queryable, assuming active)")
         return
     if p.get("active") != "active":
@@ -141,7 +150,10 @@ def activate_policy(c: Snow) -> str:
 def create_auth_profile(c: Snow) -> str:
     """An auth profile tells ServiceNow which header carries the key.
     We point it at the x-sn-apikey auth_header parameter that the plugin
-    registered in sys_token_auth_parameter."""
+    registered in sys_token_auth_parameter.
+
+    auth_processor=true scopes the profile to specific processors only,
+    preventing it from globally blocking basic auth on all endpoints."""
     heading(3, "Create auth profile")
 
     # The plugin pre-registers this parameter — we just need its sys_id
@@ -149,31 +161,60 @@ def create_auth_profile(c: Snow) -> str:
                      f"parameter_name={AUTH_PARAM[0]}^type={AUTH_PARAM[1]}",
                      "sys_id", f"auth param {AUTH_PARAM[0]}")
 
-    profile, _ = find_or_create(
-        c, "http_key_auth", f"name={PROFILE_NAME}", "sys_id,name",
+    profile, created = find_or_create(
+        c, "http_key_auth", f"name={PROFILE_NAME}", "sys_id,name,auth_processor",
         {"name": PROFILE_NAME, "auth_parameter": param["sys_id"],
-         "active": "true", "sys_class_name": "http_key_auth"},
+         "active": "true", "auth_processor": "true",
+         "sys_class_name": "http_key_auth"},
         PROFILE_NAME,
     )
+
+    # Ensure auth_processor=true even on existing profiles
+    if not created and profile.get("auth_processor") != "true":
+        c.update("http_key_auth", profile["sys_id"], {"auth_processor": "true"})
+        print(f"  fixed: set auth_processor=true")
+
     return profile["sys_id"]
 
 
-def link_profile(c: Snow, policy_id: str, profile_id: str):
-    """The mapping tells the access policy to accept our auth profile.
-    WARNING: once a policy has *any* mapping, only those mapped auth
-    methods work — everything else is rejected."""
-    heading(4, "Link profile → policy")
+def link_profiles(c: Snow, policy_id: str, apikey_profile_id: str):
+    """Map BOTH the API key profile AND basic auth profile to the policy.
+
+    CRITICAL: once an access policy has *any* auth profile mapping, ONLY
+    those mapped methods are accepted — unmapped methods get 401. So we
+    must explicitly map basic auth too, or it gets locked out."""
+    heading(4, "Link auth profiles → policy")
+
+    # Map API key profile
     find_or_create(
         c, "sys_auth_profile_mapping",
-        f"api_access_policy={policy_id}^inbound_auth_profile={profile_id}", "sys_id",
-        {"api_access_policy": policy_id, "inbound_auth_profile": profile_id},
-        "profile ↔ policy mapping",
+        f"api_access_policy={policy_id}^inbound_auth_profile={apikey_profile_id}", "sys_id",
+        {"api_access_policy": policy_id, "inbound_auth_profile": apikey_profile_id},
+        "API key ↔ policy mapping",
+    )
+
+    # Map basic auth profile — find by name with trailing space (ServiceNow default)
+    basic_profiles = c.get("std_http_auth", f"nameLIKE{BASIC_AUTH_NAME}", "sys_id,name")
+    if not basic_profiles:
+        print("  WARNING: basic auth profile not found — basic auth may be locked out!")
+        print(f"  Looked for: {BASIC_AUTH_NAME}")
+        return
+
+    basic_id = basic_profiles[0]["sys_id"]
+    find_or_create(
+        c, "sys_auth_profile_mapping",
+        f"api_access_policy={policy_id}^inbound_auth_profile={basic_id}", "sys_id",
+        {"api_access_policy": policy_id, "inbound_auth_profile": basic_id},
+        "basic auth ↔ policy mapping",
     )
 
 
 def create_key(c: Snow, username: str) -> dict:
-    """Create an API key bound to the given user. The token value is only
-    returned once — ServiceNow stores only the hash afterward."""
+    """Create an API key bound to the given user.
+
+    NOTE: The REST API returns an encrypted token blob, not the usable
+    `now_...` value. You MUST open the key record in the browser to copy
+    the real token — it's shown only at creation time."""
     heading(5, "Create API key")
     expires = (datetime.now(timezone.utc) + timedelta(days=KEY_EXPIRY_DAYS)).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -190,19 +231,17 @@ def create_key(c: Snow, username: str) -> dict:
     key = c.create("api_key", {
         "name": KEY_NAME, "user": user["sys_id"], "active": "true", "expires": expires,
     })
+    key_id = key.get("sys_id", "")
     print(f"  created: {KEY_NAME} (expires {expires})")
-    token = key.get("token", "")
-    if token:
-        save_token_securely(token)  
+    print(f"\n  ┌─ COPY TOKEN FROM BROWSER ─────────────────────────────")
+    print(f"  │ The REST API returns an encrypted token.")
+    print(f"  │ Open this URL to copy the real now_... token:")
+    print(f"  │")
+    print(f"  │   {c.base}/nav_to.do?uri=api_key.do?sys_id={key_id}")
+    print(f"  │")
+    print(f"  │ Then: export SNOW_API_KEY='now_...'")
+    print(f"  └────────────────────────────────────────────────────────")
     return key
-
-def save_token_securely(token: str):
-    file_path = "snow_secrets.env"
-    with open(file_path, "w") as f:
-        f.write(f"export SNOW_API_KEY='{token}'\n")       
-    # Restrict permissions to owner read/write only (chmod 600)
-    os.chmod(file_path, stat.S_IRUSR | stat.S_IWUSR)
-    print(f"  [Secure] Token saved to {file_path}. Run 'source {file_path}' to use it.")
 
 # ---------------------------------------------------------------------------
 # Main
@@ -219,10 +258,14 @@ def main():
     verify_plugin(c)
     policy_id = activate_policy(c)
     profile_id = create_auth_profile(c)
-    link_profile(c, policy_id, profile_id)
+    link_profiles(c, policy_id, profile_id)
     create_key(c, username)
 
-    print(f"\nDone! Your API key is ready for use. Test with:\n  curl -H 'x-sn-apikey: $SNOW_API_KEY' {instance}/api/now/table/sys_user")
-    
+    print(f"\nDone. Both basic auth and API key auth are now enabled.")
+    print(f"  export SNOW_INSTANCE={instance}")
+    print(f"  export SNOW_API_KEY='<token from browser>'")
+    print(f"  closedsspm audit --output report.html")
+
+
 if __name__ == "__main__":
     main()
