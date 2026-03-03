@@ -1,0 +1,22 @@
+id: SF-SAST-005
+title: "Embedded credentials in URL in stored procedure"
+description: >
+  A stored procedure contains a URL with embedded credentials in the
+  format http(s)://user:password@host. This exposes credentials in
+  plain text and may leak them through logs or error messages.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: procedures
+  field_conditions:
+    - field: "PROCEDURE_DEFINITION"
+      operator: "matches_regex"
+      value: "https?://[^:]+:[^@]+@"
+remediation: >
+  Remove embedded credentials from URLs. Use Snowflake secrets or
+  API integrations to manage external service authentication. Pass
+  credentials via secure parameters rather than embedding them in
+  connection strings.
+references:
+  - "https://docs.snowflake.com/en/sql-reference/sql/create-secret"

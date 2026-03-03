@@ -1,0 +1,21 @@
+id: SF-SAST-010
+title: "Private key embedded in user-defined function"
+description: >
+  A user-defined function contains a PEM-encoded private key. Embedding
+  private keys in code exposes them to anyone who can view the function
+  definition and defeats the purpose of key-based authentication.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: functions
+  field_conditions:
+    - field: "FUNCTION_DEFINITION"
+      operator: "matches_regex"
+      value: "-----BEGIN[A-Z ]*PRIVATE KEY-----"
+remediation: >
+  Remove private keys from UDFs. Store keys in Snowflake secrets or
+  external secret managers. Use Snowflake key pair authentication at
+  the user level rather than embedding keys in function code.
+references:
+  - "https://docs.snowflake.com/en/user-guide/key-pair-auth"

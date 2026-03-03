@@ -151,6 +151,31 @@ func TestEvaluateSnowflakePolicies(t *testing.T) {
 		{"sys_id": "lh_good", "is_success": "YES", "first_authentication_factor": "PASSWORD", "second_authentication_factor": "ok"},
 	}
 	snapshot.AddTableData(&collector.TableData{Table: "login_history", Records: logins, Count: len(logins)})
+	// 14. procedures (SAST scanning)
+	procs := []collector.Record{
+		{"sys_id": "proc_sast_001_bad", "PROCEDURE_DEFINITION": "var password = \"SuperSecret123\"; return password;", "PROCEDURE_LANGUAGE": "JAVASCRIPT"},
+		{"sys_id": "proc_sast_002_bad", "PROCEDURE_DEFINITION": "var key = AKIAIOSFODNN7EXAMPLE; upload(key);", "PROCEDURE_LANGUAGE": "JAVASCRIPT"},
+		{"sys_id": "proc_sast_003_bad", "PROCEDURE_DEFINITION": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpA...\n-----END RSA PRIVATE KEY-----", "PROCEDURE_LANGUAGE": "JAVASCRIPT"},
+		{"sys_id": "proc_sast_004_bad", "PROCEDURE_DEFINITION": "EXECUTE IMMEDIATE 'SELECT * FROM t WHERE id = ' || user_input;", "PROCEDURE_LANGUAGE": "SQL"},
+		{"sys_id": "proc_sast_005_bad", "PROCEDURE_DEFINITION": "var url = 'https://admin:s3cret@api.example.com/v1';", "PROCEDURE_LANGUAGE": "JAVASCRIPT"},
+		{"sys_id": "proc_sast_006_bad", "PROCEDURE_DEFINITION": "var result = eval(userInput); return result;", "PROCEDURE_LANGUAGE": "JAVASCRIPT"},
+		{"sys_id": "proc_sast_007_bad", "PROCEDURE_DEFINITION": "import subprocess\nsubprocess.run(['ls'])", "PROCEDURE_LANGUAGE": "PYTHON"},
+		{"sys_id": "proc_good", "PROCEDURE_DEFINITION": "BEGIN RETURN 42; END;", "PROCEDURE_LANGUAGE": "SQL"},
+	}
+	snapshot.AddTableData(&collector.TableData{Table: "procedures", Records: procs, Count: len(procs)})
+
+	// 15. functions (SAST scanning)
+	funcs := []collector.Record{
+		{"sys_id": "func_sast_008_bad", "FUNCTION_DEFINITION": "var api_key = \"sk-abcdef1234567890abcd\"; return api_key;", "FUNCTION_LANGUAGE": "JAVASCRIPT", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_sast_009_bad", "FUNCTION_DEFINITION": "key = ASIAIUQODNN7EXAMPLES; return key;", "FUNCTION_LANGUAGE": "JAVASCRIPT", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_sast_010_bad", "FUNCTION_DEFINITION": "-----BEGIN PRIVATE KEY-----\nMIIEvg...\n-----END PRIVATE KEY-----", "FUNCTION_LANGUAGE": "PYTHON", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_sast_011_bad", "FUNCTION_DEFINITION": "return eval(inputExpr);", "FUNCTION_LANGUAGE": "JAVASCRIPT", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_sast_012_bad", "FUNCTION_DEFINITION": "var fn = new Function('x', 'return x*2'); return fn(5);", "FUNCTION_LANGUAGE": "JAVASCRIPT", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_sast_013_bad", "FUNCTION_DEFINITION": "import os\nos.system('whoami')", "FUNCTION_LANGUAGE": "PYTHON", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_sast_014_bad", "FUNCTION_DEFINITION": "var endpoint = 'http://user:pass123@db.internal.co/api';", "FUNCTION_LANGUAGE": "JAVASCRIPT", "IS_EXTERNAL": "NO"},
+		{"sys_id": "func_good", "FUNCTION_DEFINITION": "return x + y;", "FUNCTION_LANGUAGE": "JAVASCRIPT", "IS_EXTERNAL": "NO"},
+	}
+	snapshot.AddTableData(&collector.TableData{Table: "functions", Records: funcs, Count: len(funcs)})
 
 
 	evaluator := NewEvaluator(policies)
@@ -215,6 +240,24 @@ func TestEvaluateSnowflakePolicies(t *testing.T) {
 		"SF-AUDIT-001": 1,
 		"SF-AUDIT-002": 2, // lh_audit_002_bad AND lh_audit_003_bad trigger this
 		"SF-AUDIT-003": 1, // only lh_audit_003_bad
+
+		// SAST rules (procedures)
+		"SF-SAST-001": 1, // hardcoded creds in procedure
+		"SF-SAST-002": 1, // AWS key in procedure
+		"SF-SAST-003": 1, // private key in procedure
+		"SF-SAST-004": 1, // SQL injection in procedure
+		"SF-SAST-005": 1, // embedded creds URL in procedure
+		"SF-SAST-006": 1, // eval() in procedure
+		"SF-SAST-007": 1, // subprocess in procedure
+
+		// SAST rules (functions)
+		"SF-SAST-008": 1, // hardcoded creds in function
+		"SF-SAST-009": 1, // AWS key in function
+		"SF-SAST-010": 1, // private key in function
+		"SF-SAST-011": 1, // eval() in function
+		"SF-SAST-012": 1, // new Function() in function
+		"SF-SAST-013": 1, // subprocess in function
+		"SF-SAST-014": 1, // embedded creds URL in function
 	}
 
 	for id, count := range counts {

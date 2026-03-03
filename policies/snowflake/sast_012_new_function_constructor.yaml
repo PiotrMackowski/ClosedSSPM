@@ -1,0 +1,21 @@
+id: SF-SAST-012
+title: "new Function() constructor in JavaScript UDF"
+description: >
+  A user-defined function uses the JavaScript Function constructor
+  (new Function()) to dynamically create functions from strings. This
+  is equivalent to eval() and poses the same code injection risks.
+severity: CRITICAL
+category: SAST
+platform: snowflake
+query:
+  table: functions
+  field_conditions:
+    - field: "FUNCTION_DEFINITION"
+      operator: "matches_regex"
+      value: "(?i)new\\s+Function\\s*\\("
+remediation: >
+  Remove new Function() calls from UDFs. Define all functions
+  statically at development time. Use structured control flow instead
+  of dynamically generated code.
+references:
+  - "https://docs.snowflake.com/en/developer-guide/udf/javascript/udf-javascript-introduction"
