@@ -108,6 +108,10 @@ export SNOW_PRIVATE_KEY_PATH=/path/to/private-key.pem
 export SNOW_KEY_ID=your_key_id
 export SNOW_JWT_USER=svc_audit_user
 
+# --- Option 4: API Key ---
+export SNOW_INSTANCE=https://mycompany.service-now.com
+export SNOW_API_KEY=your_api_key
+
 # Full audit: collect + evaluate + report (ServiceNow is the default platform)
 closedsspm audit --output report.html
 
@@ -263,14 +267,18 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | `SNOW_PRIVATE_KEY_PATH` | Path to RSA private key PEM file | For key pair |
 | `SNOW_KEY_ID` | Key ID from ServiceNow JWT Verifier Map | For key pair |
 | `SNOW_JWT_USER` | ServiceNow username for JWT `sub` claim (cannot be admin) | For key pair |
+| `SNOW_API_KEY` | API key token (from REST API Key table) | For API key auth |
 
 **Authentication method is auto-detected** based on which variables are set:
 
 | Priority | Method | Required Variables |
 |----------|--------|--------------------|
-| 1 | Key pair (JWT bearer) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` + `SNOW_PRIVATE_KEY_PATH` |
-| 2 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
-| 3 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
+| 1 | API key | `SNOW_API_KEY` |
+| 2 | Key pair (JWT bearer) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` + `SNOW_PRIVATE_KEY_PATH` |
+| 3 | OAuth (client credentials) | `SNOW_CLIENT_ID` + `SNOW_CLIENT_SECRET` |
+| 4 | Basic | `SNOW_USERNAME` + `SNOW_PASSWORD` |
+
+> **New to API key auth?** See the [ServiceNow API Key Setup Guide](docs/servicenow-apikey-setup.md) for step-by-step configuration using REST API calls, or use the [automated setup script](docs/setup_apikey_auth.py).
 
 #### Snowflake (`--platform snowflake`)
 
@@ -405,6 +413,8 @@ Run ClosedSSPM audits directly in your CI/CD pipeline:
     # private-key: ${{ secrets.SNOW_PRIVATE_KEY }}
     # key-id: ${{ secrets.SNOW_KEY_ID }}
     # jwt-user: ${{ secrets.SNOW_JWT_USER }}
+    # --- OR API Key ---
+    # api-key: ${{ secrets.SNOW_API_KEY }}
     format: sarif
     fail-on: HIGH
 
@@ -428,6 +438,7 @@ Run ClosedSSPM audits directly in your CI/CD pipeline:
 | `private-key` | No | — | RSA private key PEM content for JWT key pair auth |
 | `key-id` | No | — | Key ID from ServiceNow JWT Verifier Map |
 | `jwt-user` | No | — | ServiceNow username for JWT `sub` claim (cannot be admin) |
+| `api-key` | No | — | ServiceNow API key token |
 | `format` | No | `sarif` | Report format: html, json, csv, or sarif |
 | `fail-on` | No | `none` | Fail if findings at/above severity: CRITICAL, HIGH, MEDIUM, LOW, INFO |
 
