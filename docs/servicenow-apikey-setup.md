@@ -206,20 +206,24 @@ The `docs/setup_apikey_auth.py` script automates all of the above steps.
 ### Usage
 
 ```bash
-# Install dependency (only uses the Python standard library + requests)
+# Install dependency
 pip install requests
 
-# Run the setup
+# The script reads SNOW_INSTANCE, SNOW_USERNAME, SNOW_PASSWORD from env vars.
+# If you set them in the Prerequisites section above, just run:
+export SNOW_USERNAME=admin
+export SNOW_PASSWORD='YOUR_PASSWORD'
+
+python docs/setup_apikey_auth.py
+
+# Or pass everything via CLI flags:
 python docs/setup_apikey_auth.py \
-  --instance $SNOW_INSTANCE \
+  --instance https://mycompany.service-now.com \
   --username admin \
   --password 'YOUR_PASSWORD'
 
 # Optional: specify a custom key name, user, or expiry
 python docs/setup_apikey_auth.py \
-  --instance $SNOW_INSTANCE \
-  --username admin \
-  --password 'YOUR_PASSWORD' \
   --key-name "CI Audit Key" \
   --key-user svc_audit \
   --key-expires "2027-06-01 00:00:00"

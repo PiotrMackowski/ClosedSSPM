@@ -13,8 +13,15 @@ Steps performed:
   5. Create an API key for the specified user
 
 Usage:
+  # Set env vars (same ones ClosedSSPM uses) and run:
+  export SNOW_INSTANCE=https://mycompany.service-now.com
+  export SNOW_USERNAME=admin
+  export SNOW_PASSWORD=secret
+  python setup_apikey_auth.py
+
+  # Or pass via CLI flags:
   python setup_apikey_auth.py \\
-    --instance https://mycompany.service-now.com \
+    --instance https://mycompany.service-now.com \\
     --username admin \\
     --password 'secret'
 
@@ -23,6 +30,7 @@ Requirements:
 """
 
 import argparse
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -290,21 +298,44 @@ def main():
         description="Set up ServiceNow API Key authentication for ClosedSSPM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Environment variables (used as defaults when flags are omitted):
+  SNOW_INSTANCE    ServiceNow instance URL
+  SNOW_USERNAME    Admin username for setup
+  SNOW_PASSWORD    Admin password for setup
+
 Examples:
+  # Using environment variables (recommended):
+  export SNOW_INSTANCE=https://mycompany.service-now.com
+  export SNOW_USERNAME=admin
+  export SNOW_PASSWORD=secret
+  %(prog)s
+
+  # Using CLI flags:
   %(prog)s --instance https://mycompany.service-now.com --username admin --password secret
 
-  %(prog)s --instance https://mycompany.service-now.com --username admin --password secret \
-    --key-name "CI Audit Key" --key-user svc_audit --key-expires "2027-06-01 00:00:00"
+  # Mix: env vars for credentials, flags for options:
+  %(prog)s --key-name "CI Audit Key" --key-user svc_audit --key-expires "2027-06-01 00:00:00"
 """,
     )
-    parser.add_argument("--instance", required=True, help="ServiceNow instance URL")
-    parser.add_argument("--username", required=True, help="Admin username for setup (basic auth)")
-    parser.add_argument("--password", required=True, help="Admin password for setup (basic auth)")
+    parser.add_argument("--instance", default=os.environ.get("SNOW_INSTANCE"),
+                        help="ServiceNow instance URL (default: $SNOW_INSTANCE)")
+    parser.add_argument("--username", default=os.environ.get("SNOW_USERNAME"),
+                        help="Admin username for setup (default: $SNOW_USERNAME)")
+    parser.add_argument("--password", default=os.environ.get("SNOW_PASSWORD"),
+                        help="Admin password for setup (default: $SNOW_PASSWORD)")
     parser.add_argument("--key-name", default=DEFAULT_KEY_NAME, help=f"Name for the API key (default: {DEFAULT_KEY_NAME})")
     parser.add_argument("--key-user", default=None, help="Username to associate the key with (default: same as --username)")
     parser.add_argument("--key-expires", default=None, help="Key expiry datetime, UTC (default: 1 year from now)")
 
     args = parser.parse_args()
+
+    # Validate required args (env var or flag)
+    if not args.instance:
+        parser.error("--instance is required (or set SNOW_INSTANCE)")
+    if not args.username:
+        parser.error("--username is required (or set SNOW_USERNAME)")
+    if not args.password:
+        parser.error("--password is required (or set SNOW_PASSWORD)")
 
     key_user = args.key_user or args.username
     if args.key_expires:
