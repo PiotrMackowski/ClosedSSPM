@@ -1,0 +1,22 @@
+id: SNOW-SAST-014
+title: "eval() usage in MID Server script"
+description: >
+  A MID Server script file calls eval() to execute a dynamically constructed
+  string as code. MID Server scripts run on infrastructure outside the instance
+  security boundary, making arbitrary code execution via eval() a critical risk
+  that could compromise the MID Server host.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: ecc_agent_script_file
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "eval("
+remediation: >
+  Remove all uses of eval(). Replace with JSON.parse() for data deserialization,
+  direct function calls for logic dispatch, or safe alternatives that do not
+  execute arbitrary code strings.
+references:
+  - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_direct_eval!"

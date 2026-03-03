@@ -1,0 +1,25 @@
+id: SNOW-SAST-003
+title: "Hardcoded credentials in UI script"
+description: >
+  A UI script contains what appears to be a hardcoded password, secret, API
+  key, token, or credential. UI scripts run client-side and their source is
+  visible in the browser, making any embedded credentials trivially extractable
+  by end users.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_ui_script
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "(?i)(password|passwd|secret|api_?key|token|credential)\\s*[=:]\\s*[\"'][^\"']{8,}[\"']"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Never embed credentials in client-side UI scripts. Move any secret handling
+  to server-side script includes and expose only the results through a secure
+  GlideAjax call. Use the Credential Store for server-side secret management.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/credential-storage.html"

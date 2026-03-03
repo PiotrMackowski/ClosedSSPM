@@ -1,0 +1,26 @@
+id: SNOW-SAST-008
+title: "Private key (PEM) embedded in business rule script"
+description: >
+  A business rule script contains a PEM-formatted private key header. Private
+  keys embedded in scripts can be extracted by anyone with access to the
+  business rule, enabling impersonation, decryption of sensitive data, or
+  unauthorized authentication to external services.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "-----BEGIN[A-Z ]*PRIVATE KEY-----"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove the private key from the script immediately. Store private keys in
+  the ServiceNow certificate management (sys_certificate) or use Connection &
+  Credential Aliases for key-based authentication. Rotate the compromised key
+  pair and revoke the old certificate.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/digital-certificates.html"

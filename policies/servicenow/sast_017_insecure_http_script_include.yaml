@@ -1,0 +1,24 @@
+id: SNOW-SAST-017
+title: "Insecure HTTP connection in script include"
+description: >
+  A script include creates a GlideHTTPRequest using an unencrypted http:// URL
+  instead of https://. Data sent over plain HTTP is transmitted in cleartext and
+  can be intercepted or modified by network attackers.
+severity: HIGH
+category: SAST
+platform: servicenow
+query:
+  table: sys_script_include
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "(?i)new\\s+GlideHTTPRequest\\s*\\(\\s*[\"']http://"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Change all http:// URLs to https:// in GlideHTTPRequest calls. Ensure the
+  remote endpoint supports TLS. If the endpoint does not support HTTPS, work
+  with the endpoint owner to enable it before transmitting any data.
+references:
+  - "https://developer.servicenow.com/dev.do#!/reference/api/xanadu/server/no-namespace/GlideHTTPRequestAPI"

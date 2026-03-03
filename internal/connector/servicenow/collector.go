@@ -182,6 +182,10 @@ var securityTables = []tableSpec{
 		Name:   "ip_access",
 		Fields: []string{"sys_id", "range_start", "range_end", "type", "active", "description", "flow", "ports"},
 	},
+	{
+		Name:   "ecc_agent_script_file",
+		Fields: []string{"sys_id", "name", "script", "script_name", "active", "sys_updated_on"},
+	},
 }
 
 // ServiceNowCollector implements the collector.Collector interface for ServiceNow.

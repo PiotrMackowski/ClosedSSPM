@@ -33,6 +33,10 @@ func TestEvaluateServiceNowPolicies(t *testing.T) {
 			{"type": "public", "active": "true", "condition": "x", "script": "x", "description": "desc"},
 			// ACL-009
 			{"type": "deny_unless", "active": "true", "condition": "x", "script": "x", "description": "desc"},
+			// SAST-006: hardcoded creds in ACL script
+			{"condition": "x", "script": `var credential = "HardcodedCred12345"`, "active": "true", "description": "desc", "admin_overrides": "false", "type": "record"},
+			// SAST-015: eval() in ACL script
+			{"condition": "x", "script": "var x = eval(userInput)", "active": "true", "description": "desc", "admin_overrides": "false", "type": "record"},
 			// Good
 			{"condition": "x", "script": "x", "active": "true", "description": "desc", "admin_overrides": "false", "type": "record"},
 		},
@@ -210,6 +214,10 @@ func TestEvaluateServiceNowPolicies(t *testing.T) {
 			{"requires_acl_authorization": "false", "active": "true", "operation_script": "valid"},
 			// INT-007
 			{"operation_script": "var x = eval('bad')", "active": "true", "requires_acl_authorization": "true"},
+			// SAST-004: hardcoded creds in REST operation
+			{"requires_acl_authorization": "true", "active": "true", "operation_script": `var secret = "MySecretValue123"`},
+			// SAST-018: insecure HTTP in REST operation
+			{"requires_acl_authorization": "true", "active": "true", "operation_script": `var r = new GlideHTTPRequest("http://old.api.com")`},
 			// Good
 			{"requires_acl_authorization": "true", "active": "true", "operation_script": "valid"},
 		},
@@ -284,6 +292,20 @@ func TestEvaluateServiceNowPolicies(t *testing.T) {
 			{"script": "normal", "active": "true", "description": "desc", "when": "before"},
 			// Good
 			{"script": "normal", "active": "true", "description": "desc", "when": "after"},
+			// SAST-001: hardcoded creds
+			{"script": `var password = "SuperSecret123"`, "active": "true", "description": "desc", "when": "after"},
+			// SAST-007: AWS access key
+			{"script": "var key = 'AKIAIOSFODNN7EXAMPLE'", "active": "true", "description": "desc", "when": "after"},
+			// SAST-008: private key
+			{"script": "var cert = '-----BEGIN RSA PRIVATE KEY-----\nMIIE...'", "active": "true", "description": "desc", "when": "after"},
+			// SAST-016: insecure HTTP
+			{"script": `var r = new GlideHTTPRequest("http://api.example.com/data")`, "active": "true", "description": "desc", "when": "after"},
+			// SAST-019: SQL injection
+			{"script": `gr.addEncodedQuery("category=" + userInput)`, "active": "true", "description": "desc", "when": "after"},
+			// SAST-021: workflow bypass
+			{"script": "current.setWorkflow( false )", "active": "true", "description": "desc", "when": "after"},
+			// SAST-024: embedded creds in URL
+			{"script": `var url = "https://admin:p4ssw0rd@internal.corp.com/api"`, "active": "true", "description": "desc", "when": "after"},
 		},
 	})
 
@@ -292,11 +314,25 @@ func TestEvaluateServiceNowPolicies(t *testing.T) {
 		Table: "sys_script_include",
 		Records: []collector.Record{
 			// SCRIPT-002
-			{"client_callable": "true", "active": "true", "description": "desc"},
+			{"script": "safe code", "client_callable": "true", "active": "true", "description": "desc"},
 			// SCRIPT-006
-			{"client_callable": "false", "active": "true", "description": ""},
+			{"script": "safe code", "client_callable": "false", "active": "true", "description": ""},
 			// Good
-			{"client_callable": "false", "active": "true", "description": "desc"},
+			{"script": "safe code", "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-002: hardcoded creds
+			{"script": `var api_key = "abcdef1234567890"`, "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-009: private key
+			{"script": "var pk = '-----BEGIN PRIVATE KEY-----\nMIIE...'", "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-010: GlideEvaluator
+			{"script": "var ge = new GlideEvaluator(); ge.evaluateString(code)", "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-012: eval()
+			{"script": "var result = eval(userInput)", "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-017: insecure HTTP
+			{"script": `var r = new GlideHTTPRequest("http://legacy.internal.com")`, "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-020: SQL injection
+			{"script": `gr.addEncodedQuery("name=" + param)`, "client_callable": "false", "active": "true", "description": "desc"},
+			// SAST-025: embedded creds in URL
+			{"script": `var endpoint = "http://svc:secret@db.internal:5432"`, "client_callable": "false", "active": "true", "description": "desc"},
 		},
 	})
 
@@ -305,9 +341,32 @@ func TestEvaluateServiceNowPolicies(t *testing.T) {
 		Table: "sys_ui_script",
 		Records: []collector.Record{
 			// SCRIPT-003
-			{"active": "true", "global": "true"},
+			{"script": "safe code", "active": "true", "global": "true"},
 			// Good
-			{"active": "true", "global": "false"},
+			{"script": "safe code", "active": "true", "global": "false"},
+			// SAST-003: hardcoded creds
+			{"script": `var token = "MySecretToken1234"`, "active": "true", "global": "false"},
+			// SAST-013: eval()
+			{"script": "var x = eval(data)", "active": "true", "global": "false"},
+			// SAST-022: innerHTML XSS
+			{"script": "el.innerHTML = userInput", "active": "true", "global": "false"},
+			// SAST-023: document.write XSS
+			{"script": "document.write(htmlContent)", "active": "true", "global": "false"},
+		},
+	})
+
+	// ecc_agent_script_file (MID Server scripts)
+	snapshot.AddTableData(&collector.TableData{
+		Table: "ecc_agent_script_file",
+		Records: []collector.Record{
+			// SAST-005: hardcoded creds in MID script
+			{"script": `var passwd = "MyMIDServerPass1"`, "name": "bad_mid_script"},
+			// SAST-011: GlideEvaluator in MID script
+			{"script": "var ge = new GlideEvaluator()", "name": "evaluator_mid"},
+			// SAST-014: eval() in MID script
+			{"script": "var result = eval(code)", "name": "eval_mid"},
+			// Good
+			{"script": "var x = gs.getProperty('safe')", "name": "safe_mid_script"},
 		},
 	})
 
@@ -387,6 +446,32 @@ func TestEvaluateServiceNowPolicies(t *testing.T) {
 		"SNOW-SCRIPT-004": 1,
 		"SNOW-SCRIPT-005": 2, // 2 with when=before
 		"SNOW-SCRIPT-006": 1,
+		// SAST rules
+		"SNOW-SAST-001": 1, // hardcoded creds in business rule
+		"SNOW-SAST-002": 1, // hardcoded creds in script include
+		"SNOW-SAST-003": 1, // hardcoded creds in UI script
+		"SNOW-SAST-004": 1, // hardcoded creds in REST operation
+		"SNOW-SAST-005": 1, // hardcoded creds in MID script
+		"SNOW-SAST-006": 1, // hardcoded creds in ACL script
+		"SNOW-SAST-007": 1, // AWS access key in business rule
+		"SNOW-SAST-008": 1, // private key in business rule
+		"SNOW-SAST-009": 1, // private key in script include
+		"SNOW-SAST-010": 1, // GlideEvaluator in script include
+		"SNOW-SAST-011": 1, // GlideEvaluator in MID script
+		"SNOW-SAST-012": 1, // eval() in script include
+		"SNOW-SAST-013": 1, // eval() in UI script
+		"SNOW-SAST-014": 1, // eval() in MID script
+		"SNOW-SAST-015": 1, // eval() in ACL script
+		"SNOW-SAST-016": 1, // insecure HTTP in business rule
+		"SNOW-SAST-017": 1, // insecure HTTP in script include
+		"SNOW-SAST-018": 1, // insecure HTTP in REST operation
+		"SNOW-SAST-019": 1, // SQL injection in business rule
+		"SNOW-SAST-020": 1, // SQL injection in script include
+		"SNOW-SAST-021": 1, // workflow bypass in business rule
+		"SNOW-SAST-022": 1, // innerHTML XSS in UI script
+		"SNOW-SAST-023": 1, // document.write XSS in UI script
+		"SNOW-SAST-024": 1, // embedded creds URL in business rule
+		"SNOW-SAST-025": 1, // embedded creds URL in script include
 	}
 
 	actualCounts := make(map[string]int)

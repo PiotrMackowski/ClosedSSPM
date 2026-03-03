@@ -1,0 +1,25 @@
+id: SNOW-SAST-009
+title: "Private key (PEM) embedded in script include"
+description: >
+  A script include contains a PEM-formatted private key header. Script
+  includes are shared server-side libraries and an embedded private key is
+  accessible to all code that references this include, creating a wide
+  attack surface for key compromise.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_script_include
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "-----BEGIN[A-Z ]*PRIVATE KEY-----"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Remove the private key from the script include. Use ServiceNow certificate
+  management (sys_certificate) or Connection & Credential Aliases for
+  key-based authentication. Rotate the exposed key pair immediately.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-platform-security/page/administer/security/concept/digital-certificates.html"

@@ -1,0 +1,26 @@
+id: SNOW-SAST-007
+title: "AWS access key found in business rule script"
+description: >
+  A business rule script contains a string matching the AWS access key ID
+  format (AKIA/ASIA/ABIA/ACCA prefix followed by 16 alphanumeric characters).
+  Exposed AWS keys can lead to unauthorized access to cloud resources,
+  data exfiltration, and significant financial impact.
+severity: CRITICAL
+category: SAST
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "(AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Immediately rotate the exposed AWS access key through the AWS IAM console.
+  Remove the key from the script and use ServiceNow Connection & Credential
+  Aliases or sys_properties to store cloud provider credentials securely.
+  Enable AWS CloudTrail to audit any unauthorized usage.
+references:
+  - "https://docs.servicenow.com/bundle/xanadu-it-operations-management/page/product/cloud-management-v2/concept/cloud-credentials.html"

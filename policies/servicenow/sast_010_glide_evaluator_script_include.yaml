@@ -1,0 +1,24 @@
+id: SNOW-SAST-010
+title: "GlideEvaluator usage in script include"
+description: >
+  A script include uses GlideEvaluator to dynamically evaluate code at runtime.
+  GlideEvaluator can execute arbitrary server-side JavaScript, which may lead to
+  code injection if the evaluated string includes unsanitized user input.
+severity: HIGH
+category: SAST
+platform: servicenow
+query:
+  table: sys_script_include
+  field_conditions:
+    - field: "script"
+      operator: "contains"
+      value: "GlideEvaluator"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Replace GlideEvaluator with direct function calls or GlideScopedEvaluator
+  with strict input validation. If dynamic evaluation is required, ensure all
+  inputs are validated and sanitized before passing them to the evaluator.
+references:
+  - "https://developer.servicenow.com/dev.do#!/reference/api/xanadu/server/no-namespace/GlideScopedEvaluatorAPI"

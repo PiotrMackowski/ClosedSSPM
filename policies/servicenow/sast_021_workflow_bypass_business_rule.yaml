@@ -1,0 +1,26 @@
+id: SNOW-SAST-021
+title: "Workflow bypass via setWorkflow(false) in business rule"
+description: >
+  A business rule calls setWorkflow(false) which disables all downstream
+  business rules, workflows, and notifications for the current operation. This
+  can silently bypass security controls, audit logging, and approval processes
+  that depend on workflow execution.
+severity: MEDIUM
+category: SAST
+platform: servicenow
+query:
+  table: sys_script
+  field_conditions:
+    - field: "script"
+      operator: "matches_regex"
+      value: "setWorkflow\\s*\\(\\s*false\\s*\\)"
+    - field: "active"
+      operator: "equals"
+      value: "true"
+remediation: >
+  Review whether setWorkflow(false) is necessary. If used for performance
+  optimization during bulk operations, ensure that critical security workflows
+  and audit logging are not bypassed. Consider using targeted conditions to
+  skip only non-essential workflows instead of disabling all workflow processing.
+references:
+  - "https://developer.servicenow.com/dev.do#!/reference/api/xanadu/server/no-namespace/GlideRecordAPI#r_GlideRecord-setWorkflow(Boolean_e)"
