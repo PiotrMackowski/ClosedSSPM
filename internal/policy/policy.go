@@ -31,16 +31,16 @@ type QuerySpec struct {
 
 // Policy represents a single security audit check loaded from YAML.
 type Policy struct {
-	ID          string         `yaml:"id"`
-	Title       string         `yaml:"title"`
-	Description string         `yaml:"description"`
+	ID          string           `yaml:"id"`
+	Title       string           `yaml:"title"`
+	Description string           `yaml:"description"`
 	Severity    finding.Severity `yaml:"severity"`
-	Category    string         `yaml:"category"`
-	Platform    string         `yaml:"platform"`
-	Query       QuerySpec      `yaml:"query"`
-	Remediation string         `yaml:"remediation"`
-	References  []string       `yaml:"references,omitempty"`
-	Enabled     *bool          `yaml:"enabled,omitempty"`
+	Category    string           `yaml:"category"`
+	Platform    string           `yaml:"platform"`
+	Query       QuerySpec        `yaml:"query"`
+	Remediation string           `yaml:"remediation"`
+	References  []string         `yaml:"references,omitempty"`
+	Enabled     *bool            `yaml:"enabled,omitempty"`
 }
 
 // IsEnabled returns whether the policy is enabled (defaults to true).
@@ -162,10 +162,10 @@ func (e *Evaluator) evaluatePolicy(p Policy, snapshot *collector.Snapshot) ([]fi
 			Resource:    fmt.Sprintf("%s:%s", p.Query.Table, sysID),
 			Evidence: []finding.Evidence{
 				{
-				ResourceType: p.Query.Table,
-				ResourceID:   sysID,
-				DisplayName:  displayValue,
-				Fields:       recordToStringMap(record),
+					ResourceType: p.Query.Table,
+					ResourceID:   sysID,
+					DisplayName:  displayValue,
+					Fields:       recordToStringMap(record),
 				},
 			},
 			Remediation: p.Remediation,
