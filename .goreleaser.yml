@@ -58,6 +58,24 @@ sboms:
   - id: source
     artifacts: source
 
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    artifacts: checksum
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    args:
+      - "sign"
+      - "${artifact}"
+      - "--yes"
+
 nfpms:
   - id: deb
     package_name: closedsspm
