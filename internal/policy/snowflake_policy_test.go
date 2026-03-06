@@ -173,7 +173,6 @@ func TestEvaluateSnowflakePolicies(t *testing.T) {
 	}
 	snapshot.AddTableData(&collector.TableData{Table: "functions", Records: funcs, Count: len(funcs)})
 
-
 	evaluator := NewEvaluator(policies)
 	findings, err := evaluator.Evaluate(snapshot)
 	if err != nil {
@@ -265,4 +264,5 @@ func TestEvaluateSnowflakePolicies(t *testing.T) {
 		}
 	}
 }
+
 // Note: Checking total count of expected vs actual to ensure no surprise findings
