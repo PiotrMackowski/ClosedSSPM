@@ -75,8 +75,10 @@ jobs:
           ARTIFACTS: "${{ steps.goreleaser.outputs.artifacts }}"
         run: |
           set -euo pipefail
-          image_list=$(echo "$ARTIFACTS" | jq -r '.[] | select(.type=="Docker Manifest") | {"image": (.name | sub("^.*?/"; "") | sub(":(.*)"; "")), "digest": .extra.Digest}')
-          echo "subjects=$(echo $image_list | jq -c -s 'unique_by(.digest) | {"include": .}')" >> "$GITHUB_OUTPUT"
+          subjects=$(echo "$ARTIFACTS" | jq -c '[.[] | select(.type=="Docker Image") | {"image": (.name | sub("^.*?/"; "") | sub(":(.*)"; "")), "digest": .extra.Digest}] | unique_by(.digest) | if length > 0 then {"include": .} else null end')
+          if [ "$subjects" != "null" ] && [ -n "$subjects" ]; then
+            echo "subjects=$subjects" >> "$GITHUB_OUTPUT"
+          fi
 
   # SLSA Level 3 provenance for binary artifacts (archives, checksums, SBOMs, packages)
   binary-provenance:
@@ -93,6 +95,7 @@ jobs:
   # SLSA Level 3 provenance for container images
   image-provenance:
     needs: [goreleaser]
+    if: needs.goreleaser.outputs.image_subjects != ''
     permissions:
       actions: read    # to detect the GitHub Actions environment
       id-token: write  # to create OIDC tokens for signing
@@ -148,6 +151,7 @@ jobs:
   # Verify container image provenance
   image-verify:
     needs: [goreleaser, image-provenance]
+    if: needs.goreleaser.outputs.image_subjects != ''
     runs-on: ubuntu-latest
     permissions: read-all
     strategy:
