@@ -21,11 +21,11 @@ import (
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/mcpserver"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/policy"
-	"github.com/PiotrMackowski/ClosedSSPM/policies"
-	htmlreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/html"
 	csvreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/csv"
+	htmlreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/html"
 	jsonreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/json"
 	sarifreport "github.com/PiotrMackowski/ClosedSSPM/internal/report/sarif"
+	"github.com/PiotrMackowski/ClosedSSPM/policies"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 )
