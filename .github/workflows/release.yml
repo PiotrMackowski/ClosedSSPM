@@ -8,15 +8,15 @@ on:
 permissions: read-all
 
 jobs:
-  goreleaser:
-    name: GoReleaser
+  release:
+    name: Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # for creating a GitHub release
-      packages: write   # for pushing Docker images to GHCR
-    outputs:
-      hashes: ${{ steps.hash.outputs.hashes }}
-      image_subjects: ${{ steps.image.outputs.subjects }}
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -36,6 +36,9 @@ jobs:
         with:
           syft-version: v1.42.1
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
 
@@ -50,7 +53,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run GoReleaser
-        id: goreleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         with:
           distribution: goreleaser
@@ -60,120 +62,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
-      - name: Generate binary hashes
-        id: hash
-        env:
-          ARTIFACTS: "${{ steps.goreleaser.outputs.artifacts }}"
-        run: |
-          set -euo pipefail
-          checksum_file=$(echo "$ARTIFACTS" | jq -r '.[] | select (.type=="Checksum") | .path')
-          echo "hashes=$(cat $checksum_file | base64 -w0)" >> "$GITHUB_OUTPUT"
-
-      - name: Generate container image subjects
-        id: image
-        env:
-          ARTIFACTS: "${{ steps.goreleaser.outputs.artifacts }}"
-        run: |
-          set -euo pipefail
-          subjects=$(echo "$ARTIFACTS" | jq -c '[.[] | select(.type=="Docker Image") | {"image": (.name | sub("^.*?/"; "") | sub(":(.*)"; "")), "digest": .extra.Digest}] | unique_by(.digest) | if length > 0 then {"include": .} else null end')
-          if [ "$subjects" != "null" ] && [ -n "$subjects" ]; then
-            echo "subjects=$subjects" >> "$GITHUB_OUTPUT"
-          fi
-
-  # SLSA Level 3 provenance for binary artifacts (archives, checksums, SBOMs, packages)
-  binary-provenance:
-    needs: [goreleaser]
-    permissions:
-      actions: read    # to read the workflow path
-      id-token: write  # to sign the provenance
-      contents: write  # to add assets to the release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
-    with:
-      base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
-      upload-assets: true
-
-  # SLSA Level 3 provenance for container images
-  image-provenance:
-    needs: [goreleaser]
-    if: needs.goreleaser.outputs.image_subjects != ''
-    permissions:
-      actions: read    # to detect the GitHub Actions environment
-      id-token: write  # to create OIDC tokens for signing
-      packages: write  # to upload attestations to GHCR
-    strategy:
-      matrix: ${{ fromJSON(needs.goreleaser.outputs.image_subjects) }}
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
-    with:
-      image: ghcr.io/${{ matrix.image }}
-      digest: ${{ matrix.digest }}
-      registry-username: ${{ github.actor }}
-    secrets:
-      registry-password: ${{ secrets.GITHUB_TOKEN }}
-
-  # Verify binary provenance
-  binary-verify:
-    needs: [goreleaser, binary-provenance]
-    runs-on: ubuntu-latest
-    permissions: read-all
-    steps:
-      - name: Install SLSA verifier
-        uses: slsa-framework/slsa-verifier/actions/installer@ea584f4502babc6f60d9bc799dbbb13c1caa9ee6 # v2.7.1
-
-      - name: Download release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PROVENANCE: "${{ needs.binary-provenance.outputs.provenance-name }}"
-        run: |
-          set -euo pipefail
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "*.tar.gz"
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "*.zip"
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "$PROVENANCE"
-
-      - name: Verify binary provenance
-        env:
-          CHECKSUMS: ${{ needs.goreleaser.outputs.hashes }}
-          PROVENANCE: "${{ needs.binary-provenance.outputs.provenance-name }}"
-        run: |
-          set -euo pipefail
-          checksums=$(echo "$CHECKSUMS" | base64 -d)
-          while read -r line; do
-              fn=$(echo $line | cut -d ' ' -f2)
-              # Only verify files we downloaded (archives)
-              if [ -f "$fn" ]; then
-                echo "Verifying $fn"
-                slsa-verifier verify-artifact --provenance-path "$PROVENANCE" \
-                                              --source-uri "github.com/$GITHUB_REPOSITORY" \
-                                              --source-tag "$GITHUB_REF_NAME" \
-                                              "$fn"
-              fi
-          done <<<"$checksums"
-
-  # Verify container image provenance
-  image-verify:
-    needs: [goreleaser, image-provenance]
-    if: needs.goreleaser.outputs.image_subjects != ''
-    runs-on: ubuntu-latest
-    permissions: read-all
-    strategy:
-      matrix: ${{ fromJSON(needs.goreleaser.outputs.image_subjects) }}
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
-
-      - name: Verify container provenance
-        env:
-          IMAGE: ${{ matrix.image }}
-          DIGEST: ${{ matrix.digest }}
-        run: |
-          cosign verify-attestation \
-             --type slsaprovenance \
-             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-             --certificate-identity-regexp '^https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v[0-9]+.[0-9]+.[0-9]+$' \
-             ghcr.io/${IMAGE}@${DIGEST}
+          subject-path: ./dist/checksums.txt
