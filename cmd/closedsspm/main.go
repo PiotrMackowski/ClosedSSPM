@@ -265,87 +265,89 @@ func checkFailOn(cmd *cobra.Command, findings []finding.Finding) {
 
 // --- Commands ---
 
+func runAudit(cmd *cobra.Command, _ []string) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	platformRaw, _ := cmd.Flags().GetString("platform")
+	output, _ := cmd.Flags().GetString("output")
+	format, _ := cmd.Flags().GetString("format")
+	snapshotOutput, _ := cmd.Flags().GetString("save-snapshot")
+	policiesDir := getPoliciesDir(cmd)
+
+	platforms, err := parsePlatforms(platformRaw)
+	if err != nil {
+		return err
+	}
+
+	// Collect and evaluate each platform independently so that
+	// policy platform-filtering works correctly.
+	var allFindings []finding.Finding
+	var snapshots []*collector.Snapshot
+
+	for _, p := range platforms {
+		factory, configBuilder, err := connector.Get(p)
+		if err != nil {
+			return err
+		}
+
+		config := configBuilder(cmd)
+
+		slog.Info("Starting data collection", "platform", p)
+		coll := factory()
+		snapshot, err := coll.Collect(ctx, config)
+		if err != nil {
+			return fmt.Errorf("collection failed for %s: %w", p, err)
+		}
+		slog.Info("Collection complete", "platform", p, "tables", len(snapshot.Tables))
+
+		// Evaluate per-platform so that policies with platform filters
+		// match correctly (e.g. platform: entra matches snapshot.Platform == "entra").
+		findings, err := evaluateFindings(snapshot, policiesDir)
+		if err != nil {
+			return fmt.Errorf("evaluation failed for %s: %w", p, err)
+		}
+		for i := range findings {
+			findings[i].Platform = p
+		}
+		allFindings = append(allFindings, findings...)
+		snapshots = append(snapshots, snapshot)
+	}
+
+	merged := mergeSnapshots(snapshots)
+
+	// Optionally save the merged snapshot.
+	if snapshotOutput != "" {
+		if err := saveSnapshot(merged, snapshotOutput); err != nil {
+			return err
+		}
+		slog.Info("Snapshot saved", "path", snapshotOutput)
+	}
+
+	summary := finding.NewSummary(allFindings)
+	slog.Info("Evaluation complete",
+		"platforms", len(platforms),
+		"findings", summary.Total,
+		"score", summary.PostureScore,
+	)
+
+	// Report.
+	if err := writeReport(allFindings, merged, output, format); err != nil {
+		return err
+	}
+	slog.Info("Report written", "path", output)
+
+	checkFailOn(cmd, allFindings)
+
+	return nil
+}
+
 func newAuditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Run a full security audit (collect + evaluate + report)",
 		Long:  `Connects to a SaaS platform, collects security-relevant data,\nevaluates it against all policies, and generates a report.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-			defer cancel()
-
-			platformRaw, _ := cmd.Flags().GetString("platform")
-			output, _ := cmd.Flags().GetString("output")
-			format, _ := cmd.Flags().GetString("format")
-			snapshotOutput, _ := cmd.Flags().GetString("save-snapshot")
-			policiesDir := getPoliciesDir(cmd)
-
-			platforms, err := parsePlatforms(platformRaw)
-			if err != nil {
-				return err
-			}
-
-			// Collect and evaluate each platform independently so that
-			// policy platform-filtering works correctly.
-			var allFindings []finding.Finding
-			var snapshots []*collector.Snapshot
-
-			for _, p := range platforms {
-				factory, configBuilder, err := connector.Get(p)
-				if err != nil {
-					return err
-				}
-
-				config := configBuilder(cmd)
-
-				slog.Info("Starting data collection", "platform", p)
-				coll := factory()
-				snapshot, err := coll.Collect(ctx, config)
-				if err != nil {
-					return fmt.Errorf("collection failed for %s: %w", p, err)
-				}
-				slog.Info("Collection complete", "platform", p, "tables", len(snapshot.Tables))
-
-				// Evaluate per-platform so that policies with platform filters
-				// match correctly (e.g. platform: entra matches snapshot.Platform == "entra").
-				findings, err := evaluateFindings(snapshot, policiesDir)
-				if err != nil {
-					return fmt.Errorf("evaluation failed for %s: %w", p, err)
-				}
-				for i := range findings {
-					findings[i].Platform = p
-				}
-				allFindings = append(allFindings, findings...)
-				snapshots = append(snapshots, snapshot)
-			}
-
-			merged := mergeSnapshots(snapshots)
-
-			// Optionally save the merged snapshot.
-			if snapshotOutput != "" {
-				if err := saveSnapshot(merged, snapshotOutput); err != nil {
-					return err
-				}
-				slog.Info("Snapshot saved", "path", snapshotOutput)
-			}
-
-			summary := finding.NewSummary(allFindings)
-			slog.Info("Evaluation complete",
-				"platforms", len(platforms),
-				"findings", summary.Total,
-				"score", summary.PostureScore,
-			)
-
-			// Report.
-			if err := writeReport(allFindings, merged, output, format); err != nil {
-				return err
-			}
-			slog.Info("Report written", "path", output)
-
-			checkFailOn(cmd, allFindings)
-
-			return nil
-		},
+		RunE:  runAudit,
 	}
 
 	cmd.Flags().String("platform", "servicenow",

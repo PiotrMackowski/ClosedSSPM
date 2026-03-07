@@ -209,65 +209,48 @@ func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
 	return re, nil
 }
 
+type operatorFunc func(val, condValue string) bool
+
+var operators = map[string]operatorFunc{
+	"empty":     func(val, _ string) bool { return val == "" },
+	"not_empty": func(val, _ string) bool { return val != "" },
+	"equals":    func(val, cv string) bool { return val == cv },
+	"not_equals": func(val, cv string) bool {
+		return val != cv
+	},
+	"contains": func(val, cv string) bool { return strings.Contains(val, cv) },
+	"not_contains": func(val, cv string) bool {
+		return !strings.Contains(val, cv)
+	},
+	"greater_than": func(val, cv string) bool {
+		fVal, err1 := strconv.ParseFloat(val, 64)
+		fCond, err2 := strconv.ParseFloat(cv, 64)
+		return err1 == nil && err2 == nil && fVal > fCond
+	},
+	"less_than": func(val, cv string) bool {
+		fVal, err1 := strconv.ParseFloat(val, 64)
+		fCond, err2 := strconv.ParseFloat(cv, 64)
+		return err1 == nil && err2 == nil && fVal < fCond
+	},
+	"matches_regex": func(val, cv string) bool {
+		re, err := getCompiledRegex(cv)
+		return err == nil && re.MatchString(val)
+	},
+	"not_matches_regex": func(val, cv string) bool {
+		re, err := getCompiledRegex(cv)
+		return err == nil && !re.MatchString(val)
+	},
+}
+
 // matchesFieldConditions checks if a record matches all field conditions.
 func matchesFieldConditions(record collector.Record, conditions []FieldCondition) bool {
 	for _, cond := range conditions {
-		val := getStringField(record, cond.Field)
-		switch cond.Operator {
-		case "empty":
-			if val != "" {
-				return false
-			}
-		case "not_empty":
-			if val == "" {
-				return false
-			}
-		case "equals":
-			if val != cond.Value {
-				return false
-			}
-		case "not_equals":
-			if val == cond.Value {
-				return false
-			}
-		case "contains":
-			if !strings.Contains(val, cond.Value) {
-				return false
-			}
-		case "not_contains":
-			if strings.Contains(val, cond.Value) {
-				return false
-			}
-		case "greater_than":
-			fVal, err1 := strconv.ParseFloat(val, 64)
-			fCond, err2 := strconv.ParseFloat(cond.Value, 64)
-			if err1 != nil || err2 != nil || fVal <= fCond {
-				return false
-			}
-		case "less_than":
-			fVal, err1 := strconv.ParseFloat(val, 64)
-			fCond, err2 := strconv.ParseFloat(cond.Value, 64)
-			if err1 != nil || err2 != nil || fVal >= fCond {
-				return false
-			}
-		case "matches_regex":
-			re, err := getCompiledRegex(cond.Value)
-			if err != nil {
-				return false // invalid regex, treat as non-match
-			}
-			if !re.MatchString(val) {
-				return false
-			}
-		case "not_matches_regex":
-			re, err := getCompiledRegex(cond.Value)
-			if err != nil {
-				return false // invalid regex, treat as non-match
-			}
-			if re.MatchString(val) {
-				return false
-			}
-		default:
-			// Unknown operator, skip condition
+		op, ok := operators[cond.Operator]
+		if !ok {
+			continue // Unknown operator, skip condition
+		}
+		if !op(getStringField(record, cond.Field), cond.Value) {
+			return false
 		}
 	}
 	return true
