@@ -3,10 +3,7 @@ package snowflake
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/connector"
@@ -189,7 +186,7 @@ func (c *SnowflakeCollector) Collect(ctx context.Context, config collector.Conne
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = 5
+		concurrency = collector.DefaultConcurrency
 	}
 
 	instanceID := config.Account
@@ -198,60 +195,16 @@ func (c *SnowflakeCollector) Collect(ctx context.Context, config collector.Conne
 	}
 	snapshot := collector.NewSnapshot("snowflake", instanceID)
 
-	// Collect queries in parallel with bounded concurrency.
-	var (
-		mu   sync.Mutex
-		wg   sync.WaitGroup
-		sem  = make(chan struct{}, concurrency)
-		errs []error
-	)
-
-	for _, qs := range securityQueries {
-		wg.Add(1)
-		go func(spec querySpec) {
-			defer wg.Done()
-
-			// Acquire semaphore slot.
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			log.Printf("[collect] Executing query: %s", spec.Name)
-			startTime := time.Now()
-
-			records, err := client.Query(ctx, spec.Query)
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("query %s: %w", spec.Name, err))
-				mu.Unlock()
-				log.Printf("[collect] ERROR querying %s: %v", spec.Name, err)
-				return
-			}
-
-			td := &collector.TableData{
-				Table:       spec.Name,
-				Records:     records,
-				Count:       len(records),
-				CollectedAt: time.Now().UTC(),
-			}
-
-			mu.Lock()
-			snapshot.AddTableData(td)
-			mu.Unlock()
-
-			log.Printf("[collect] Collected %d records from %s in %v", len(records), spec.Name, time.Since(startTime))
-		}(qs)
+	queryByName := make(map[string]string, len(securityQueries))
+	tableNames := make([]string, len(securityQueries))
+	for i, qs := range securityQueries {
+		tableNames[i] = qs.Name
+		queryByName[qs.Name] = qs.Query
 	}
 
-	wg.Wait()
-
-	if len(errs) > 0 {
-		// Log errors but don't fail the entire collection.
-		// Some queries might not be accessible due to permissions.
-		for _, e := range errs {
-			log.Printf("[collect] Warning: %v", e)
-		}
-		snapshot.Metadata["collection_warnings"] = fmt.Sprintf("%d queries had errors", len(errs))
-	}
+	collector.CollectParallel(snapshot, concurrency, tableNames, func(table string) ([]collector.Record, error) {
+		return client.Query(ctx, queryByName[table])
+	})
 
 	return snapshot, nil
 }

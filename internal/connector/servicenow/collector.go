@@ -3,10 +3,7 @@ package servicenow
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/connector"
@@ -210,65 +207,21 @@ func (c *ServiceNowCollector) Collect(ctx context.Context, config collector.Conn
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = defaultConcurrency
+		concurrency = collector.DefaultConcurrency
 	}
 
 	snapshot := collector.NewSnapshot("servicenow", config.InstanceURL)
 
-	// Collect tables in parallel with bounded concurrency.
-	var (
-		mu   sync.Mutex
-		wg   sync.WaitGroup
-		sem  = make(chan struct{}, concurrency)
-		errs []error
-	)
-
-	for _, ts := range securityTables {
-		wg.Add(1)
-		go func(spec tableSpec) {
-			defer wg.Done()
-
-			// Acquire semaphore slot.
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			log.Printf("[collect] Querying table: %s", spec.Name)
-			startTime := time.Now()
-
-			records, err := client.QueryTable(ctx, spec.Name, spec.Fields)
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("table %s: %w", spec.Name, err))
-				mu.Unlock()
-				log.Printf("[collect] ERROR querying %s: %v", spec.Name, err)
-				return
-			}
-
-			td := &collector.TableData{
-				Table:       spec.Name,
-				Records:     records,
-				Count:       len(records),
-				CollectedAt: time.Now().UTC(),
-			}
-
-			mu.Lock()
-			snapshot.AddTableData(td)
-			mu.Unlock()
-
-			log.Printf("[collect] Collected %d records from %s in %v", len(records), spec.Name, time.Since(startTime))
-		}(ts)
+	fieldsByTable := make(map[string][]string, len(securityTables))
+	tableNames := make([]string, len(securityTables))
+	for i, ts := range securityTables {
+		tableNames[i] = ts.Name
+		fieldsByTable[ts.Name] = ts.Fields
 	}
 
-	wg.Wait()
-
-	if len(errs) > 0 {
-		// Log errors but don't fail the entire collection.
-		// Some tables might not be accessible due to permissions.
-		for _, e := range errs {
-			log.Printf("[collect] Warning: %v", e)
-		}
-		snapshot.Metadata["collection_warnings"] = fmt.Sprintf("%d tables had errors", len(errs))
-	}
+	collector.CollectParallel(snapshot, concurrency, tableNames, func(table string) ([]collector.Record, error) {
+		return client.QueryTable(ctx, table, fieldsByTable[table])
+	})
 
 	return snapshot, nil
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -114,6 +115,9 @@ func (e *Evaluator) Evaluate(snapshot *collector.Snapshot) ([]finding.Finding, e
 
 	for _, p := range e.policies {
 		if !p.IsEnabled() {
+			continue
+		}
+		if p.Platform != "" && p.Platform != snapshot.Platform {
 			continue
 		}
 
@@ -227,6 +231,22 @@ func matchesFieldConditions(record collector.Record, conditions []FieldCondition
 			}
 		case "contains":
 			if !strings.Contains(val, cond.Value) {
+				return false
+			}
+		case "not_contains":
+			if strings.Contains(val, cond.Value) {
+				return false
+			}
+		case "greater_than":
+			fVal, err1 := strconv.ParseFloat(val, 64)
+			fCond, err2 := strconv.ParseFloat(cond.Value, 64)
+			if err1 != nil || err2 != nil || fVal <= fCond {
+				return false
+			}
+		case "less_than":
+			fVal, err1 := strconv.ParseFloat(val, 64)
+			fCond, err2 := strconv.ParseFloat(cond.Value, 64)
+			if err1 != nil || err2 != nil || fVal >= fCond {
 				return false
 			}
 		case "matches_regex":

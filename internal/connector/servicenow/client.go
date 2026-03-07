@@ -31,9 +31,8 @@ const (
 )
 
 const (
-	defaultPageSize    = 1000
-	defaultConcurrency = 5
-	defaultRateLimit   = 10.0 // requests per second
+	defaultPageSize  = 1000
+	defaultRateLimit = 10.0 // requests per second
 )
 
 // Client is the ServiceNow REST API client.

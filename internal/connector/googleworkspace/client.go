@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	defaultConcurrency = 5
-	defaultRateLimit   = 40.0
+	defaultRateLimit = 40.0
 )
 
 var nonAlphanumericUnderscore = regexp.MustCompile(`[^a-z0-9_]`)
@@ -46,14 +45,14 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 			AccessToken: config.AccessToken,
 		})
 		httpClient = oauth2.NewClient(context.Background(), tokenSource)
-		domain = extractDomain(config.JWTUser, config.InstanceURL)
+		domain = extractDomain(config.DelegatedUser, config.InstanceURL)
 
-	case config.PrivateKeyPath != "":
-		if config.JWTUser == "" {
+	case config.CredentialsFile != "":
+		if config.DelegatedUser == "" {
 			return nil, fmt.Errorf("delegated user is required when using service account credentials")
 		}
 
-		credentialsJSON, err := os.ReadFile(config.PrivateKeyPath)
+		credentialsJSON, err := os.ReadFile(config.CredentialsFile)
 		if err != nil {
 			return nil, fmt.Errorf("reading credentials file: %w", err)
 		}
@@ -67,10 +66,10 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parsing service account credentials: %w", err)
 		}
-		jwtConfig.Subject = config.JWTUser
+		jwtConfig.Subject = config.DelegatedUser
 
 		httpClient = jwtConfig.Client(context.Background())
-		domain = extractDomain(config.JWTUser, config.InstanceURL)
+		domain = extractDomain(config.DelegatedUser, config.InstanceURL)
 
 	default:
 		return nil, fmt.Errorf("either GW_ACCESS_TOKEN or GW_CREDENTIALS_FILE (+ GW_DELEGATED_USER) is required")
@@ -95,7 +94,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = defaultConcurrency
+		concurrency = collector.DefaultConcurrency
 	}
 
 	return &Client{

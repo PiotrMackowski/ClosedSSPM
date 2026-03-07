@@ -3,8 +3,14 @@ package collector
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"sync"
 	"time"
 )
+
+// DefaultConcurrency is the default number of parallel API requests for all connectors.
+const DefaultConcurrency = 5
 
 // Record represents a single record from a SaaS platform table/object.
 type Record map[string]interface{}
@@ -95,6 +101,10 @@ type ConnectorConfig struct {
 	// AccessToken is a raw OAuth2 bearer token (e.g. from gcloud auth print-access-token).
 	// When set, the Google Workspace connector uses this instead of a Service Account JSON key.
 	AccessToken string
+	// CredentialsFile is the path to a service account JSON key file (e.g. for Google Workspace).
+	CredentialsFile string
+	// DelegatedUser is the super-admin email for domain-wide delegation (e.g. for Google Workspace).
+	DelegatedUser string
 
 	// --- Snowflake-specific fields ---
 
@@ -116,4 +126,61 @@ type Collector interface {
 	Collect(ctx context.Context, config ConnectorConfig) (*Snapshot, error)
 	// Tables returns the list of tables/objects this collector will query.
 	Tables() []string
+}
+
+// CollectParallel runs fn for each table name in parallel with bounded concurrency,
+// adding the resulting records to snapshot. Non-fatal errors are recorded in
+// snapshot.Metadata["collection_warnings"]; the returned error is always nil to
+// match the existing all-connectors behaviour of logging rather than aborting.
+func CollectParallel(snapshot *Snapshot, concurrency int, tables []string, fn func(table string) ([]Record, error)) {
+	var (
+		mu   sync.Mutex
+		wg   sync.WaitGroup
+		sem  = make(chan struct{}, concurrency)
+		errs []error
+	)
+
+	for _, table := range tables {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			log.Printf("[collect] Querying table: %s", name)
+			start := time.Now()
+
+			records, err := fn(name)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("table %s: %w", name, err))
+				mu.Unlock()
+				log.Printf("[collect] ERROR querying %s: %v", name, err)
+				return
+			}
+
+			td := &TableData{
+				Table:       name,
+				Records:     records,
+				Count:       len(records),
+				CollectedAt: time.Now().UTC(),
+			}
+
+			mu.Lock()
+			snapshot.AddTableData(td)
+			mu.Unlock()
+
+			log.Printf("[collect] Collected %d records from %s in %v", len(records), name, time.Since(start))
+		}(table)
+	}
+
+	wg.Wait()
+
+	if len(errs) > 0 {
+		for _, e := range errs {
+			log.Printf("[collect] Warning: %v", e)
+		}
+		snapshot.Metadata["collection_warnings"] = fmt.Sprintf("%d tables had errors", len(errs))
+	}
 }
