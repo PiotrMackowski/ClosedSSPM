@@ -5,33 +5,16 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/testutil"
 )
 
 func TestReporterGenerate(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:          "TEST-001-abc",
-			PolicyID:    "TEST-001",
-			Title:       "Test Finding",
-			Description: "A test finding",
-			Severity:    finding.High,
-			Category:    "Test",
-			Resource:    "test_table:abc",
-			Evidence: []finding.Evidence{
-				{
-					ResourceType: "test_table",
-					ResourceID:   "abc",
-					DisplayName:  "test_record",
-					Fields:       map[string]string{"field1": "val1"},
-				},
-			},
-			Remediation: "Fix the thing",
-		},
+		testutil.SampleFinding(),
 	}
 
-	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot := testutil.SampleSnapshot("test")
 
 	var buf bytes.Buffer
 	reporter := &Reporter{}
@@ -65,11 +48,10 @@ func TestReporterGenerate(t *testing.T) {
 
 func TestReporterGenerateNilSnapshot(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:       "TEST-001",
-			Severity: finding.Low,
-			Category: "Test",
-		},
+		testutil.SampleFinding(
+			testutil.WithID("TEST-001"),
+			testutil.WithSeverity(finding.Low),
+		),
 	}
 
 	var buf bytes.Buffer

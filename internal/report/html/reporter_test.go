@@ -6,47 +6,31 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/testutil"
 )
 
 func TestReporterGenerate(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:          "TEST-001-abc",
-			PolicyID:    "TEST-001",
-			Title:       "Test Finding",
-			Description: "A test finding",
-			Severity:    finding.Critical,
-			Category:    "Test",
-			Resource:    "test_table:abc",
-			Evidence: []finding.Evidence{
-				{
-					ResourceType: "test_table",
-					ResourceID:   "abc",
-					DisplayName:  "test_record",
-					Fields:       map[string]string{"field1": "val1"},
-				},
-			},
-			Remediation: "Fix the thing",
-		},
-		{
-			ID:          "TEST-002-def",
-			PolicyID:    "TEST-002",
-			Title:       "Another Finding",
-			Description: "Another test finding",
-			Severity:    finding.Low,
-			Category:    "Other",
-			Resource:    "other_table:def",
-			Remediation: "Fix this too",
-		},
+		testutil.SampleFinding(
+			testutil.WithSeverity(finding.Critical),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("TEST-002-def"),
+			testutil.WithPolicyID("TEST-002"),
+			testutil.WithTitle("Another Finding"),
+			testutil.WithDescription("Another test finding"),
+			testutil.WithSeverity(finding.Low),
+			testutil.WithCategory("Other"),
+			testutil.WithResource("other_table:def"),
+			testutil.WithRemediation("Fix this too"),
+			testutil.WithEvidence(),
+		),
 	}
 
-	snapshot := collector.NewSnapshot("test", "https://test.example.com")
-	snapshot.AddTableData(&collector.TableData{
-		Table: "test_table",
-		Count: 10,
-	})
+	td := testutil.SampleTableData("test_table")
+	td.Count = 10
+	snapshot := testutil.SampleSnapshot("test", td)
 
 	var buf bytes.Buffer
 	reporter := &Reporter{}
@@ -141,12 +125,11 @@ func TestReporterGenerate(t *testing.T) {
 
 func TestReporterGenerateNilSnapshot(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:       "TEST-001",
-			Title:    "Test",
-			Severity: finding.Medium,
-			Category: "Test",
-		},
+		testutil.SampleFinding(
+			testutil.WithID("TEST-001"),
+			testutil.WithTitle("Test"),
+			testutil.WithSeverity(finding.Medium),
+		),
 	}
 
 	var buf bytes.Buffer
