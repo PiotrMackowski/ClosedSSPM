@@ -7,55 +7,57 @@ import (
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/testutil"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func newTestAuditData() *AuditData {
-	snapshot := collector.NewSnapshot("servicenow", "https://test.service-now.com")
-	snapshot.AddTableData(&collector.TableData{
-		Table: "sys_security_acl",
-		Records: []collector.Record{
-			{"sys_id": "acl1", "name": "test_acl", "condition": "", "active": "true"},
-			{"sys_id": "acl2", "name": "good_acl", "condition": "has_condition", "active": "true"},
-		},
-		Count: 2,
-	})
-	snapshot.AddTableData(&collector.TableData{
-		Table: "sys_user",
-		Records: []collector.Record{
-			{"sys_id": "u1", "user_name": "admin_user", "active": "true"},
-		},
-		Count: 1,
-	})
+	snapshot := testutil.SampleSnapshot(
+		"servicenow",
+		testutil.SampleTableData(
+			"sys_security_acl",
+			collector.Record{"sys_id": "acl1", "name": "test_acl", "condition": "", "active": "true"},
+			collector.Record{"sys_id": "acl2", "name": "good_acl", "condition": "has_condition", "active": "true"},
+		),
+		testutil.SampleTableData(
+			"sys_user",
+			collector.Record{"sys_id": "u1", "user_name": "admin_user", "active": "true"},
+		),
+	)
+	snapshot.InstanceURL = "https://test.service-now.com"
 
 	findings := []finding.Finding{
-		{
-			ID:          "SNOW-ACL-001-acl1",
-			PolicyID:    "SNOW-ACL-001",
-			Title:       "ACL with no protection",
-			Description: "An ACL has no condition or script",
-			Severity:    finding.Critical,
-			Category:    "ACL",
-			Resource:    "sys_security_acl:acl1",
-			Evidence: []finding.Evidence{
-				{ResourceType: "sys_security_acl", ResourceID: "acl1", DisplayName: "test_acl"},
-			},
-			Remediation: "Add a condition or script",
-			References:  []string{"https://docs.servicenow.com/acl"},
-		},
-		{
-			ID:          "SNOW-ROLE-001-u1",
-			PolicyID:    "SNOW-ROLE-001",
-			Title:       "User with admin role",
-			Description: "A user has admin role",
-			Severity:    finding.High,
-			Category:    "Roles",
-			Resource:    "sys_user:u1",
-			Evidence: []finding.Evidence{
-				{ResourceType: "sys_user", ResourceID: "u1", DisplayName: "admin_user"},
-			},
-			Remediation: "Review admin access",
-		},
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-ACL-001-acl1"),
+			testutil.WithPolicyID("SNOW-ACL-001"),
+			testutil.WithTitle("ACL with no protection"),
+			testutil.WithDescription("An ACL has no condition or script"),
+			testutil.WithSeverity(finding.Critical),
+			testutil.WithCategory("ACL"),
+			testutil.WithResource("sys_security_acl:acl1"),
+			testutil.WithEvidence(testutil.SampleEvidence(
+				testutil.WithResourceType("sys_security_acl"),
+				testutil.WithResourceID("acl1"),
+				testutil.WithDisplayName("test_acl"),
+			)),
+			testutil.WithRemediation("Add a condition or script"),
+			testutil.WithReferences("https://docs.servicenow.com/acl"),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-ROLE-001-u1"),
+			testutil.WithPolicyID("SNOW-ROLE-001"),
+			testutil.WithTitle("User with admin role"),
+			testutil.WithDescription("A user has admin role"),
+			testutil.WithSeverity(finding.High),
+			testutil.WithCategory("Roles"),
+			testutil.WithResource("sys_user:u1"),
+			testutil.WithEvidence(testutil.SampleEvidence(
+				testutil.WithResourceType("sys_user"),
+				testutil.WithResourceID("u1"),
+				testutil.WithDisplayName("admin_user"),
+			)),
+			testutil.WithRemediation("Review admin access"),
+		),
 	}
 
 	summary := finding.NewSummary(findings)

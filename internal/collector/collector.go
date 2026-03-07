@@ -4,7 +4,7 @@ package collector
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -69,54 +69,23 @@ func (s *Snapshot) GetRecords(table string) []Record {
 	return td.Records
 }
 
-// ConnectorConfig holds configuration for connecting to a SaaS platform.
-type ConnectorConfig struct {
-	// InstanceURL is the base URL of the instance.
-	InstanceURL string
-	// AuthMethod is the authentication method ("basic", "oauth", "keypair", or "apikey").
-	AuthMethod string
-	// Username for basic auth.
-	Username string
-	// Password for basic auth.
-	Password string
-	// APIKey for ServiceNow REST API key auth (x-sn-apikey header).
-	APIKey string
-	// ClientID for OAuth client credentials flow.
-	ClientID string
-	// ClientSecret for OAuth client credentials flow.
-	ClientSecret string
-	// PrivateKeyPath is the path to the RSA private key PEM file for key pair auth.
-	PrivateKeyPath string
-	// KeyID is the kid from the ServiceNow JWT Verifier Map.
-	KeyID string
-	// JWTUser is the ServiceNow username for the JWT sub claim (cannot be admin).
-	JWTUser string
-	// Concurrency is the max number of parallel API requests.
-	Concurrency int
-	// RateLimit is the max requests per second.
-	RateLimit float64
-
-	// --- Google Workspace fields ---
-
-	// AccessToken is a raw OAuth2 bearer token (e.g. from gcloud auth print-access-token).
-	// When set, the Google Workspace connector uses this instead of a Service Account JSON key.
-	AccessToken string
-	// CredentialsFile is the path to a service account JSON key file (e.g. for Google Workspace).
-	CredentialsFile string
-	// DelegatedUser is the super-admin email for domain-wide delegation (e.g. for Google Workspace).
-	DelegatedUser string
-
-	// --- Snowflake-specific fields ---
-
-	// Account is the Snowflake account identifier (e.g. "xy12345.us-east-1").
-	Account string
-	// Warehouse is the Snowflake warehouse to use for queries.
-	Warehouse string
-	// Role is the Snowflake role to assume (e.g. SECURITYADMIN).
-	Role string
-	// Database is the Snowflake database (default: SNOWFLAKE for ACCOUNT_USAGE views).
-	Database string
+// ConnectorConfig is the interface that all per-connector configs must implement.
+type ConnectorConfig interface {
+	GetInstanceURL() string
+	GetConcurrency() int
+	GetRateLimit() float64
 }
+
+// BaseConfig holds fields shared by every connector.
+type BaseConfig struct {
+	InstanceURL string
+	Concurrency int
+	RateLimit   float64
+}
+
+func (b BaseConfig) GetInstanceURL() string { return b.InstanceURL }
+func (b BaseConfig) GetConcurrency() int    { return b.Concurrency }
+func (b BaseConfig) GetRateLimit() float64  { return b.RateLimit }
 
 // Collector is the interface that all SaaS platform collectors must implement.
 type Collector interface {
@@ -148,7 +117,7 @@ func CollectParallel(snapshot *Snapshot, concurrency int, tables []string, fn fu
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			log.Printf("[collect] Querying table: %s", name)
+			slog.Info("Querying table", "table", name)
 			start := time.Now()
 
 			records, err := fn(name)
@@ -156,7 +125,7 @@ func CollectParallel(snapshot *Snapshot, concurrency int, tables []string, fn fu
 				mu.Lock()
 				errs = append(errs, fmt.Errorf("table %s: %w", name, err))
 				mu.Unlock()
-				log.Printf("[collect] ERROR querying %s: %v", name, err)
+				slog.Error("Query failed", "table", name, "err", err)
 				return
 			}
 
@@ -171,7 +140,7 @@ func CollectParallel(snapshot *Snapshot, concurrency int, tables []string, fn fu
 			snapshot.AddTableData(td)
 			mu.Unlock()
 
-			log.Printf("[collect] Collected %d records from %s in %v", len(records), name, time.Since(start))
+			slog.Info("Collected records", "table", name, "count", len(records), "duration", time.Since(start))
 		}(table)
 	}
 
@@ -179,7 +148,7 @@ func CollectParallel(snapshot *Snapshot, concurrency int, tables []string, fn fu
 
 	if len(errs) > 0 {
 		for _, e := range errs {
-			log.Printf("[collect] Warning: %v", e)
+			slog.Warn("Collection warning", "err", e)
 		}
 		snapshot.Metadata["collection_warnings"] = fmt.Sprintf("%d tables had errors", len(errs))
 	}

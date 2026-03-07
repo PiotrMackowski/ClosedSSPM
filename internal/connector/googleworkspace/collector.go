@@ -24,6 +24,13 @@ func init() {
 	)
 }
 
+type GoogleWorkspaceConfig struct {
+	collector.BaseConfig
+	AccessToken     string
+	CredentialsFile string
+	DelegatedUser   string
+}
+
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	accessToken := os.Getenv("GW_ACCESS_TOKEN")
 	credentialsFile := os.Getenv("GW_CREDENTIALS_FILE")
@@ -36,13 +43,15 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
 
-	return collector.ConnectorConfig{
-		InstanceURL:     instance,
+	return &GoogleWorkspaceConfig{
+		BaseConfig: collector.BaseConfig{
+			InstanceURL: instance,
+			Concurrency: concurrency,
+			RateLimit:   rateLimit,
+		},
 		AccessToken:     accessToken,
 		CredentialsFile: credentialsFile,
 		DelegatedUser:   delegatedUser,
-		Concurrency:     concurrency,
-		RateLimit:       rateLimit,
 	}
 }
 
@@ -70,18 +79,23 @@ func (c *GoogleWorkspaceCollector) Tables() []string {
 	return tables
 }
 
-func (c *GoogleWorkspaceCollector) Collect(ctx context.Context, config collector.ConnectorConfig) (*collector.Snapshot, error) {
+func (c *GoogleWorkspaceCollector) Collect(ctx context.Context, cfg collector.ConnectorConfig) (*collector.Snapshot, error) {
+	config, ok := cfg.(*GoogleWorkspaceConfig)
+	if !ok {
+		return nil, fmt.Errorf("googleworkspace collector requires *GoogleWorkspaceConfig, got %T", cfg)
+	}
+
 	client, err := NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating Google Workspace client: %w", err)
 	}
 
-	concurrency := config.Concurrency
+	concurrency := config.GetConcurrency()
 	if concurrency <= 0 {
 		concurrency = collector.DefaultConcurrency
 	}
 
-	snapshot := collector.NewSnapshot("googleworkspace", config.InstanceURL)
+	snapshot := collector.NewSnapshot("googleworkspace", config.GetInstanceURL())
 
 	tableNames := make([]string, len(securityTables))
 	for i, t := range securityTables {

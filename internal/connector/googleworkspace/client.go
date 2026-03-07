@@ -3,7 +3,7 @@ package googleworkspace
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -34,7 +34,7 @@ type Client struct {
 	concurrency      int
 }
 
-func NewClient(config collector.ConnectorConfig) (*Client, error) {
+func NewClient(config *GoogleWorkspaceConfig) (*Client, error) {
 	var httpClient *http.Client
 	var domain string
 
@@ -45,7 +45,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 			AccessToken: config.AccessToken,
 		})
 		httpClient = oauth2.NewClient(context.Background(), tokenSource)
-		domain = extractDomain(config.DelegatedUser, config.InstanceURL)
+		domain = extractDomain(config.DelegatedUser, config.GetInstanceURL())
 
 	case config.CredentialsFile != "":
 		if config.DelegatedUser == "" {
@@ -69,7 +69,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		jwtConfig.Subject = config.DelegatedUser
 
 		httpClient = jwtConfig.Client(context.Background())
-		domain = extractDomain(config.DelegatedUser, config.InstanceURL)
+		domain = extractDomain(config.DelegatedUser, config.GetInstanceURL())
 
 	default:
 		return nil, fmt.Errorf("either GW_ACCESS_TOKEN or GW_CREDENTIALS_FILE (+ GW_DELEGATED_USER) is required")
@@ -87,12 +87,12 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		return nil, fmt.Errorf("creating reports service: %w", err)
 	}
 
-	rl := config.RateLimit
+	rl := config.GetRateLimit()
 	if rl <= 0 {
 		rl = defaultRateLimit
 	}
 
-	concurrency := config.Concurrency
+	concurrency := config.GetConcurrency()
 	if concurrency <= 0 {
 		concurrency = collector.DefaultConcurrency
 	}
@@ -189,7 +189,7 @@ func (c *Client) ListAllTokens(ctx context.Context) ([]collector.Record, error) 
 
 			tokens, listErr := c.ListOAuthTokens(ctx, userKey)
 			if listErr != nil {
-				log.Printf("[ListAllTokens] WARNING: user %s: %v", userKey, listErr)
+				slog.Warn("Failed to list tokens for user", "user", userKey, "err", listErr)
 				return
 			}
 

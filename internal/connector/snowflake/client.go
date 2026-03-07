@@ -40,11 +40,11 @@ type Client struct {
 }
 
 // NewClient creates a new Snowflake client from the connector config.
-func NewClient(config collector.ConnectorConfig) (*Client, error) {
+func NewClient(config *SnowflakeConfig) (*Client, error) {
 	account := config.Account
 	if account == "" {
 		// Fall back to InstanceURL if Account is not set.
-		account = config.InstanceURL
+		account = config.GetInstanceURL()
 	}
 	if account == "" {
 		return nil, fmt.Errorf("snowflake account identifier is required (set SNOWFLAKE_ACCOUNT)")

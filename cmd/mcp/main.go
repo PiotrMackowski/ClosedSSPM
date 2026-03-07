@@ -5,7 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
@@ -31,11 +31,13 @@ func main() {
 	// Load snapshot.
 	data, err := os.ReadFile(snapshotPath)
 	if err != nil {
-		log.Fatalf("Failed to read snapshot: %v", err)
+		slog.Error("Failed to read snapshot", "err", err)
+		os.Exit(1)
 	}
 	var snapshot collector.Snapshot
 	if err := json.Unmarshal(data, &snapshot); err != nil {
-		log.Fatalf("Failed to parse snapshot: %v", err)
+		slog.Error("Failed to parse snapshot", "err", err)
+		os.Exit(1)
 	}
 
 	// Load and evaluate policies.
@@ -43,25 +45,28 @@ func main() {
 	if policiesDir != "" {
 		pols, err = policy.LoadPolicies(policiesDir)
 		if err != nil {
-			log.Fatalf("Failed to load policies from %s: %v", policiesDir, err)
+			slog.Error("Failed to load policies", "dir", policiesDir, "err", err)
+			os.Exit(1)
 		}
-		log.Printf("Loaded %d policies from %s", len(pols), policiesDir)
+		slog.Info("Loaded policies", "count", len(pols), "source", policiesDir)
 	} else {
 		pols, err = policy.LoadPoliciesFS(policies.Embedded, ".")
 		if err != nil {
-			log.Fatalf("Failed to load embedded policies: %v", err)
+			slog.Error("Failed to load embedded policies", "err", err)
+			os.Exit(1)
 		}
-		log.Printf("Loaded %d embedded policies", len(pols))
+		slog.Info("Loaded embedded policies", "count", len(pols))
 	}
 
 	evaluator := policy.NewEvaluator(pols)
 	findings, err := evaluator.Evaluate(&snapshot)
 	if err != nil {
-		log.Fatalf("Failed to evaluate policies: %v", err)
+		slog.Error("Failed to evaluate policies", "err", err)
+		os.Exit(1)
 	}
 
 	summary := finding.NewSummary(findings)
-	log.Printf("Loaded %d findings (Score: %s) from %d tables", summary.Total, summary.PostureScore, len(snapshot.Tables))
+	slog.Info("Evaluation complete", "findings", summary.Total, "score", summary.PostureScore, "tables", len(snapshot.Tables))
 
 	auditData := &mcpserver.AuditData{
 		Snapshot: &snapshot,
@@ -71,8 +76,9 @@ func main() {
 
 	mcpSrv := mcpserver.NewMCPServer(auditData)
 
-	log.Println("Starting ClosedSSPM MCP server on stdio...")
+	slog.Info("Starting MCP server", "transport", "stdio")
 	if err := server.ServeStdio(mcpSrv); err != nil {
-		log.Fatalf("MCP server error: %v", err)
+		slog.Error("MCP server error", "err", err)
+		os.Exit(1)
 	}
 }

@@ -540,6 +540,26 @@ Create a dedicated audit user with these roles:
 - `itil` (read access to most tables)
 - `security_admin` (read access to ACLs and security config)
 
+## DefectDojo Integration
+
+ClosedSSPM's SARIF output can be imported directly into [DefectDojo](https://github.com/DefectDojo/django-DefectDojo) for centralized vulnerability management. Generate a SARIF report and upload it via the DefectDojo API:
+
+```bash
+# Generate a SARIF report
+closedsspm audit --platform servicenow --format sarif --output report.sarif
+
+# Import into DefectDojo
+curl -X POST "https://your-defectdojo.example.com/api/v2/reimport-scan/" \
+  -H "Authorization: Token YOUR_DEFECTDOJO_API_TOKEN" \
+  -F "scan_type=SARIF" \
+  -F "file=@report.sarif" \
+  -F "product_name=ClosedSSPM" \
+  -F "engagement_name=SSPM Audit" \
+  -F "auto_create_context=True"
+```
+
+Use `reimport-scan` (rather than `import-scan`) to deduplicate findings across successive runs.
+
 ## Writing Custom Policies
 
 Policies are YAML files organized by platform in the `policies/` directory (e.g. `policies/servicenow/`):

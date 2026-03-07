@@ -5,34 +5,20 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/testutil"
 )
 
 func TestReporterGenerate(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:          "TEST-001-abc",
-			PolicyID:    "TEST-001",
-			Title:       "Test Finding",
-			Description: "A test finding description",
-			Severity:    finding.High,
-			Category:    "Test",
-			Resource:    "test_table:abc",
-			Evidence: []finding.Evidence{
-				{
-					ResourceType: "test_table",
-					ResourceID:   "abc",
-					DisplayName:  "test_record",
-					Fields:       map[string]string{"field1": "val1"},
-				},
-			},
-			Remediation: "Fix the thing",
-			References:  []string{"https://example.com/docs"},
-		},
+		testutil.SampleFinding(
+			testutil.WithDescription("A test finding description"),
+			testutil.WithReferences("https://example.com/docs"),
+		),
 	}
 
-	snapshot := collector.NewSnapshot("servicenow", "https://test.service-now.com")
+	snapshot := testutil.SampleSnapshot("servicenow")
+	snapshot.InstanceURL = "https://test.service-now.com"
 
 	var buf bytes.Buffer
 	reporter := &Reporter{}
@@ -120,30 +106,33 @@ func TestReporterGenerate(t *testing.T) {
 
 func TestReporterGenerateMultipleFindings(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:       "SNOW-ACL-001-a",
-			PolicyID: "SNOW-ACL-001",
-			Title:    "ACL Missing",
-			Severity: finding.Critical,
-			Category: "ACL",
-			Resource: "sys_security_acl:a",
-		},
-		{
-			ID:       "SNOW-ACL-001-b",
-			PolicyID: "SNOW-ACL-001",
-			Title:    "ACL Missing",
-			Severity: finding.Critical,
-			Category: "ACL",
-			Resource: "sys_security_acl:b",
-		},
-		{
-			ID:       "SNOW-ROLE-001-c",
-			PolicyID: "SNOW-ROLE-001",
-			Title:    "Excessive Role",
-			Severity: finding.Medium,
-			Category: "Roles",
-			Resource: "sys_user_role:c",
-		},
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-ACL-001-a"),
+			testutil.WithPolicyID("SNOW-ACL-001"),
+			testutil.WithTitle("ACL Missing"),
+			testutil.WithSeverity(finding.Critical),
+			testutil.WithCategory("ACL"),
+			testutil.WithResource("sys_security_acl:a"),
+			testutil.WithEvidence(),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-ACL-001-b"),
+			testutil.WithPolicyID("SNOW-ACL-001"),
+			testutil.WithTitle("ACL Missing"),
+			testutil.WithSeverity(finding.Critical),
+			testutil.WithCategory("ACL"),
+			testutil.WithResource("sys_security_acl:b"),
+			testutil.WithEvidence(),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-ROLE-001-c"),
+			testutil.WithPolicyID("SNOW-ROLE-001"),
+			testutil.WithTitle("Excessive Role"),
+			testutil.WithSeverity(finding.Medium),
+			testutil.WithCategory("Roles"),
+			testutil.WithResource("sys_user_role:c"),
+			testutil.WithEvidence(),
+		),
 	}
 
 	var buf bytes.Buffer
@@ -188,12 +177,10 @@ func TestReporterGenerateMultipleFindings(t *testing.T) {
 
 func TestReporterGenerateNilSnapshot(t *testing.T) {
 	findings := []finding.Finding{
-		{
-			ID:       "TEST-001",
-			PolicyID: "TEST-001",
-			Severity: finding.Low,
-			Category: "Test",
-		},
+		testutil.SampleFinding(
+			testutil.WithID("TEST-001"),
+			testutil.WithSeverity(finding.Low),
+		),
 	}
 
 	var buf bytes.Buffer

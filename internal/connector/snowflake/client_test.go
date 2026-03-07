@@ -14,13 +14,13 @@ import (
 func TestNewClient_BasicAuthValidation(t *testing.T) {
 	tests := []struct {
 		name      string
-		config    collector.ConnectorConfig
+		config    *SnowflakeConfig
 		wantErr   bool
 		errSubstr string
 	}{
 		{
 			name: "missing account",
-			config: collector.ConnectorConfig{
+			config: &SnowflakeConfig{
 				AuthMethod: "basic",
 				Username:   "admin",
 				Password:   "password",
@@ -30,7 +30,7 @@ func TestNewClient_BasicAuthValidation(t *testing.T) {
 		},
 		{
 			name: "missing username",
-			config: collector.ConnectorConfig{
+			config: &SnowflakeConfig{
 				Account:    "test-account",
 				AuthMethod: "basic",
 				Password:   "password",
@@ -40,7 +40,7 @@ func TestNewClient_BasicAuthValidation(t *testing.T) {
 		},
 		{
 			name: "missing password",
-			config: collector.ConnectorConfig{
+			config: &SnowflakeConfig{
 				Account:    "test-account",
 				AuthMethod: "basic",
 				Username:   "admin",
@@ -50,7 +50,7 @@ func TestNewClient_BasicAuthValidation(t *testing.T) {
 		},
 		{
 			name: "unsupported auth method",
-			config: collector.ConnectorConfig{
+			config: &SnowflakeConfig{
 				Account:    "test-account",
 				AuthMethod: "saml",
 				Username:   "admin",
@@ -92,7 +92,7 @@ func TestNewClient_KeyPairMissingCredentials(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := collector.ConnectorConfig{
+			config := &SnowflakeConfig{
 				Account:        "test-account",
 				AuthMethod:     "keypair",
 				Username:       tt.username,
@@ -110,7 +110,7 @@ func TestNewClient_KeyPairMissingCredentials(t *testing.T) {
 
 func TestNewClient_KeyPairInvalidKeyFile(t *testing.T) {
 	// Nonexistent file.
-	config := collector.ConnectorConfig{
+	config := &SnowflakeConfig{
 		Account:        "test-account",
 		AuthMethod:     "keypair",
 		Username:       "admin",
@@ -137,7 +137,7 @@ func TestNewClient_KeyPairInvalidKeyFile(t *testing.T) {
 }
 
 func TestNewClient_OAuthMissingToken(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &SnowflakeConfig{
 		Account:    "test-account",
 		AuthMethod: "oauth",
 		Username:   "admin",
@@ -161,7 +161,7 @@ func TestNewClient_PATMissingCredentials(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := collector.ConnectorConfig{
+			config := &SnowflakeConfig{
 				Account:    "test-account",
 				AuthMethod: "pat",
 				Username:   tt.username,
@@ -196,7 +196,7 @@ func TestNewClient_AccountNormalization(t *testing.T) {
 			// We can't fully create the client (no Snowflake to connect to),
 			// but we can test that the normalization logic works by checking
 			// that validation passes and we get the expected DSN error.
-			config := collector.ConnectorConfig{
+			config := &SnowflakeConfig{
 				Account:    tt.account,
 				AuthMethod: "basic",
 				Username:   "admin",
@@ -217,11 +217,11 @@ func TestNewClient_AccountNormalization(t *testing.T) {
 }
 
 func TestNewClient_FallbackToInstanceURL(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "my-account.us-west-2",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password",
+	config := &SnowflakeConfig{
+		BaseConfig: collector.BaseConfig{InstanceURL: "my-account.us-west-2"},
+		AuthMethod: "basic",
+		Username:   "admin",
+		Password:   "password",
 	}
 	// Should fail at connect, not at "account required" validation.
 	_, err := NewClient(config)

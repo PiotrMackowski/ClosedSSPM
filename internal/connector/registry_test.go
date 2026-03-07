@@ -17,7 +17,7 @@ func reset() {
 func dummyFactory() collector.Collector { return nil }
 
 func dummyConfigBuilder(_ *cobra.Command) collector.ConnectorConfig {
-	return collector.ConnectorConfig{}
+	return collector.BaseConfig{}
 }
 
 func TestRegisterAndGet(t *testing.T) {

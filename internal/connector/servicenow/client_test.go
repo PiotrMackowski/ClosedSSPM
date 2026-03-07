@@ -21,12 +21,9 @@ import (
 )
 
 func TestNewClient_BasicAuth(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -42,12 +39,9 @@ func TestNewClient_BasicAuth(t *testing.T) {
 }
 
 func TestNewClient_AutoPrefixHTTPS(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "example.service-now.com",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "example.service-now.com"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -60,12 +54,9 @@ func TestNewClient_AutoPrefixHTTPS(t *testing.T) {
 }
 
 func TestNewClient_TrailingSlashRemoved(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com/",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com/"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -78,12 +69,9 @@ func TestNewClient_TrailingSlashRemoved(t *testing.T) {
 }
 
 func TestNewClient_RejectHTTP(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "http://example.service-now.com",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "http://example.service-now.com"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	_, err := NewClient(config)
 	if err == nil {
@@ -92,11 +80,9 @@ func TestNewClient_RejectHTTP(t *testing.T) {
 }
 
 func TestNewClient_EmptyURL(t *testing.T) {
-	config := collector.ConnectorConfig{
-		AuthMethod: "basic",
-		Username:   "admin",
-		Password:   "password123",
-	}
+	config := &ServiceNowConfig{AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	_, err := NewClient(config)
 	if err == nil {
@@ -117,12 +103,9 @@ func TestNewClient_BasicAuthMissingCredentials(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := collector.ConnectorConfig{
-				InstanceURL: "https://example.service-now.com",
-				AuthMethod:  "basic",
-				Username:    tt.username,
-				Password:    tt.password,
-			}
+			config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "basic",
+				Username: tt.username,
+				Password: tt.password}
 
 			_, err := NewClient(config)
 			if err == nil {
@@ -133,12 +116,9 @@ func TestNewClient_BasicAuthMissingCredentials(t *testing.T) {
 }
 
 func TestNewClient_OAuthConfig(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL:  "https://example.service-now.com",
-		AuthMethod:   "oauth",
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "oauth",
 		ClientID:     "client123",
-		ClientSecret: "secret456",
-	}
+		ClientSecret: "secret456"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -163,12 +143,9 @@ func TestNewClient_OAuthMissingCredentials(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := collector.ConnectorConfig{
-				InstanceURL:  "https://example.service-now.com",
-				AuthMethod:   "oauth",
+			config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "oauth",
 				ClientID:     tt.clientID,
-				ClientSecret: tt.clientSecret,
-			}
+				ClientSecret: tt.clientSecret}
 
 			_, err := NewClient(config)
 			if err == nil {
@@ -179,12 +156,9 @@ func TestNewClient_OAuthMissingCredentials(t *testing.T) {
 }
 
 func TestNewClient_UnsupportedAuthMethod(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com",
-		AuthMethod:  "saml",
-		Username:    "admin",
-		Password:    "password",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "saml",
+		Username: "admin",
+		Password: "password"}
 
 	_, err := NewClient(config)
 	if err == nil {
@@ -193,11 +167,8 @@ func TestNewClient_UnsupportedAuthMethod(t *testing.T) {
 }
 
 func TestNewClient_DefaultAuthMethod(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -210,12 +181,9 @@ func TestNewClient_DefaultAuthMethod(t *testing.T) {
 }
 
 func TestNewClient_DefaultRateLimit(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -270,12 +238,9 @@ func TestServiceNowCollectorTables(t *testing.T) {
 }
 
 func TestNewClient_TLSMinVersion(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -295,12 +260,9 @@ func TestNewClient_TLSMinVersion(t *testing.T) {
 }
 
 func TestNewClient_RedirectPolicy(t *testing.T) {
-	config := collector.ConnectorConfig{
-		InstanceURL: "https://example.service-now.com",
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password123",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password123"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -322,12 +284,9 @@ func TestQueryTable_UserAgent(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	config := collector.ConnectorConfig{
-		InstanceURL: ts.URL,
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: ts.URL}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -361,12 +320,9 @@ func TestQueryTable_Pagination(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	config := collector.ConnectorConfig{
-		InstanceURL: ts.URL,
-		AuthMethod:  "basic",
-		Username:    "admin",
-		Password:    "password",
-	}
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: ts.URL}, AuthMethod: "basic",
+		Username: "admin",
+		Password: "password"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -435,15 +391,12 @@ func generateTestKeyPEMPKCS8(t *testing.T) (string, *rsa.PrivateKey) {
 func TestNewClient_KeyPairConfig(t *testing.T) {
 	keyPath, _ := generateTestKeyPEM(t)
 
-	config := collector.ConnectorConfig{
-		InstanceURL:    "https://example.service-now.com",
-		AuthMethod:     "keypair",
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "keypair",
 		ClientID:       "client123",
 		ClientSecret:   "secret456",
 		PrivateKeyPath: keyPath,
 		KeyID:          "kid-abc",
-		JWTUser:        "svc_user",
-	}
+		JWTUser:        "svc_user"}
 
 	client, err := NewClient(config)
 	if err != nil {
@@ -484,15 +437,12 @@ func TestNewClient_KeyPairMissingCredentials(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := collector.ConnectorConfig{
-				InstanceURL:    "https://example.service-now.com",
-				AuthMethod:     "keypair",
+			config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "keypair",
 				ClientID:       tt.clientID,
 				ClientSecret:   tt.clientSecret,
 				PrivateKeyPath: tt.keyPath,
 				KeyID:          tt.keyID,
-				JWTUser:        tt.jwtUser,
-			}
+				JWTUser:        tt.jwtUser}
 
 			_, err := NewClient(config)
 			if err == nil {
@@ -504,15 +454,12 @@ func TestNewClient_KeyPairMissingCredentials(t *testing.T) {
 
 func TestNewClient_KeyPairInvalidKeyFile(t *testing.T) {
 	// Nonexistent file.
-	config := collector.ConnectorConfig{
-		InstanceURL:    "https://example.service-now.com",
-		AuthMethod:     "keypair",
+	config := &ServiceNowConfig{BaseConfig: collector.BaseConfig{InstanceURL: "https://example.service-now.com"}, AuthMethod: "keypair",
 		ClientID:       "client",
 		ClientSecret:   "secret",
 		PrivateKeyPath: "/nonexistent/path/key.pem",
 		KeyID:          "kid",
-		JWTUser:        "user",
-	}
+		JWTUser:        "user"}
 	_, err := NewClient(config)
 	if err == nil {
 		t.Error("NewClient() should reject nonexistent key file")

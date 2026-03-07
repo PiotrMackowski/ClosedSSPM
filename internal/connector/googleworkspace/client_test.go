@@ -15,7 +15,7 @@ import (
 func TestNewClient_AccessToken_CreatesClient(t *testing.T) {
 	// With a valid access token, NewClient should succeed and create services.
 	// We can't test actual API calls, but we verify no error is returned.
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		AccessToken: "ya29.fake-token-for-testing",
 	}
 
@@ -35,7 +35,7 @@ func TestNewClient_AccessToken_CreatesClient(t *testing.T) {
 }
 
 func TestNewClient_AccessToken_ExtractsDomain(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		AccessToken:   "ya29.fake-token",
 		DelegatedUser: "admin@example.com",
 	}
@@ -50,9 +50,9 @@ func TestNewClient_AccessToken_ExtractsDomain(t *testing.T) {
 }
 
 func TestNewClient_AccessToken_FallbackDomain(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
+		BaseConfig:  collector.BaseConfig{InstanceURL: "mycompany.com"},
 		AccessToken: "ya29.fake-token",
-		InstanceURL: "mycompany.com",
 	}
 
 	client, err := NewClient(config)
@@ -65,7 +65,7 @@ func TestNewClient_AccessToken_FallbackDomain(t *testing.T) {
 }
 
 func TestNewClient_AccessToken_DefaultConcurrency(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		AccessToken: "ya29.fake-token",
 	}
 
@@ -79,10 +79,9 @@ func TestNewClient_AccessToken_DefaultConcurrency(t *testing.T) {
 }
 
 func TestNewClient_AccessToken_CustomConcurrency(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
+		BaseConfig:  collector.BaseConfig{Concurrency: 10, RateLimit: 20.0},
 		AccessToken: "ya29.fake-token",
-		Concurrency: 10,
-		RateLimit:   20.0,
 	}
 
 	client, err := NewClient(config)
@@ -96,7 +95,7 @@ func TestNewClient_AccessToken_CustomConcurrency(t *testing.T) {
 
 func TestNewClient_AccessToken_TakesPrecedenceOverServiceAccount(t *testing.T) {
 	// When both AccessToken and CredentialsFile are set, AccessToken wins.
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		AccessToken:     "ya29.fake-token",
 		CredentialsFile: "/nonexistent/path.json",
 		DelegatedUser:   "admin@example.com",
@@ -110,7 +109,7 @@ func TestNewClient_AccessToken_TakesPrecedenceOverServiceAccount(t *testing.T) {
 }
 
 func TestNewClient_MissingAllCredentials(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		DelegatedUser: "admin@example.com",
 	}
 
@@ -124,7 +123,7 @@ func TestNewClient_MissingAllCredentials(t *testing.T) {
 }
 
 func TestNewClient_MissingDelegatedUser(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		CredentialsFile: "/some/path/creds.json",
 	}
 
@@ -138,7 +137,7 @@ func TestNewClient_MissingDelegatedUser(t *testing.T) {
 }
 
 func TestNewClient_MissingBothFields(t *testing.T) {
-	config := collector.ConnectorConfig{}
+	config := &GoogleWorkspaceConfig{}
 
 	_, err := NewClient(config)
 	if err == nil {
@@ -150,7 +149,7 @@ func TestNewClient_MissingBothFields(t *testing.T) {
 }
 
 func TestNewClient_NonexistentCredentialsFile(t *testing.T) {
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		CredentialsFile: "/nonexistent/path/credentials.json",
 		DelegatedUser:   "admin@example.com",
 	}
@@ -167,7 +166,7 @@ func TestNewClient_NonexistentCredentialsFile(t *testing.T) {
 func TestNewClient_InvalidCredentialsJSON(t *testing.T) {
 	tmpFile := createTempFile(t, "bad-creds-*.json", "not valid json")
 
-	config := collector.ConnectorConfig{
+	config := &GoogleWorkspaceConfig{
 		CredentialsFile: tmpFile,
 		DelegatedUser:   "admin@example.com",
 	}
