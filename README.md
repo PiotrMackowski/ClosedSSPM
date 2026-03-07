@@ -9,14 +9,14 @@
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/12061/baseline)](https://www.bestpractices.dev/projects/12061)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PiotrMackowski/ClosedSSPM/badge)](https://scorecard.dev/viewer/?uri=github.com/PiotrMackowski/ClosedSSPM)
 
-Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations, starting with ServiceNow and Snowflake.
+Open Source SaaS Security Posture Management (SSPM) tool. Audits SaaS platforms for security misconfigurations across ServiceNow, Snowflake, Google Workspace, and Microsoft Entra ID.
 
 ![ClosedSSPM HTML Report](docs/screenshots/report.jpg)
 
 ## Features
 
-- **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code
-- **100+ security checks** across two platforms covering identity, access control, configuration, network, scripts, integrations, secret scanning
+- **Multi-platform architecture** — pluggable connector registry; add new SaaS platforms without touching core code (ServiceNow, Snowflake, Google Workspace, Entra ID)
+- **166 security checks** across four platforms covering identity, access control, configuration, network, scripts, integrations, secret scanning, OAuth grants, and credential hygiene
 - **Policy-as-code** — audit checks defined in YAML, easily extensible with custom policies
 - **Embedded policies** — all checks are baked into the binary; no external files needed at runtime
 - **HTML reports** — self-contained, dark-themed HTML reports with posture scoring
@@ -151,6 +151,30 @@ export SNOWFLAKE_WAREHOUSE=COMPUTE_WH     # default: COMPUTE_WH
 # Run the audit
 closedsspm audit --platform snowflake --output report.html
 ```
+
+### Google Workspace Audit
+
+```bash
+# Service Account with domain-wide delegation
+export GW_CREDENTIALS_FILE=/path/to/service-account.json
+export GW_DELEGATED_USER=admin@yourdomain.com
+
+# Run the audit
+closedsspm audit --platform googleworkspace --output report.html
+```
+
+### Entra ID (Azure AD) Audit
+
+```bash
+# App registration with Microsoft Graph API permissions
+export ENTRA_TENANT_ID=your-tenant-id
+export ENTRA_CLIENT_ID=your-client-id
+export ENTRA_CLIENT_SECRET=your-client-secret
+
+# Run the audit
+closedsspm audit --platform entra --output report.html
+```
+
 
 ### List Available Checks
 
@@ -303,6 +327,36 @@ Each platform uses its own set of environment variables. The `--platform` flag (
 | 3 | OAuth | `SNOWFLAKE_TOKEN` |
 | 4 | Basic | `SNOWFLAKE_USER` + `SNOWFLAKE_PASSWORD` |
 
+#### Google Workspace (`--platform googleworkspace`)
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `GW_CREDENTIALS_FILE` | Path to Google service account JSON credentials file | Yes |
+| `GW_DELEGATED_USER` | Email of a Google Workspace admin for domain-wide delegation | Yes |
+
+**Prerequisites:**
+1. Create a GCP service account with domain-wide delegation enabled
+2. Grant the service account the following OAuth scopes in Google Workspace Admin Console → Security → API Controls → Domain-wide Delegation:
+   - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+   - `https://www.googleapis.com/auth/admin.directory.user.security`
+   - `https://www.googleapis.com/auth/admin.reports.audit.readonly`
+
+#### Entra ID (`--platform entra`)
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ENTRA_TENANT_ID` | Azure AD tenant ID | Yes |
+| `ENTRA_CLIENT_ID` | App registration client (application) ID | Yes |
+| `ENTRA_CLIENT_SECRET` | App registration client secret | Yes |
+
+**Prerequisites:**
+1. Create an app registration in Entra ID (Azure AD)
+2. Grant the following Microsoft Graph **Application** permissions:
+   - `Application.Read.All`
+   - `Directory.Read.All`
+   - `AuditLog.Read.All`
+3. Grant admin consent for the permissions
+
 ## Architecture
 
 ```
@@ -317,6 +371,8 @@ closedsspm/
 │   ├── collector/            # Collector interface & snapshot model
 │   ├── connector/
 │   │   ├── registry.go       # Platform connector registry
+│   │   ├── entra/            # Microsoft Entra ID (Azure AD) client & collector
+│   │   ├── googleworkspace/  # Google Workspace Admin SDK client & collector
 │   │   ├── servicenow/       # ServiceNow API client & collector
 │   │   └── snowflake/        # Snowflake SQL client & collector
 │   ├── finding/              # Finding model & severity
@@ -328,6 +384,8 @@ closedsspm/
 │       └── json/            # JSON report generator
 │       ├── sarif/           # SARIF 2.1.0 report generator
 └── policies/
+    ├── entra/                # Entra ID policy definitions (YAML, embedded at build)
+    ├── googleworkspace/      # Google Workspace policy definitions (YAML, embedded at build)
     ├── servicenow/           # ServiceNow policy definitions (YAML, embedded at build)
     └── snowflake/            # Snowflake policy definitions (YAML, embedded at build)
 ```
@@ -363,6 +421,25 @@ closedsspm/
 | **Data Sharing** | 1 | Outbound share review |
 | **Audit** | 3 | Failed logins, logins without MFA, password-only logins |
 | **SAST** | 10 | AWS keys in procedures/UDFs, private keys, eval(), new Function(), SQL injection, subprocess/os.system |
+
+### Google Workspace (10 checks)
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| **OAuth** | 10 | Full Gmail/Drive/Admin SDK access tokens, Gmail send permission, contacts/calendar access, anonymous app tokens, native app tokens, OAuth authorization events, suspended user accounts |
+
+### Entra ID (15 checks)
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| **OAuth Permissions** | 8 | Mail.ReadWrite, Mail.Send, Directory.ReadWrite.All, Files.ReadWrite.All, User.ReadWrite.All, RoleManagement.ReadWrite, Sites.FullControl.All, application permissions |
+| **Credential Hygiene** | 2 | Expired credentials, password credentials (vs certificate) |
+| **OAuth Governance** | 1 | Tenant-wide admin consent grants |
+| **Application Registration** | 1 | Multi-tenant app registrations |
+| **Application Governance** | 1 | App registrations without owners |
+| **Access Control** | 1 | Service principals not requiring user assignment |
+| **Asset Hygiene** | 1 | Disabled service principals |
+
 
 Run `closedsspm checks list` to see all individual rules.
 
