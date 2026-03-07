@@ -623,3 +623,167 @@ func TestLoadPoliciesFS(t *testing.T) {
 		}
 	}
 }
+
+func TestEvaluateNotContains(t *testing.T) {
+	pol := []Policy{
+		{
+			ID:       "TEST-NOT-CONTAINS",
+			Title:    "Not contains test",
+			Severity: finding.Medium,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "role", Operator: "not_contains", Value: "admin"},
+				},
+			},
+			Remediation: "Fix",
+		},
+	}
+
+	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot.AddTableData(&collector.TableData{
+		Table: "test_table",
+		Records: []collector.Record{
+			{"sys_id": "r1", "role": "user"},
+			{"sys_id": "r2", "role": "admin"},
+			{"sys_id": "r3", "role": "super_admin_role"},
+			{"sys_id": "r4", "role": "readonly"},
+		},
+		Count: 4,
+	})
+
+	evaluator := NewEvaluator(pol)
+	findings, err := evaluator.Evaluate(snapshot)
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	ids := make(map[string]bool)
+	for _, f := range findings {
+		for _, e := range f.Evidence {
+			ids[e.ResourceID] = true
+		}
+	}
+
+	if ids["r2"] || ids["r3"] {
+		t.Error("Records containing 'admin' should NOT match not_contains")
+	}
+	if !ids["r1"] || !ids["r4"] {
+		t.Error("Records without 'admin' should match not_contains")
+	}
+	if len(findings) != 2 {
+		t.Errorf("Expected 2 findings (r1, r4), got %d", len(findings))
+	}
+}
+
+func TestEvaluateGreaterThanLessThan(t *testing.T) {
+	pols := []Policy{
+		{
+			ID:       "TEST-GT",
+			Title:    "Greater than test",
+			Severity: finding.High,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "score", Operator: "greater_than", Value: "80"},
+				},
+			},
+			Remediation: "Fix",
+		},
+		{
+			ID:       "TEST-LT",
+			Title:    "Less than test",
+			Severity: finding.Low,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "score", Operator: "less_than", Value: "50"},
+				},
+			},
+			Remediation: "Fix",
+		},
+	}
+
+	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot.AddTableData(&collector.TableData{
+		Table: "test_table",
+		Records: []collector.Record{
+			{"sys_id": "r1", "score": "90"},
+			{"sys_id": "r2", "score": "50"},
+			{"sys_id": "r3", "score": "30"},
+			{"sys_id": "r4", "score": "80"},
+			{"sys_id": "r5", "score": "not_a_number"},
+			{"sys_id": "r6", "score": ""},
+		},
+		Count: 6,
+	})
+
+	evaluator := NewEvaluator(pols)
+	findings, err := evaluator.Evaluate(snapshot)
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	counts := make(map[string][]string)
+	for _, f := range findings {
+		for _, e := range f.Evidence {
+			counts[f.PolicyID] = append(counts[f.PolicyID], e.ResourceID)
+		}
+	}
+
+	// greater_than 80: only r1 (90). r4 is 80, not strictly greater.
+	if len(counts["TEST-GT"]) != 1 || counts["TEST-GT"][0] != "r1" {
+		t.Errorf("TEST-GT: expected [r1], got %v", counts["TEST-GT"])
+	}
+
+	// less_than 50: only r3 (30). r2 is 50, not strictly less. Non-numeric/empty → no match.
+	if len(counts["TEST-LT"]) != 1 || counts["TEST-LT"][0] != "r3" {
+		t.Errorf("TEST-LT: expected [r3], got %v", counts["TEST-LT"])
+	}
+}
+
+func TestEvaluateGreaterThanFloats(t *testing.T) {
+	pol := []Policy{
+		{
+			ID:       "TEST-GT-FLOAT",
+			Title:    "Float greater than",
+			Severity: finding.Medium,
+			Category: "Test",
+			Platform: "test",
+			Query: QuerySpec{
+				Table: "test_table",
+				FieldConditions: []FieldCondition{
+					{Field: "rate", Operator: "greater_than", Value: "0.5"},
+				},
+			},
+			Remediation: "Fix",
+		},
+	}
+
+	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot.AddTableData(&collector.TableData{
+		Table: "test_table",
+		Records: []collector.Record{
+			{"sys_id": "r1", "rate": "0.75"},
+			{"sys_id": "r2", "rate": "0.5"},
+			{"sys_id": "r3", "rate": "0.25"},
+		},
+		Count: 3,
+	})
+
+	evaluator := NewEvaluator(pol)
+	findings, err := evaluator.Evaluate(snapshot)
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	if len(findings) != 1 || len(findings[0].Evidence) != 1 || findings[0].Evidence[0].ResourceID != "r1" {
+		t.Errorf("Expected only r1 (0.75 > 0.5), got %d findings", len(findings))
+	}
+}

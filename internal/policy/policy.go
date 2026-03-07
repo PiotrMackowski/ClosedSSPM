@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -230,6 +231,22 @@ func matchesFieldConditions(record collector.Record, conditions []FieldCondition
 			}
 		case "contains":
 			if !strings.Contains(val, cond.Value) {
+				return false
+			}
+		case "not_contains":
+			if strings.Contains(val, cond.Value) {
+				return false
+			}
+		case "greater_than":
+			fVal, err1 := strconv.ParseFloat(val, 64)
+			fCond, err2 := strconv.ParseFloat(cond.Value, 64)
+			if err1 != nil || err2 != nil || fVal <= fCond {
+				return false
+			}
+		case "less_than":
+			fVal, err1 := strconv.ParseFloat(val, 64)
+			fCond, err2 := strconv.ParseFloat(cond.Value, 64)
+			if err1 != nil || err2 != nil || fVal >= fCond {
 				return false
 			}
 		case "matches_regex":
