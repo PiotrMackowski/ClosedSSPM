@@ -36,8 +36,8 @@ func TestNewClient_AccessToken_CreatesClient(t *testing.T) {
 
 func TestNewClient_AccessToken_ExtractsDomain(t *testing.T) {
 	config := collector.ConnectorConfig{
-		AccessToken: "ya29.fake-token",
-		JWTUser:     "admin@example.com",
+		AccessToken:   "ya29.fake-token",
+		DelegatedUser: "admin@example.com",
 	}
 
 	client, err := NewClient(config)
@@ -95,23 +95,23 @@ func TestNewClient_AccessToken_CustomConcurrency(t *testing.T) {
 }
 
 func TestNewClient_AccessToken_TakesPrecedenceOverServiceAccount(t *testing.T) {
-	// When both AccessToken and PrivateKeyPath are set, AccessToken wins.
+	// When both AccessToken and CredentialsFile are set, AccessToken wins.
 	config := collector.ConnectorConfig{
-		AccessToken:    "ya29.fake-token",
-		PrivateKeyPath: "/nonexistent/path.json",
-		JWTUser:        "admin@example.com",
+		AccessToken:     "ya29.fake-token",
+		CredentialsFile: "/nonexistent/path.json",
+		DelegatedUser:   "admin@example.com",
 	}
 
-	// If PrivateKeyPath were used, this would fail because the file doesn't exist.
+	// If CredentialsFile were used, this would fail because the file doesn't exist.
 	_, err := NewClient(config)
 	if err != nil {
-		t.Fatalf("NewClient() should use AccessToken and ignore PrivateKeyPath, got error: %v", err)
+		t.Fatalf("NewClient() should use AccessToken and ignore CredentialsFile, got error: %v", err)
 	}
 }
 
 func TestNewClient_MissingAllCredentials(t *testing.T) {
 	config := collector.ConnectorConfig{
-		JWTUser: "admin@example.com",
+		DelegatedUser: "admin@example.com",
 	}
 
 	_, err := NewClient(config)
@@ -125,7 +125,7 @@ func TestNewClient_MissingAllCredentials(t *testing.T) {
 
 func TestNewClient_MissingDelegatedUser(t *testing.T) {
 	config := collector.ConnectorConfig{
-		PrivateKeyPath: "/some/path/creds.json",
+		CredentialsFile: "/some/path/creds.json",
 	}
 
 	_, err := NewClient(config)
@@ -151,8 +151,8 @@ func TestNewClient_MissingBothFields(t *testing.T) {
 
 func TestNewClient_NonexistentCredentialsFile(t *testing.T) {
 	config := collector.ConnectorConfig{
-		PrivateKeyPath: "/nonexistent/path/credentials.json",
-		JWTUser:        "admin@example.com",
+		CredentialsFile: "/nonexistent/path/credentials.json",
+		DelegatedUser:   "admin@example.com",
 	}
 
 	_, err := NewClient(config)
@@ -165,12 +165,11 @@ func TestNewClient_NonexistentCredentialsFile(t *testing.T) {
 }
 
 func TestNewClient_InvalidCredentialsJSON(t *testing.T) {
-	// Create a temp file with invalid JSON.
 	tmpFile := createTempFile(t, "bad-creds-*.json", "not valid json")
 
 	config := collector.ConnectorConfig{
-		PrivateKeyPath: tmpFile,
-		JWTUser:        "admin@example.com",
+		CredentialsFile: tmpFile,
+		DelegatedUser:   "admin@example.com",
 	}
 
 	_, err := NewClient(config)

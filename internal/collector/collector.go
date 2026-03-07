@@ -95,6 +95,10 @@ type ConnectorConfig struct {
 	// AccessToken is a raw OAuth2 bearer token (e.g. from gcloud auth print-access-token).
 	// When set, the Google Workspace connector uses this instead of a Service Account JSON key.
 	AccessToken string
+	// CredentialsFile is the path to a service account JSON key file (e.g. for Google Workspace).
+	CredentialsFile string
+	// DelegatedUser is the super-admin email for domain-wide delegation (e.g. for Google Workspace).
+	DelegatedUser string
 
 	// --- Snowflake-specific fields ---
 

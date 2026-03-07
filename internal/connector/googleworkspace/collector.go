@@ -40,12 +40,12 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
 
 	return collector.ConnectorConfig{
-		InstanceURL:    instance,
-		AccessToken:    accessToken,
-		PrivateKeyPath: credentialsFile,
-		JWTUser:        delegatedUser,
-		Concurrency:    concurrency,
-		RateLimit:      rateLimit,
+		InstanceURL:     instance,
+		AccessToken:     accessToken,
+		CredentialsFile: credentialsFile,
+		DelegatedUser:   delegatedUser,
+		Concurrency:     concurrency,
+		RateLimit:       rateLimit,
 	}
 }
 
