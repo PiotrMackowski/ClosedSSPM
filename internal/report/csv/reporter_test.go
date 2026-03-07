@@ -126,6 +126,76 @@ func TestReporterGenerateMultiPlatformRows(t *testing.T) {
 	}
 }
 
+func TestReporterCSVInjectionSanitization(t *testing.T) {
+	findings := []finding.Finding{
+		testutil.SampleFinding(
+			testutil.WithTitle(`=cmd|'/C calc'!A0`),
+			testutil.WithDescription("+dangerous"),
+			testutil.WithRemediation("-remove this"),
+			testutil.WithSeverity(finding.High),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("TEST-002-safe"),
+			testutil.WithPolicyID("TEST-002"),
+			testutil.WithTitle("Safe title"),
+			testutil.WithDescription("@mention injection"),
+			testutil.WithSeverity(finding.Low),
+			testutil.WithRemediation("\ttab injection"),
+			testutil.WithEvidence(),
+		),
+	}
+
+	var buf bytes.Buffer
+	reporter := &Reporter{}
+	if err := reporter.Generate(&buf, findings, nil); err != nil {
+		t.Fatalf("Generate() error: %v", err)
+	}
+
+	output := buf.String()
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Header + 2 data rows.
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines, got %d", len(lines))
+	}
+
+	// Verify dangerous prefixes are sanitised with leading single-quote.
+	if !strings.Contains(lines[1], "'=cmd|") {
+		t.Errorf("Expected '=cmd| prefix in row 1, got: %s", lines[1])
+	}
+	if !strings.Contains(lines[1], "'+dangerous") {
+		t.Errorf("Expected '+dangerous in row 1, got: %s", lines[1])
+	}
+	if !strings.Contains(lines[1], "'-remove this") {
+		t.Errorf("Expected '-remove this in row 1, got: %s", lines[1])
+	}
+	if !strings.Contains(lines[2], "'@mention injection") {
+		t.Errorf("Expected '@mention injection in row 2, got: %s", lines[2])
+	}
+}
+
+func TestSanitizeCell(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"normal text", "normal text"},
+		{"", ""},
+		{"=1+1", "'=1+1"},
+		{"+cmd", "'+cmd"},
+		{"-cmd", "'-cmd"},
+		{"@sum", "'@sum"},
+		{"\tcmd", "'\tcmd"},
+		{"\rcmd", "'\rcmd"},
+	}
+	for _, tt := range tests {
+		got := sanitizeCell(tt.input)
+		if got != tt.want {
+			t.Errorf("sanitizeCell(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestEvidenceColumns(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		resType, resID, name, desc := evidenceColumns(nil)

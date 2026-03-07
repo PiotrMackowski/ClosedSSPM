@@ -88,6 +88,10 @@ func LoadPoliciesFS(fsys fs.FS, root string) ([]Policy, error) {
 			return fmt.Errorf("policy in %s has no ID", path)
 		}
 
+		if err := validateOperators(p, path); err != nil {
+			return err
+		}
+
 		policies = append(policies, p)
 		return nil
 	})
@@ -211,6 +215,15 @@ func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
 
 type operatorFunc func(val, condValue string) bool
 
+func validateOperators(p Policy, path string) error {
+	for _, cond := range p.Query.FieldConditions {
+		if _, ok := operators[cond.Operator]; !ok {
+			return fmt.Errorf("policy %s in %s: unknown operator %q on field %q", p.ID, path, cond.Operator, cond.Field)
+		}
+	}
+	return nil
+}
+
 var operators = map[string]operatorFunc{
 	"empty":     func(val, _ string) bool { return val == "" },
 	"not_empty": func(val, _ string) bool { return val != "" },
@@ -247,7 +260,7 @@ func matchesFieldConditions(record collector.Record, conditions []FieldCondition
 	for _, cond := range conditions {
 		op, ok := operators[cond.Operator]
 		if !ok {
-			continue // Unknown operator, skip condition
+			return false // Unknown operator: fail-closed (should not happen after load-time validation).
 		}
 		if !op(getStringField(record, cond.Field), cond.Value) {
 			return false

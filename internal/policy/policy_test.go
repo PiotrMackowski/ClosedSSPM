@@ -3,6 +3,7 @@ package policy
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
@@ -745,6 +746,43 @@ func TestEvaluateGreaterThanLessThan(t *testing.T) {
 	// less_than 50: only r3 (30). r2 is 50, not strictly less. Non-numeric/empty → no match.
 	if len(counts["TEST-LT"]) != 1 || counts["TEST-LT"][0] != "r3" {
 		t.Errorf("TEST-LT: expected [r3], got %v", counts["TEST-LT"])
+	}
+}
+
+func TestLoadPoliciesRejectsUnknownOperator(t *testing.T) {
+	dir := t.TempDir()
+
+	yamlContent := `
+id: TEST-BAD-OP
+title: "Bad operator policy"
+description: "Has an unknown operator"
+severity: HIGH
+category: Test
+platform: test
+query:
+  table: test_table
+  field_conditions:
+    - field: "status"
+      operator: "banana"
+      value: "active"
+remediation: "Fix it"
+`
+	if err := os.WriteFile(filepath.Join(dir, "bad_op.yaml"), []byte(yamlContent), 0644); err != nil {
+		t.Fatalf("WriteFile error: %v", err)
+	}
+
+	_, err := LoadPolicies(dir)
+	if err == nil {
+		t.Fatal("LoadPolicies() should error for unknown operator")
+	}
+	if !strings.Contains(err.Error(), "unknown operator") {
+		t.Errorf("Error should mention unknown operator, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "banana") {
+		t.Errorf("Error should mention the operator name, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "TEST-BAD-OP") {
+		t.Errorf("Error should mention the policy ID, got: %v", err)
 	}
 }
 
