@@ -40,7 +40,7 @@ func init() {
 // and CLI flags. This is the platform-specific config builder registered with
 // the connector registry.
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
-	instance := envOrFlag(cmd, "instance", "SNOW_INSTANCE")
+	instance := connector.EnvOrFlag(cmd, "instance", "SNOW_INSTANCE")
 	username := os.Getenv("SNOW_USERNAME")
 	password := os.Getenv("SNOW_PASSWORD")
 	apiKey := os.Getenv("SNOW_API_KEY")
@@ -76,15 +76,6 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		Concurrency:    concurrency,
 		RateLimit:      rateLimit,
 	}
-}
-
-// envOrFlag returns the flag value if set, otherwise the environment variable.
-func envOrFlag(cmd *cobra.Command, flag, env string) string {
-	val, _ := cmd.Flags().GetString(flag)
-	if val != "" {
-		return val
-	}
-	return os.Getenv(env)
 }
 
 // tableSpec defines a ServiceNow table to collect and its relevant fields.

@@ -1,0 +1,23 @@
+id: EN-OAUTH-003
+title: "Application has Directory.ReadWrite.All permission"
+description: >
+  The OAuth2 permission grant includes Directory.ReadWrite.All, which allows an
+  application to modify directory objects such as users, groups, and roles.
+  Misuse can result in tenant-wide identity manipulation and persistent
+  privilege escalation.
+severity: CRITICAL
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "Directory.ReadWrite.All"
+remediation: >
+  Immediately review and restrict Directory.ReadWrite.All assignments to only
+  essential, tightly governed applications. Implement approval controls,
+  conditional access, and frequent access recertification.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"

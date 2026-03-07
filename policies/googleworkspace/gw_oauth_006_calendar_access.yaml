@@ -1,0 +1,24 @@
+id: GW-OAUTH-006
+title: "OAuth token with full calendar access detected"
+description: >
+  An OAuth application has been granted the
+  https://www.googleapis.com/auth/calendar scope, which provides full access to
+  calendar events including attendees, locations, and meeting details. Exposure
+  of this data can reveal sensitive schedules and facilitate targeted attacks.
+severity: MEDIUM
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "scopes"
+      operator: "contains"
+      value: "https://www.googleapis.com/auth/calendar"
+remediation: >
+  Review whether full calendar access is required for the connected application.
+  Revoke tokens for unnecessary integrations and apply API Controls to restrict
+  untrusted apps. Favor least-privilege calendar scopes such as calendar.readonly
+  where feasible.
+references:
+  - "https://developers.google.com/calendar/api/auth"
+  - "https://support.google.com/a/answer/7281227"

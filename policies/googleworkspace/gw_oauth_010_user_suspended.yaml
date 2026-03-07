@@ -1,0 +1,22 @@
+id: GW-OAUTH-010
+title: "Suspended user account detected"
+description: >
+  A user account is marked as suspended. Suspended users may still have previously
+  issued OAuth tokens or connected applications that require explicit revocation
+  to prevent continued API access and residual risk.
+severity: HIGH
+category: OAuth
+platform: googleworkspace
+query:
+  table: users
+  field_conditions:
+    - field: "suspended"
+      operator: "equals"
+      value: true
+remediation: >
+  Review the suspended account for active OAuth grants and revoke all unnecessary
+  tokens. Confirm third-party app access is removed and investigate recent token
+  activity for suspicious usage before final account deprovisioning.
+references:
+  - "https://support.google.com/a/answer/33314"
+  - "https://support.google.com/a/answer/7281227"

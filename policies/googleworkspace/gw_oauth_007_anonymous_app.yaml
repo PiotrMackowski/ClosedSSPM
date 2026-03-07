@@ -1,0 +1,23 @@
+id: GW-OAUTH-007
+title: "OAuth token granted to anonymous application"
+description: >
+  An OAuth token is associated with an application marked as anonymous.
+  Anonymous OAuth apps are typically unverified and provide limited assurance
+  about publisher identity, increasing the risk of malicious consent phishing
+  and unauthorized data access.
+severity: HIGH
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "anonymous"
+      operator: "equals"
+      value: true
+remediation: >
+  Investigate the anonymous OAuth application and verify publisher legitimacy.
+  Revoke tokens for untrusted apps and block future access through App Access
+  Control. Educate users to avoid consenting to unknown applications.
+references:
+  - "https://support.google.com/a/answer/7281227"
+  - "https://support.google.com/cloud/answer/9110914"

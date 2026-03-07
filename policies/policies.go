@@ -8,5 +8,5 @@ import "embed"
 // To add a new platform, create policies/<platform>/*.yaml and add an embed
 // directive below.
 //
-//go:embed servicenow/*.yaml snowflake/*.yaml
+//go:embed servicenow/*.yaml snowflake/*.yaml googleworkspace/*.yaml entra/*.yaml
 var Embedded embed.FS

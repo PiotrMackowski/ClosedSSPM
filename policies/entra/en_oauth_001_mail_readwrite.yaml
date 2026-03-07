@@ -1,0 +1,23 @@
+id: EN-OAUTH-001
+title: "Application has Mail.ReadWrite permission"
+description: >
+  The OAuth2 permission grant includes Mail.ReadWrite, which allows an
+  application to read and modify mailbox content across delegated contexts.
+  This permission can expose sensitive communications and enable tampering with
+  user email data.
+severity: CRITICAL
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "Mail.ReadWrite"
+remediation: >
+  Review all applications granted Mail.ReadWrite and remove this scope when not
+  strictly required. Apply least-privilege access, require business
+  justification, and perform periodic admin consent reviews.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"

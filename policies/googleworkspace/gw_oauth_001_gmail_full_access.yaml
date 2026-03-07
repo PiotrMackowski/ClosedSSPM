@@ -1,0 +1,24 @@
+id: GW-OAUTH-001
+title: "OAuth token with full Gmail access detected"
+description: >
+  An OAuth application has been granted the https://mail.google.com/ scope,
+  which provides full read, write, send, and delete access to a user's Gmail.
+  This is the most permissive Gmail scope and is frequently abused by malicious
+  OAuth apps for data exfiltration and business email compromise.
+severity: CRITICAL
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "scopes"
+      operator: "contains"
+      value: "https://mail.google.com/"
+remediation: >
+  Review the OAuth application in Admin Console > Security > API Controls > App
+  Access Control. If the app is not business-critical, revoke the token and block
+  the application. Consider restricting Gmail scopes to the narrower
+  gmail.readonly or gmail.send scopes where possible.
+references:
+  - "https://developers.google.com/gmail/api/auth/scopes"
+  - "https://support.google.com/a/answer/7281227"

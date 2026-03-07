@@ -1,0 +1,24 @@
+id: GW-OAUTH-002
+title: "OAuth token with full Google Drive access detected"
+description: >
+  An OAuth application has been granted the https://www.googleapis.com/auth/drive
+  scope, which allows full read, write, share, and delete access to a user's
+  Google Drive files. Compromised or malicious apps with this scope can exfiltrate
+  sensitive documents and modify or remove critical business data.
+severity: CRITICAL
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "scopes"
+      operator: "contains"
+      value: "https://www.googleapis.com/auth/drive"
+remediation: >
+  Review the authorized application and validate business justification for full
+  Drive scope. Revoke tokens for non-essential apps and block untrusted clients
+  in App Access Control. Prefer least-privilege Drive scopes such as
+  drive.readonly when possible.
+references:
+  - "https://developers.google.com/drive/api/guides/api-specific-auth"
+  - "https://support.google.com/a/answer/7281227"

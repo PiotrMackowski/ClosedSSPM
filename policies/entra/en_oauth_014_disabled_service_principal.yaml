@@ -1,0 +1,22 @@
+id: EN-OAUTH-014
+title: "Service principal is disabled"
+description: >
+  The service principal accountEnabled value is false. Disabled service
+  principals can still indicate stale or dangling permissions and incomplete
+  deprovisioning that should be reviewed and cleaned up.
+severity: LOW
+category: Asset Hygiene
+platform: entra
+query:
+  table: service_principals
+  field_conditions:
+    - field: "accountEnabled"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Validate whether disabled service principals are still required for audit
+  history. Remove obsolete app role assignments, permission grants, and unused
+  credentials to reduce residual risk and operational clutter.
+references:
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/delete-application-portal"
+  - "https://learn.microsoft.com/graph/api/resources/serviceprincipal"

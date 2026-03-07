@@ -10,6 +10,8 @@ package main
 
 import (
 	// Register all supported platform connectors.
+	_ "github.com/PiotrMackowski/ClosedSSPM/internal/connector/entra"
+	_ "github.com/PiotrMackowski/ClosedSSPM/internal/connector/googleworkspace"
 	_ "github.com/PiotrMackowski/ClosedSSPM/internal/connector/servicenow"
 	_ "github.com/PiotrMackowski/ClosedSSPM/internal/connector/snowflake"
 )

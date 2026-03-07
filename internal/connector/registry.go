@@ -13,12 +13,24 @@ package connector
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/spf13/cobra"
 )
+
+// EnvOrFlag returns the value of the given CLI flag if non-empty, otherwise
+// falls back to the named environment variable. This is the canonical way for
+// connectors to resolve credentials that may come from either source.
+func EnvOrFlag(cmd *cobra.Command, flag, env string) string {
+	val, _ := cmd.Flags().GetString(flag)
+	if val != "" {
+		return val
+	}
+	return os.Getenv(env)
+}
 
 // Factory creates a new Collector for a specific platform.
 type Factory func() collector.Collector

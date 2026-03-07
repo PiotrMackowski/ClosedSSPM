@@ -1,0 +1,23 @@
+id: EN-OAUTH-006
+title: "Application has RoleManagement.ReadWrite.Directory permission"
+description: >
+  The OAuth2 permission grant includes RoleManagement.ReadWrite.Directory,
+  allowing an application to assign or remove directory roles. This capability
+  can be used to escalate privileges and obtain persistent administrative
+  control over the tenant.
+severity: CRITICAL
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "RoleManagement.ReadWrite.Directory"
+remediation: >
+  Remove RoleManagement.ReadWrite.Directory from all non-essential
+  applications. Require strict governance and break-glass procedures for any app
+  retaining this permission, and review assignments frequently.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/entra/identity/role-based-access-control/custom-understand"
