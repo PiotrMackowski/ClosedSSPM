@@ -81,7 +81,7 @@ func (c *GoogleWorkspaceCollector) Collect(ctx context.Context, config collector
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = defaultConcurrency
+		concurrency = collector.DefaultConcurrency
 	}
 
 	snapshot := collector.NewSnapshot("googleworkspace", config.InstanceURL)

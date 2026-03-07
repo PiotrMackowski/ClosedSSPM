@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// DefaultConcurrency is the default number of parallel API requests for all connectors.
+const DefaultConcurrency = 5
+
 // Record represents a single record from a SaaS platform table/object.
 type Record map[string]interface{}
 

@@ -189,7 +189,7 @@ func (c *SnowflakeCollector) Collect(ctx context.Context, config collector.Conne
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = 5
+		concurrency = collector.DefaultConcurrency
 	}
 
 	instanceID := config.Account

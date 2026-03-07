@@ -414,7 +414,7 @@ func (c *EntraCollector) Collect(ctx context.Context, config collector.Connector
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = defaultConcurrency
+		concurrency = collector.DefaultConcurrency
 	}
 
 	instanceID := config.Account

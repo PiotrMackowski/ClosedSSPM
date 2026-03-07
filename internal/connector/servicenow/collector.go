@@ -210,7 +210,7 @@ func (c *ServiceNowCollector) Collect(ctx context.Context, config collector.Conn
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = defaultConcurrency
+		concurrency = collector.DefaultConcurrency
 	}
 
 	snapshot := collector.NewSnapshot("servicenow", config.InstanceURL)

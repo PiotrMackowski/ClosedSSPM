@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	defaultConcurrency = 5
-	defaultRateLimit   = 40.0
+	defaultRateLimit = 40.0
 )
 
 var nonAlphanumericUnderscore = regexp.MustCompile(`[^a-z0-9_]`)
@@ -95,7 +94,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 
 	concurrency := config.Concurrency
 	if concurrency <= 0 {
-		concurrency = defaultConcurrency
+		concurrency = collector.DefaultConcurrency
 	}
 
 	return &Client{

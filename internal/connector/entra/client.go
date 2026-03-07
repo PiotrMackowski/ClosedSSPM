@@ -18,11 +18,10 @@ import (
 )
 
 const (
-	version            = "0.1.0"
-	defaultConcurrency = 5
-	defaultRateLimit   = 10.0
-	graphV1BaseURL     = "https://graph.microsoft.com/v1.0"
-	graphRootURL       = "https://graph.microsoft.com"
+	version          = "0.1.0"
+	defaultRateLimit = 10.0
+	graphV1BaseURL   = "https://graph.microsoft.com/v1.0"
+	graphRootURL     = "https://graph.microsoft.com"
 )
 
 type Client struct {

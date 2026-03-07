@@ -73,8 +73,8 @@ func TestNewClient_AccessToken_DefaultConcurrency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
-	if client.concurrency != defaultConcurrency {
-		t.Errorf("concurrency = %d, want %d", client.concurrency, defaultConcurrency)
+	if client.concurrency != collector.DefaultConcurrency {
+		t.Errorf("concurrency = %d, want %d", client.concurrency, collector.DefaultConcurrency)
 	}
 }
 
