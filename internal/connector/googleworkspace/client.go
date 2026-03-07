@@ -2,9 +2,7 @@ package googleworkspace
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"regexp"
@@ -21,10 +19,11 @@ import (
 )
 
 const (
-	defaultConcurrency  = 5
-	defaultRateLimit    = 40.0
-	maxResponseBodySize = 50 * 1024 * 1024
+	defaultConcurrency = 5
+	defaultRateLimit   = 40.0
 )
+
+var nonAlphanumericUnderscore = regexp.MustCompile(`[^a-z0-9_]`)
 
 type Client struct {
 	directoryService *admin.Service
@@ -354,31 +353,10 @@ func normalizeParameterName(s string) string {
 	replacer := strings.NewReplacer(" ", "_", "-", "_", ".", "_", "/", "_", ":", "_")
 	s = replacer.Replace(s)
 	// Strip any character that is not alphanumeric or underscore.
-	s = regexp.MustCompile(`[^a-z0-9_]`).ReplaceAllString(s, "")
+	s = nonAlphanumericUnderscore.ReplaceAllString(s, "")
 	s = strings.Trim(s, "_")
 	if s == "" {
 		return "unknown"
-	}
-	return s
-}
-
-func readLimitedBody(body io.Reader) ([]byte, error) {
-	limited := io.LimitReader(body, int64(maxResponseBodySize)+1)
-	data, err := io.ReadAll(limited)
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxResponseBodySize {
-		return nil, errors.New("response body exceeds maximum allowed size")
-	}
-	return data, nil
-}
-
-func sanitizeErrorBody(body []byte) string {
-	const maxErrorBodyLen = 256
-	s := string(body)
-	if len(s) > maxErrorBodyLen {
-		s = s[:maxErrorBodyLen] + "...(truncated)"
 	}
 	return s
 }

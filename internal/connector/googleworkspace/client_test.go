@@ -1,7 +1,6 @@
 package googleworkspace
 
 import (
-	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -80,47 +79,6 @@ func TestNewClient_InvalidCredentialsJSON(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "parsing service account credentials") {
 		t.Errorf("error = %q, want substring %q", err.Error(), "parsing service account credentials")
-	}
-}
-
-// --- Helper function tests ---
-
-func TestReadLimitedBody(t *testing.T) {
-	// Within limit.
-	small := bytes.NewReader(make([]byte, 100))
-	data, err := readLimitedBody(small)
-	if err != nil {
-		t.Fatalf("readLimitedBody() error: %v", err)
-	}
-	if len(data) != 100 {
-		t.Errorf("got %d bytes, want 100", len(data))
-	}
-
-	// Exceeds limit.
-	huge := bytes.NewReader(make([]byte, maxResponseBodySize+1))
-	_, err = readLimitedBody(huge)
-	if err == nil {
-		t.Error("readLimitedBody() should reject bodies exceeding max size")
-	}
-}
-
-func TestSanitizeErrorBody(t *testing.T) {
-	short := "short error message"
-	if got := sanitizeErrorBody([]byte(short)); got != short {
-		t.Errorf("sanitizeErrorBody(%q) = %q, want %q", short, got, short)
-	}
-
-	// Long message should be truncated.
-	long := make([]byte, 500)
-	for i := range long {
-		long[i] = 'x'
-	}
-	got := sanitizeErrorBody(long)
-	if len(got) > 300 {
-		t.Errorf("sanitizeErrorBody should truncate long messages, got length %d", len(got))
-	}
-	if !strings.HasSuffix(got, "...(truncated)") {
-		t.Errorf("sanitizeErrorBody should end with ...(truncated), got suffix %q", got[len(got)-20:])
 	}
 }
 
@@ -310,7 +268,7 @@ func TestActivityToRecords(t *testing.T) {
 				Name: "authorize",
 				Parameters: []*reports.ActivityEventsParameters{
 					{Name: "app_name", Value: "TestApp"},
-				{Name: "is_verified", BoolValue: true},
+					{Name: "is_verified", BoolValue: true},
 				},
 			},
 		},
@@ -460,7 +418,7 @@ func TestActivityToRecords_IntParam(t *testing.T) {
 			{
 				Name: "authorize",
 				Parameters: []*reports.ActivityEventsParameters{
-				{Name: "num_scopes", IntValue: 42},
+					{Name: "num_scopes", IntValue: 42},
 				},
 			},
 		},
