@@ -1,0 +1,24 @@
+id: GW-OAUTH-004
+title: "OAuth token with Gmail send permission detected"
+description: >
+  An OAuth application has been granted the
+  https://www.googleapis.com/auth/gmail.send scope, allowing it to send email as
+  the user. Attackers abuse this capability for phishing and business email
+  compromise by sending trusted-looking messages from legitimate accounts.
+severity: HIGH
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "scopes"
+      operator: "contains"
+      value: "https://www.googleapis.com/auth/gmail.send"
+remediation: >
+  Verify the legitimacy of the OAuth client and whether send-as permission is
+  required. Revoke tokens for suspicious apps and block risky third-party access
+  in API Controls. Use sender monitoring and alerting to detect unusual outbound
+  email activity.
+references:
+  - "https://developers.google.com/gmail/api/auth/scopes"
+  - "https://support.google.com/a/answer/178266"

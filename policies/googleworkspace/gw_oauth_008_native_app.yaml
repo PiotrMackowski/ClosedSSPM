@@ -1,0 +1,22 @@
+id: GW-OAUTH-008
+title: "OAuth token granted to native application"
+description: >
+  An OAuth token is associated with a native (installed) application. Native
+  apps store tokens on endpoint devices, which can increase token theft and
+  exfiltration risk if the device is compromised or improperly managed.
+severity: MEDIUM
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "native_app"
+      operator: "equals"
+      value: true
+remediation: >
+  Validate that the native application is approved and required for business use.
+  Revoke unnecessary tokens and enforce endpoint security controls on devices
+  that store OAuth credentials. Restrict untrusted native clients in API Controls.
+references:
+  - "https://developers.google.com/identity/protocols/oauth2/native-app"
+  - "https://support.google.com/a/answer/7281227"

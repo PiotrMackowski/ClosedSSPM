@@ -1,0 +1,24 @@
+id: GW-OAUTH-005
+title: "OAuth token with full contacts access detected"
+description: >
+  An OAuth application has been granted the
+  https://www.googleapis.com/auth/contacts scope, enabling read and write access
+  to the user's contacts. Contact data can be used for reconnaissance and social
+  engineering campaigns against employees, partners, and customers.
+severity: MEDIUM
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "scopes"
+      operator: "contains"
+      value: "https://www.googleapis.com/auth/contacts"
+remediation: >
+  Confirm the application has a valid business need for contacts access.
+  Revoke unnecessary grants and enforce trusted app policies to reduce exposure
+  of directory and relationship data. Prefer narrower read-only scopes when
+  write access is not required.
+references:
+  - "https://developers.google.com/identity/protocols/oauth2/scopes"
+  - "https://support.google.com/a/answer/7281227"

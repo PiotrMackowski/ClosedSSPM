@@ -1,0 +1,25 @@
+id: GW-OAUTH-003
+title: "OAuth token with Admin SDK access detected"
+description: >
+  An OAuth application has been granted a scope containing
+  https://www.googleapis.com/auth/admin, which can provide administrative API
+  access to manage users, groups, devices, and workspace settings. This level of
+  access significantly increases blast radius if the token or application is
+  compromised.
+severity: CRITICAL
+category: OAuth
+platform: googleworkspace
+query:
+  table: oauth_tokens
+  field_conditions:
+    - field: "scopes"
+      operator: "contains"
+      value: "https://www.googleapis.com/auth/admin"
+remediation: >
+  Immediately validate whether the application requires administrative scopes.
+  Revoke unauthorized tokens and restrict risky API clients through App Access
+  Control policies. Limit delegated admin access and monitor all Admin SDK token
+  grants for anomalous behavior.
+references:
+  - "https://developers.google.com/admin-sdk"
+  - "https://support.google.com/a/answer/162106"

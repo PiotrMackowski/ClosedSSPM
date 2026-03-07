@@ -1,0 +1,22 @@
+id: GW-OAUTH-009
+title: "OAuth token authorization event detected"
+description: >
+  A token activity record indicates an authorize event, meaning a new OAuth token
+  grant occurred. This policy is informational and helps maintain an audit trail
+  of user consent activity for anomaly detection and incident response.
+severity: LOW
+category: OAuth
+platform: googleworkspace
+query:
+  table: token_activity
+  field_conditions:
+    - field: "event_name"
+      operator: "equals"
+      value: "authorize"
+remediation: >
+  Review newly authorized tokens for expected users, applications, and scopes.
+  Correlate with change windows and user-reported activity. Investigate and
+  revoke suspicious grants, then block offending applications if needed.
+references:
+  - "https://support.google.com/a/answer/4579696"
+  - "https://support.google.com/a/answer/7061566"
