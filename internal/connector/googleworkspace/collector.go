@@ -3,10 +3,7 @@ package googleworkspace
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/connector"
@@ -86,68 +83,23 @@ func (c *GoogleWorkspaceCollector) Collect(ctx context.Context, config collector
 
 	snapshot := collector.NewSnapshot("googleworkspace", config.InstanceURL)
 
-	var (
-		mu   sync.Mutex
-		wg   sync.WaitGroup
-		sem  = make(chan struct{}, concurrency)
-		errs []error
-	)
-
-	for _, ts := range securityTables {
-		wg.Add(1)
-		go func(spec tableSpec) {
-			defer wg.Done()
-
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			log.Printf("[collect] Querying table: %s", spec.Name)
-			startTime := time.Now()
-
-			var records []collector.Record
-			var collectErr error
-			switch spec.Name {
-			case "users":
-				records, collectErr = client.ListUsers(ctx)
-			case "oauth_tokens":
-				records, collectErr = client.ListAllTokens(ctx)
-			case "token_activity":
-				records, collectErr = client.ListTokenActivity(ctx)
-			default:
-				collectErr = fmt.Errorf("unsupported table %q", spec.Name)
-			}
-
-			if collectErr != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("table %s: %w", spec.Name, collectErr))
-				mu.Unlock()
-				log.Printf("[collect] ERROR querying %s: %v", spec.Name, collectErr)
-				return
-			}
-
-			td := &collector.TableData{
-				Table:       spec.Name,
-				Records:     records,
-				Count:       len(records),
-				CollectedAt: time.Now().UTC(),
-			}
-
-			mu.Lock()
-			snapshot.AddTableData(td)
-			mu.Unlock()
-
-			log.Printf("[collect] Collected %d records from %s in %v", len(records), spec.Name, time.Since(startTime))
-		}(ts)
+	tableNames := make([]string, len(securityTables))
+	for i, t := range securityTables {
+		tableNames[i] = t.Name
 	}
 
-	wg.Wait()
-
-	if len(errs) > 0 {
-		for _, e := range errs {
-			log.Printf("[collect] Warning: %v", e)
+	collector.CollectParallel(snapshot, concurrency, tableNames, func(table string) ([]collector.Record, error) {
+		switch table {
+		case "users":
+			return client.ListUsers(ctx)
+		case "oauth_tokens":
+			return client.ListAllTokens(ctx)
+		case "token_activity":
+			return client.ListTokenActivity(ctx)
+		default:
+			return nil, fmt.Errorf("unsupported table %q", table)
 		}
-		snapshot.Metadata["collection_warnings"] = fmt.Sprintf("%d tables had errors", len(errs))
-	}
+	})
 
 	return snapshot, nil
 }

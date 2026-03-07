@@ -3,7 +3,6 @@ package entra
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strings"
@@ -447,49 +446,12 @@ func (c *EntraCollector) Collect(ctx context.Context, config collector.Connector
 		return nil, fmt.Errorf("unsupported table %s", table)
 	}
 
-	var (
-		mu   sync.Mutex
-		wg   sync.WaitGroup
-		sem  = make(chan struct{}, concurrency)
-		errs []error
-	)
-
-	for _, ts := range securityTables {
-		wg.Add(1)
-		go func(spec tableSpec) {
-			defer wg.Done()
-
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			start := time.Now()
-			log.Printf("[collect] Querying table: %s", spec.Name)
-
-			records, err := collectTable(spec.Name)
-			if err != nil {
-				mu.Lock()
-				errs = append(errs, fmt.Errorf("table %s: %w", spec.Name, err))
-				mu.Unlock()
-				log.Printf("[collect] ERROR querying %s: %v", spec.Name, err)
-				return
-			}
-
-			td := &collector.TableData{Table: spec.Name, Records: records, Count: len(records), CollectedAt: time.Now().UTC()}
-			mu.Lock()
-			snapshot.AddTableData(td)
-			mu.Unlock()
-			log.Printf("[collect] Collected %d records from %s in %v", len(records), spec.Name, time.Since(start))
-		}(ts)
+	tableNames := make([]string, len(securityTables))
+	for i, t := range securityTables {
+		tableNames[i] = t.Name
 	}
 
-	wg.Wait()
-
-	if len(errs) > 0 {
-		for _, e := range errs {
-			log.Printf("[collect] Warning: %v", e)
-		}
-		snapshot.Metadata["collection_warnings"] = fmt.Sprintf("%d tables had errors", len(errs))
-	}
+	collector.CollectParallel(snapshot, concurrency, tableNames, collectTable)
 
 	return snapshot, nil
 }
