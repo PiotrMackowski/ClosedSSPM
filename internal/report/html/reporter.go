@@ -23,6 +23,7 @@ type ReportData struct {
 	GeneratedAt  string
 	InstanceURL  string
 	Platform     string
+	Platforms    []string
 	Summary      finding.Summary
 	TableStats   []TableStat
 	SeverityList []finding.Severity
@@ -81,6 +82,19 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, snapshot *c
 			finding.Critical, finding.High, finding.Medium, finding.Low, finding.Info,
 		},
 	}
+
+	platformSet := make(map[string]struct{})
+	for _, f := range findings {
+		if f.Platform != "" {
+			platformSet[f.Platform] = struct{}{}
+		}
+	}
+	var platforms []string
+	for p := range platformSet {
+		platforms = append(platforms, p)
+	}
+	sort.Strings(platforms)
+	data.Platforms = platforms
 
 	if snapshot != nil {
 		data.InstanceURL = snapshot.InstanceURL

@@ -56,6 +56,7 @@ Run 'closedsspm audit --help' for details.`, strings.Join(connector.List(), ", "
 		newEvaluateCmd(),
 		newMCPCmd(),
 		newChecksCmd(),
+		newPlatformCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {
@@ -231,7 +232,13 @@ func mergeSnapshots(snapshots []*collector.Snapshot) *collector.Snapshot {
 
 	for _, s := range snapshots {
 		for _, td := range s.Tables {
-			merged.AddTableData(td)
+			prefixed := &collector.TableData{
+				Table:       s.Platform + "/" + td.Table,
+				Records:     td.Records,
+				Count:       td.Count,
+				CollectedAt: td.CollectedAt,
+			}
+			merged.AddTableData(prefixed)
 		}
 	}
 	return merged
@@ -258,84 +265,89 @@ func checkFailOn(cmd *cobra.Command, findings []finding.Finding) {
 
 // --- Commands ---
 
+func runAudit(cmd *cobra.Command, _ []string) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	platformRaw, _ := cmd.Flags().GetString("platform")
+	output, _ := cmd.Flags().GetString("output")
+	format, _ := cmd.Flags().GetString("format")
+	snapshotOutput, _ := cmd.Flags().GetString("save-snapshot")
+	policiesDir := getPoliciesDir(cmd)
+
+	platforms, err := parsePlatforms(platformRaw)
+	if err != nil {
+		return err
+	}
+
+	// Collect and evaluate each platform independently so that
+	// policy platform-filtering works correctly.
+	var allFindings []finding.Finding
+	var snapshots []*collector.Snapshot
+
+	for _, p := range platforms {
+		factory, configBuilder, err := connector.Get(p)
+		if err != nil {
+			return err
+		}
+
+		config := configBuilder(cmd)
+
+		slog.Info("Starting data collection", "platform", p)
+		coll := factory()
+		snapshot, err := coll.Collect(ctx, config)
+		if err != nil {
+			return fmt.Errorf("collection failed for %s: %w", p, err)
+		}
+		slog.Info("Collection complete", "platform", p, "tables", len(snapshot.Tables))
+
+		// Evaluate per-platform so that policies with platform filters
+		// match correctly (e.g. platform: entra matches snapshot.Platform == "entra").
+		findings, err := evaluateFindings(snapshot, policiesDir)
+		if err != nil {
+			return fmt.Errorf("evaluation failed for %s: %w", p, err)
+		}
+		for i := range findings {
+			findings[i].Platform = p
+		}
+		allFindings = append(allFindings, findings...)
+		snapshots = append(snapshots, snapshot)
+	}
+
+	merged := mergeSnapshots(snapshots)
+
+	// Optionally save the merged snapshot.
+	if snapshotOutput != "" {
+		if err := saveSnapshot(merged, snapshotOutput); err != nil {
+			return err
+		}
+		slog.Info("Snapshot saved", "path", snapshotOutput)
+	}
+
+	summary := finding.NewSummary(allFindings)
+	slog.Info("Evaluation complete",
+		"platforms", len(platforms),
+		"findings", summary.Total,
+		"score", summary.PostureScore,
+	)
+
+	// Report.
+	if err := writeReport(allFindings, merged, output, format); err != nil {
+		return err
+	}
+	slog.Info("Report written", "path", output)
+
+	checkFailOn(cmd, allFindings)
+
+	return nil
+}
+
 func newAuditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Run a full security audit (collect + evaluate + report)",
 		Long:  `Connects to a SaaS platform, collects security-relevant data,\nevaluates it against all policies, and generates a report.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-			defer cancel()
-
-			platformRaw, _ := cmd.Flags().GetString("platform")
-			output, _ := cmd.Flags().GetString("output")
-			format, _ := cmd.Flags().GetString("format")
-			snapshotOutput, _ := cmd.Flags().GetString("save-snapshot")
-			policiesDir := getPoliciesDir(cmd)
-
-			platforms, err := parsePlatforms(platformRaw)
-			if err != nil {
-				return err
-			}
-
-			// Collect and evaluate each platform independently so that
-			// policy platform-filtering works correctly.
-			var allFindings []finding.Finding
-			var snapshots []*collector.Snapshot
-
-			for _, p := range platforms {
-				factory, configBuilder, err := connector.Get(p)
-				if err != nil {
-					return err
-				}
-
-				config := configBuilder(cmd)
-
-				slog.Info("Starting data collection", "platform", p)
-				coll := factory()
-				snapshot, err := coll.Collect(ctx, config)
-				if err != nil {
-					return fmt.Errorf("collection failed for %s: %w", p, err)
-				}
-				slog.Info("Collection complete", "platform", p, "tables", len(snapshot.Tables))
-
-				// Evaluate per-platform so that policies with platform filters
-				// match correctly (e.g. platform: entra matches snapshot.Platform == "entra").
-				findings, err := evaluateFindings(snapshot, policiesDir)
-				if err != nil {
-					return fmt.Errorf("evaluation failed for %s: %w", p, err)
-				}
-				allFindings = append(allFindings, findings...)
-				snapshots = append(snapshots, snapshot)
-			}
-
-			merged := mergeSnapshots(snapshots)
-
-			// Optionally save the merged snapshot.
-			if snapshotOutput != "" {
-				if err := saveSnapshot(merged, snapshotOutput); err != nil {
-					return err
-				}
-				slog.Info("Snapshot saved", "path", snapshotOutput)
-			}
-
-			summary := finding.NewSummary(allFindings)
-			slog.Info("Evaluation complete",
-				"platforms", len(platforms),
-				"findings", summary.Total,
-				"score", summary.PostureScore,
-			)
-
-			// Report.
-			if err := writeReport(allFindings, merged, output, format); err != nil {
-				return err
-			}
-			slog.Info("Report written", "path", output)
-
-			checkFailOn(cmd, allFindings)
-
-			return nil
-		},
+		RunE:  runAudit,
 	}
 
 	cmd.Flags().String("platform", "servicenow",
@@ -537,6 +549,88 @@ func newChecksCmd() *cobra.Command {
 	}
 	listCmd.Flags().String("policies", "", "Path to policies directory")
 
+	showCmd := &cobra.Command{
+		Use:   "show [policy-id]",
+		Short: "Show details of a specific security check",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			policiesDir := getPoliciesDir(cmd)
+			pols, _, err := loadPolicies(policiesDir)
+			if err != nil {
+				return fmt.Errorf("loading policies: %w", err)
+			}
+
+			target := strings.ToUpper(args[0])
+			for _, p := range pols {
+				if strings.ToUpper(p.ID) == target {
+					out := cmd.OutOrStdout()
+					fmt.Fprintf(out, "ID:          %s\n", p.ID)
+					fmt.Fprintf(out, "Title:       %s\n", p.Title)
+					fmt.Fprintf(out, "Platform:    %s\n", p.Platform)
+					fmt.Fprintf(out, "Severity:    %s\n", p.Severity)
+					fmt.Fprintf(out, "Category:    %s\n", p.Category)
+					fmt.Fprintf(out, "Enabled:     %v\n", p.IsEnabled())
+					fmt.Fprintf(out, "Description: %s\n", p.Description)
+					fmt.Fprintf(out, "Remediation: %s\n", p.Remediation)
+					if len(p.References) > 0 {
+						fmt.Fprintln(out, "References:")
+						for _, ref := range p.References {
+							fmt.Fprintf(out, "  - %s\n", ref)
+						}
+					}
+					fmt.Fprintf(out, "Query Table: %s\n", p.Query.Table)
+					if len(p.Query.FieldConditions) > 0 {
+						fmt.Fprintln(out, "Conditions:")
+						for _, c := range p.Query.FieldConditions {
+							if c.Value != "" {
+								fmt.Fprintf(out, "  - %s %s %q\n", c.Field, c.Operator, c.Value)
+							} else {
+								fmt.Fprintf(out, "  - %s %s\n", c.Field, c.Operator)
+							}
+						}
+					}
+					return nil
+				}
+			}
+			return fmt.Errorf("policy %q not found", args[0])
+		},
+	}
+	showCmd.Flags().String("policies", "", "Path to policies directory")
+
 	cmd.AddCommand(listCmd)
+	cmd.AddCommand(showCmd)
+	return cmd
+}
+
+func newPlatformCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "platform",
+		Short: "Platform information and utilities",
+	}
+
+	envCmd := &cobra.Command{
+		Use:   "env [platform]",
+		Short: "Show required environment variables for a platform",
+		Long:  "Without arguments, lists env vars for all platforms.\nWith a platform name, shows details for that platform only.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
+			if len(args) == 0 {
+				for _, name := range connector.List() {
+					help := connector.EnvHelp(name)
+					fmt.Fprintf(out, "=== %s ===\n%s\n\n", name, help)
+				}
+				return nil
+			}
+			name := strings.ToLower(args[0])
+			help := connector.EnvHelp(name)
+			if help == "" {
+				return fmt.Errorf("unknown platform %q; available: %s", name, strings.Join(connector.List(), ", "))
+			}
+			fmt.Fprintln(out, help)
+			return nil
+		},
+	}
+
+	cmd.AddCommand(envCmd)
 	return cmd
 }

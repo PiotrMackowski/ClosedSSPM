@@ -89,6 +89,8 @@ type Finding struct {
 	Category string `json:"category"`
 	// Resource identifies the affected resource (e.g. "sys_security_acl:abc123").
 	Resource string `json:"resource"`
+	// Platform identifies the source SaaS platform (e.g. "servicenow", "entra").
+	Platform string `json:"platform"`
 	// Evidence contains the supporting evidence for the finding.
 	Evidence []Evidence `json:"evidence"`
 	// Remediation describes how to fix the issue.

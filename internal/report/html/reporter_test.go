@@ -14,6 +14,7 @@ func TestReporterGenerate(t *testing.T) {
 	findings := []finding.Finding{
 		testutil.SampleFinding(
 			testutil.WithSeverity(finding.Critical),
+			testutil.WithPlatform("servicenow"),
 		),
 		testutil.SampleFinding(
 			testutil.WithID("TEST-002-def"),
@@ -25,6 +26,7 @@ func TestReporterGenerate(t *testing.T) {
 			testutil.WithResource("other_table:def"),
 			testutil.WithRemediation("Fix this too"),
 			testutil.WithEvidence(),
+			testutil.WithPlatform("entra"),
 		),
 	}
 
@@ -105,6 +107,12 @@ func TestReporterGenerate(t *testing.T) {
 	// Check group-by dropdown is present.
 	if !strings.Contains(output, `id="group-by-select"`) {
 		t.Error("Output should contain group-by select")
+	}
+	if !strings.Contains(output, "platform-filter-btn") {
+		t.Error("Output should contain platform filter buttons")
+	}
+	if !strings.Contains(output, "data-platform") {
+		t.Error("Output should contain data-platform attributes")
 	}
 
 	// Check sticky toolbar CSS.

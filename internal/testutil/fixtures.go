@@ -89,6 +89,12 @@ func WithDescription(d string) FindingOption {
 	}
 }
 
+func WithPlatform(p string) FindingOption {
+	return func(f *finding.Finding) {
+		f.Platform = p
+	}
+}
+
 func SampleEvidence(opts ...EvidenceOption) finding.Evidence {
 	ev := finding.Evidence{
 		ResourceType: "test_table",

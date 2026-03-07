@@ -46,7 +46,7 @@ func TestReporterGenerate(t *testing.T) {
 	}
 
 	// Check header.
-	expectedHeader := "ID,PolicyID,Title,Description,Severity,Category,Resource,Remediation,EvidenceResourceType,EvidenceResourceID,EvidenceDisplayName,EvidenceDescription"
+	expectedHeader := "ID,PolicyID,Title,Description,Severity,Category,Platform,Resource,Remediation,EvidenceResourceType,EvidenceResourceID,EvidenceDisplayName,EvidenceDescription"
 	if lines[0] != expectedHeader {
 		t.Errorf("Header mismatch:\ngot:  %s\nwant: %s", lines[0], expectedHeader)
 	}
@@ -87,6 +87,42 @@ func TestReporterGenerateEmpty(t *testing.T) {
 	// Should have header only.
 	if len(lines) != 1 {
 		t.Errorf("Expected 1 line (header only), got %d", len(lines))
+	}
+}
+
+func TestReporterGenerateMultiPlatformRows(t *testing.T) {
+	findings := []finding.Finding{
+		testutil.SampleFinding(
+			testutil.WithID("TEST-001-a"),
+			testutil.WithSeverity(finding.Critical),
+			testutil.WithPlatform("entra"),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("TEST-002-b"),
+			testutil.WithSeverity(finding.Low),
+			testutil.WithPlatform("servicenow"),
+		),
+	}
+
+	var buf bytes.Buffer
+	reporter := &Reporter{}
+	if err := reporter.Generate(&buf, findings, testutil.SampleSnapshot("entra+servicenow")); err != nil {
+		t.Fatalf("Generate() error: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines (header + 2 rows), got %d", len(lines))
+	}
+
+	if !strings.Contains(lines[0], "Platform") {
+		t.Errorf("Header should contain Platform column, got: %s", lines[0])
+	}
+	if !strings.Contains(lines[1], "entra") {
+		t.Errorf("First data row should contain platform entra, got: %s", lines[1])
+	}
+	if !strings.Contains(lines[2], "servicenow") {
+		t.Errorf("Second data row should contain platform servicenow, got: %s", lines[2])
 	}
 }
 

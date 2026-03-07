@@ -94,3 +94,65 @@ func TestReporterGenerateEmpty(t *testing.T) {
 		t.Errorf("PostureScore = %q, want %q", report.Summary.PostureScore, "A")
 	}
 }
+
+func TestReporterGenerateMultiPlatform(t *testing.T) {
+	findings := []finding.Finding{
+		testutil.SampleFinding(
+			testutil.WithID("ENTRA-001-a"),
+			testutil.WithPlatform("entra"),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-001-b"),
+			testutil.WithPlatform("servicenow"),
+		),
+	}
+
+	snapshot := testutil.SampleSnapshot("entra+servicenow")
+
+	var buf bytes.Buffer
+	reporter := &Reporter{}
+	if err := reporter.Generate(&buf, findings, snapshot); err != nil {
+		t.Fatalf("Generate() error: %v", err)
+	}
+
+	var report Report
+	if err := json.Unmarshal(buf.Bytes(), &report); err != nil {
+		t.Fatalf("Output is not valid JSON: %v", err)
+	}
+
+	if report.Platform != "entra+servicenow" {
+		t.Errorf("Platform = %q, want %q", report.Platform, "entra+servicenow")
+	}
+	if len(report.Findings) != 2 {
+		t.Fatalf("Findings count = %d, want 2", len(report.Findings))
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &raw); err != nil {
+		t.Fatalf("Output is not valid raw JSON map: %v", err)
+	}
+
+	rawFindings, ok := raw["findings"].([]interface{})
+	if !ok {
+		t.Fatalf("report.findings has unexpected type %T", raw["findings"])
+	}
+	if len(rawFindings) != 2 {
+		t.Fatalf("raw findings count = %d, want 2", len(rawFindings))
+	}
+
+	firstFinding, ok := rawFindings[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("first raw finding has unexpected type %T", rawFindings[0])
+	}
+	secondFinding, ok := rawFindings[1].(map[string]interface{})
+	if !ok {
+		t.Fatalf("second raw finding has unexpected type %T", rawFindings[1])
+	}
+
+	if firstPlatform, ok := firstFinding["platform"].(string); !ok || firstPlatform != "entra" {
+		t.Errorf("first finding platform = %v, want %q", firstFinding["platform"], "entra")
+	}
+	if secondPlatform, ok := secondFinding["platform"].(string); !ok || secondPlatform != "servicenow" {
+		t.Errorf("second finding platform = %v, want %q", secondFinding["platform"], "servicenow")
+	}
+}

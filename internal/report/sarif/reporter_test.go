@@ -209,6 +209,73 @@ func TestReporterGenerateNilSnapshot(t *testing.T) {
 	}
 }
 
+func TestReporterGenerateMultiPlatformTags(t *testing.T) {
+	findings := []finding.Finding{
+		testutil.SampleFinding(
+			testutil.WithID("ENTRA-APP-001-a"),
+			testutil.WithPolicyID("ENTRA-APP-001"),
+			testutil.WithTitle("Entra App Finding"),
+			testutil.WithPlatform("entra"),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-USER-001-b"),
+			testutil.WithPolicyID("SNOW-USER-001"),
+			testutil.WithTitle("ServiceNow User Finding"),
+			testutil.WithPlatform("servicenow"),
+		),
+	}
+
+	var buf bytes.Buffer
+	reporter := &Reporter{}
+	if err := reporter.Generate(&buf, findings, testutil.SampleSnapshot("entra+servicenow")); err != nil {
+		t.Fatalf("Generate() error: %v", err)
+	}
+
+	var log sarifLog
+	if err := json.Unmarshal(buf.Bytes(), &log); err != nil {
+		t.Fatalf("Output is not valid JSON: %v", err)
+	}
+
+	run := log.Runs[0]
+	if len(run.Tool.Driver.Rules) != 2 {
+		t.Fatalf("Rules count = %d, want 2", len(run.Tool.Driver.Rules))
+	}
+	if len(run.Results) != 2 {
+		t.Fatalf("Results count = %d, want 2", len(run.Results))
+	}
+
+	wantPlatformByPolicyID := map[string]string{
+		"ENTRA-APP-001": "entra",
+		"SNOW-USER-001": "servicenow",
+	}
+
+	for _, result := range run.Results {
+		rule := run.Tool.Driver.Rules[result.RuleIndex]
+		tagsAny, ok := rule.Properties["tags"]
+		if !ok {
+			t.Fatalf("rule %q missing properties.tags", rule.ID)
+		}
+
+		tags, ok := tagsAny.([]interface{})
+		if !ok {
+			t.Fatalf("rule %q properties.tags has unexpected type %T", rule.ID, tagsAny)
+		}
+
+		wantPlatform := wantPlatformByPolicyID[result.RuleID]
+		foundPlatform := false
+		for _, tag := range tags {
+			tagStr, ok := tag.(string)
+			if ok && tagStr == wantPlatform {
+				foundPlatform = true
+				break
+			}
+		}
+		if !foundPlatform {
+			t.Errorf("result %q expected platform tag %q in properties.tags, got %v", result.RuleID, wantPlatform, tags)
+		}
+	}
+}
+
 func TestReporterGenerateEmpty(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := &Reporter{}

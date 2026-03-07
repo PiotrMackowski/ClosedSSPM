@@ -102,7 +102,13 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, snapshot *c
 			ShortDescription: sarifMessage{Text: f.Title},
 			DefaultConfig:    &sarifDefaultConfig{Level: severityToLevel(f.Severity)},
 			Properties: map[string]interface{}{
-				"tags":     []string{"security", "saas", strings.ToLower(f.Category)},
+				"tags": func() []string {
+					tags := []string{"security", "saas", strings.ToLower(f.Category)}
+					if f.Platform != "" {
+						tags = append(tags, strings.ToLower(f.Platform))
+					}
+					return tags
+				}(),
 				"severity": string(f.Severity),
 			},
 		}

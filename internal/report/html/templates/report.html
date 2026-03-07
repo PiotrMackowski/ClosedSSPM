@@ -169,6 +169,15 @@
     <button class="filter-btn" data-filter="LOW" style="--btn-color: var(--low); --btn-text: #000">LOW</button>
     <button class="filter-btn" data-filter="INFO" style="--btn-color: var(--info); --btn-text: #000">INFO</button>
   </div>
+  {{if .Platforms}}
+  <div class="toolbar-group">
+    <span class="toolbar-label">Platform:</span>
+    <button class="filter-btn platform-filter-btn active" data-platform="ALL">ALL</button>
+    {{range .Platforms}}
+    <button class="filter-btn platform-filter-btn" data-platform="{{.}}">{{.}}</button>
+    {{end}}
+  </div>
+  {{end}}
   <div class="toolbar-group">
     <span class="toolbar-label">Search:</span>
     <input type="text" id="search-input" class="search-input" placeholder="Filter findings..." autocomplete="off" spellcheck="false">
@@ -179,6 +188,7 @@
       <option value="category" selected>Category</option>
       <option value="policyId">Policy ID</option>
       <option value="severity">Severity</option>
+      <option value="platform">Platform</option>
     </select>
   </div>
   <div class="toolbar-group">
@@ -231,9 +241,10 @@
       severity: (f.severity || "").toUpperCase(),
       category: f.category || "",
       policyId: f.policy_id || "",
+      platform: (f.platform || ""),
       title: f.title || "",
       searchText: [
-        f.title, f.policy_id, f.category, f.severity, f.resource, f.description,
+        f.title, f.policy_id, f.category, f.severity, f.resource, f.description, f.platform,
         (f.evidence || []).map(function(e) {
         return [e.resource_type, e.resource_id, e.display_name, e.description].filter(Boolean).join(" ");
         }).join(" ")
@@ -254,6 +265,7 @@
   if (visibleCountEl) visibleCountEl.textContent = items.length;
 
   var activeFilters = { ALL: true };
+  var activePlatformFilters = { ALL: true };
   var currentGroup = "category";
   var searchTerm = "";
   var debounceTimer = null;
@@ -397,6 +409,8 @@
         key = d.policyId; title = key + " \u2014 " + d.title;
       } else if (currentGroup === "severity") {
         key = d.severity; title = key;
+      } else if (currentGroup === "platform") {
+        key = d.platform || "unknown"; title = key;
       }
       if (!groups[key]) {
         groups[key] = { title: title, items: [] };
@@ -486,12 +500,20 @@
       var f = btn.getAttribute("data-filter");
       btn.classList.toggle("active", !!activeFilters[f]);
     }
+    var platformBtns = document.querySelectorAll(".platform-filter-btn");
+    for (var j = 0; j < platformBtns.length; j++) {
+      var pbtn = platformBtns[j];
+      var pf = pbtn.getAttribute("data-platform");
+      pbtn.classList.toggle("active", !!activePlatformFilters[pf]);
+    }
 
     var needsSeverity = !activeFilters.ALL;
+    var needsPlatform = !activePlatformFilters.ALL;
     var needsSearch = searchTerm.length > 0;
 
     var visible = items.filter(function(d) {
       if (needsSeverity && !activeFilters[d.severity]) return false;
+      if (needsPlatform && !activePlatformFilters[d.platform]) return false;
       if (needsSearch && d.searchText.indexOf(searchTerm) === -1) return false;
       return true;
     });
@@ -518,6 +540,27 @@
         applyFilters();
       });
     })(filterBtns[i]);
+  }
+
+  // --- Platform filter buttons ---
+  var platformBtns = document.querySelectorAll(".platform-filter-btn");
+  for (var i = 0; i < platformBtns.length; i++) {
+    (function(btn) {
+      btn.addEventListener("click", function() {
+        var filter = btn.getAttribute("data-platform");
+        if (filter === "ALL") {
+          activePlatformFilters = { ALL: true };
+        } else {
+          delete activePlatformFilters.ALL;
+          if (activePlatformFilters[filter]) delete activePlatformFilters[filter];
+          else activePlatformFilters[filter] = true;
+          var hasAny = false;
+          for (var k in activePlatformFilters) { if (activePlatformFilters.hasOwnProperty(k)) { hasAny = true; break; } }
+          if (!hasAny) activePlatformFilters.ALL = true;
+        }
+        applyFilters();
+      });
+    })(platformBtns[i]);
   }
 
   // --- Group-by dropdown ---
