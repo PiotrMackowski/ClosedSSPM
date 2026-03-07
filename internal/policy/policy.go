@@ -116,6 +116,9 @@ func (e *Evaluator) Evaluate(snapshot *collector.Snapshot) ([]finding.Finding, e
 		if !p.IsEnabled() {
 			continue
 		}
+		if p.Platform != "" && p.Platform != snapshot.Platform {
+			continue
+		}
 
 		policyFindings, err := e.evaluatePolicy(p, snapshot)
 		if err != nil {

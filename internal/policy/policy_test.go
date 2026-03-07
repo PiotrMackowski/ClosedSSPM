@@ -519,6 +519,86 @@ func TestEvaluateInvalidRegex(t *testing.T) {
 	}
 }
 
+func TestEvaluatePlatformFiltering(t *testing.T) {
+	policies := []Policy{
+		{
+			ID:       "SF-001",
+			Title:    "Snowflake policy",
+			Severity: finding.High,
+			Category: "IAM",
+			Platform: "snowflake",
+			Query: QuerySpec{
+				Table: "users",
+				FieldConditions: []FieldCondition{
+					{Field: "email", Operator: "empty"},
+				},
+			},
+			Remediation: "Fix",
+		},
+		{
+			ID:       "GW-001",
+			Title:    "Google Workspace policy",
+			Severity: finding.Critical,
+			Category: "OAuth",
+			Platform: "googleworkspace",
+			Query: QuerySpec{
+				Table: "users",
+				FieldConditions: []FieldCondition{
+					{Field: "email", Operator: "empty"},
+				},
+			},
+			Remediation: "Fix",
+		},
+		{
+			ID:       "GENERIC-001",
+			Title:    "Platform-agnostic policy",
+			Severity: finding.Low,
+			Category: "General",
+			Platform: "",
+			Query: QuerySpec{
+				Table: "users",
+				FieldConditions: []FieldCondition{
+					{Field: "email", Operator: "empty"},
+				},
+			},
+			Remediation: "Fix",
+		},
+	}
+
+	snapshot := collector.NewSnapshot("googleworkspace", "https://googleapis.com")
+	snapshot.AddTableData(&collector.TableData{
+		Table:   "users",
+		Records: []collector.Record{{"sys_id": "u1", "name": "test_user", "email": ""}},
+		Count:   1,
+	})
+
+	evaluator := NewEvaluator(policies)
+	findings, err := evaluator.Evaluate(snapshot)
+	if err != nil {
+		t.Fatalf("Evaluate() error: %v", err)
+	}
+
+	// Should get GW-001 (matching platform) and GENERIC-001 (no platform = matches all).
+	// Should NOT get SF-001 (wrong platform).
+	ids := make(map[string]bool)
+	for _, f := range findings {
+		ids[f.PolicyID] = true
+	}
+
+	if ids["SF-001"] {
+		t.Error("Snowflake policy SF-001 should NOT fire on googleworkspace snapshot")
+	}
+	if !ids["GW-001"] {
+		t.Error("Google Workspace policy GW-001 should fire on googleworkspace snapshot")
+	}
+	if !ids["GENERIC-001"] {
+		t.Error("Platform-agnostic policy GENERIC-001 should fire on any snapshot")
+	}
+	if len(findings) != 2 {
+		t.Errorf("Expected 2 findings, got %d", len(findings))
+	}
+}
+
 func TestLoadPoliciesFS(t *testing.T) {
 	// Load from embedded filesystem.
 	pols, err := LoadPoliciesFS(policies.Embedded, ".")
