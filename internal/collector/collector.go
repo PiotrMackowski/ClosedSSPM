@@ -90,6 +90,12 @@ type ConnectorConfig struct {
 	// RateLimit is the max requests per second.
 	RateLimit float64
 
+	// --- Google Workspace fields ---
+
+	// AccessToken is a raw OAuth2 bearer token (e.g. from gcloud auth print-access-token).
+	// When set, the Google Workspace connector uses this instead of a Service Account JSON key.
+	AccessToken string
+
 	// --- Snowflake-specific fields ---
 
 	// Account is the Snowflake account identifier (e.g. "xy12345.us-east-1").

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/time/rate"
 	admin "google.golang.org/api/admin/directory/v1"
@@ -34,31 +36,47 @@ type Client struct {
 }
 
 func NewClient(config collector.ConnectorConfig) (*Client, error) {
-	if config.PrivateKeyPath == "" {
-		return nil, fmt.Errorf("credentials file path is required")
-	}
-	if config.JWTUser == "" {
-		return nil, fmt.Errorf("delegated user is required")
-	}
+	var httpClient *http.Client
+	var domain string
 
-	credentialsJSON, err := os.ReadFile(config.PrivateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading credentials file: %w", err)
-	}
+	switch {
+	case config.AccessToken != "":
+		// Direct OAuth2 access token — no GCP service account needed.
+		tokenSource := oauth2.StaticTokenSource(&oauth2.Token{
+			AccessToken: config.AccessToken,
+		})
+		httpClient = oauth2.NewClient(context.Background(), tokenSource)
+		domain = extractDomain(config.JWTUser, config.InstanceURL)
 
-	jwtConfig, err := google.JWTConfigFromJSON(
-		credentialsJSON,
-		"https://www.googleapis.com/auth/admin.directory.user.readonly",
-		"https://www.googleapis.com/auth/admin.directory.user.security",
-		"https://www.googleapis.com/auth/admin.reports.audit.readonly",
-	)
-	if err != nil {
-		return nil, fmt.Errorf("parsing service account credentials: %w", err)
+	case config.PrivateKeyPath != "":
+		if config.JWTUser == "" {
+			return nil, fmt.Errorf("delegated user is required when using service account credentials")
+		}
+
+		credentialsJSON, err := os.ReadFile(config.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading credentials file: %w", err)
+		}
+
+		jwtConfig, err := google.JWTConfigFromJSON(
+			credentialsJSON,
+			"https://www.googleapis.com/auth/admin.directory.user.readonly",
+			"https://www.googleapis.com/auth/admin.directory.user.security",
+			"https://www.googleapis.com/auth/admin.reports.audit.readonly",
+		)
+		if err != nil {
+			return nil, fmt.Errorf("parsing service account credentials: %w", err)
+		}
+		jwtConfig.Subject = config.JWTUser
+
+		httpClient = jwtConfig.Client(context.Background())
+		domain = extractDomain(config.JWTUser, config.InstanceURL)
+
+	default:
+		return nil, fmt.Errorf("either GW_ACCESS_TOKEN or GW_CREDENTIALS_FILE (+ GW_DELEGATED_USER) is required")
 	}
-	jwtConfig.Subject = config.JWTUser
 
 	ctx := context.Background()
-	httpClient := jwtConfig.Client(ctx)
 
 	directoryService, err := admin.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
@@ -83,7 +101,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 	return &Client{
 		directoryService: directoryService,
 		reportsService:   reportsService,
-		domain:           extractDomain(config.JWTUser, config.InstanceURL),
+		domain:           domain,
 		rateLimiter:      rate.NewLimiter(rate.Limit(rl), 1),
 		concurrency:      concurrency,
 	}, nil

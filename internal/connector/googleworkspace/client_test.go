@@ -12,17 +12,114 @@ import (
 
 // --- NewClient validation tests ---
 
-func TestNewClient_MissingCredentialsFile(t *testing.T) {
+func TestNewClient_AccessToken_CreatesClient(t *testing.T) {
+	// With a valid access token, NewClient should succeed and create services.
+	// We can't test actual API calls, but we verify no error is returned.
+	config := collector.ConnectorConfig{
+		AccessToken: "ya29.fake-token-for-testing",
+	}
+
+	client, err := NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() with access token failed: %v", err)
+	}
+	if client == nil {
+		t.Fatal("NewClient() returned nil client")
+	}
+	if client.directoryService == nil {
+		t.Error("directoryService should be initialized")
+	}
+	if client.reportsService == nil {
+		t.Error("reportsService should be initialized")
+	}
+}
+
+func TestNewClient_AccessToken_ExtractsDomain(t *testing.T) {
+	config := collector.ConnectorConfig{
+		AccessToken: "ya29.fake-token",
+		JWTUser:     "admin@example.com",
+	}
+
+	client, err := NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() error: %v", err)
+	}
+	if client.domain != "example.com" {
+		t.Errorf("domain = %q, want %q", client.domain, "example.com")
+	}
+}
+
+func TestNewClient_AccessToken_FallbackDomain(t *testing.T) {
+	config := collector.ConnectorConfig{
+		AccessToken: "ya29.fake-token",
+		InstanceURL: "mycompany.com",
+	}
+
+	client, err := NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() error: %v", err)
+	}
+	if client.domain != "mycompany.com" {
+		t.Errorf("domain = %q, want %q", client.domain, "mycompany.com")
+	}
+}
+
+func TestNewClient_AccessToken_DefaultConcurrency(t *testing.T) {
+	config := collector.ConnectorConfig{
+		AccessToken: "ya29.fake-token",
+	}
+
+	client, err := NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() error: %v", err)
+	}
+	if client.concurrency != defaultConcurrency {
+		t.Errorf("concurrency = %d, want %d", client.concurrency, defaultConcurrency)
+	}
+}
+
+func TestNewClient_AccessToken_CustomConcurrency(t *testing.T) {
+	config := collector.ConnectorConfig{
+		AccessToken: "ya29.fake-token",
+		Concurrency: 10,
+		RateLimit:   20.0,
+	}
+
+	client, err := NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() error: %v", err)
+	}
+	if client.concurrency != 10 {
+		t.Errorf("concurrency = %d, want 10", client.concurrency)
+	}
+}
+
+func TestNewClient_AccessToken_TakesPrecedenceOverServiceAccount(t *testing.T) {
+	// When both AccessToken and PrivateKeyPath are set, AccessToken wins.
+	config := collector.ConnectorConfig{
+		AccessToken:    "ya29.fake-token",
+		PrivateKeyPath: "/nonexistent/path.json",
+		JWTUser:        "admin@example.com",
+	}
+
+	// If PrivateKeyPath were used, this would fail because the file doesn't exist.
+	_, err := NewClient(config)
+	if err != nil {
+		t.Fatalf("NewClient() should use AccessToken and ignore PrivateKeyPath, got error: %v", err)
+	}
+}
+
+func TestNewClient_MissingAllCredentials(t *testing.T) {
 	config := collector.ConnectorConfig{
 		JWTUser: "admin@example.com",
 	}
 
 	_, err := NewClient(config)
 	if err == nil {
-		t.Error("NewClient() should reject missing credentials file")
+		t.Error("NewClient() should reject config with no credentials")
 	}
-	if !strings.Contains(err.Error(), "credentials file path is required") {
-		t.Errorf("error = %q, want substring %q", err.Error(), "credentials file path is required")
+	if !strings.Contains(err.Error(), "GW_ACCESS_TOKEN") {
+		t.Errorf("error = %q, should mention GW_ACCESS_TOKEN", err.Error())
 	}
 }
 
@@ -46,6 +143,9 @@ func TestNewClient_MissingBothFields(t *testing.T) {
 	_, err := NewClient(config)
 	if err == nil {
 		t.Error("NewClient() should reject empty config")
+	}
+	if !strings.Contains(err.Error(), "GW_ACCESS_TOKEN") {
+		t.Errorf("error = %q, should mention GW_ACCESS_TOKEN", err.Error())
 	}
 }
 
