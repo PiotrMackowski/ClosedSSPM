@@ -1,7 +1,6 @@
 package entra
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
 )
 
 type rewriteTransport struct {
@@ -86,16 +86,16 @@ func TestNewClient_MissingClientSecret(t *testing.T) {
 }
 
 func TestOAuthTokenIsExpired(t *testing.T) {
-	if !(&OAuthToken{}).IsExpired() {
+	if !(&httputil.OAuthToken{}).IsExpired() {
 		t.Fatal("zero-value token should be expired")
 	}
 
-	notExpired := &OAuthToken{expiresAt: time.Now().Add(5 * time.Minute)}
+	notExpired := &httputil.OAuthToken{ExpiresAt: time.Now().Add(5 * time.Minute)}
 	if notExpired.IsExpired() {
 		t.Fatal("token should not be expired")
 	}
 
-	withinBuffer := &OAuthToken{expiresAt: time.Now().Add(30 * time.Second)}
+	withinBuffer := &httputil.OAuthToken{ExpiresAt: time.Now().Add(30 * time.Second)}
 	if !withinBuffer.IsExpired() {
 		t.Fatal("token inside 60-second buffer should be treated as expired")
 	}
@@ -127,34 +127,6 @@ func TestNewClient_RedirectPolicy(t *testing.T) {
 
 	if client.httpClient.CheckRedirect == nil {
 		t.Fatal("CheckRedirect should be set")
-	}
-}
-
-func TestReadLimitedBody(t *testing.T) {
-	data, err := readLimitedBody(bytes.NewReader(make([]byte, 100)))
-	if err != nil {
-		t.Fatalf("readLimitedBody() error: %v", err)
-	}
-	if len(data) != 100 {
-		t.Fatalf("readLimitedBody() length = %d, want 100", len(data))
-	}
-
-	_, err = readLimitedBody(bytes.NewReader(make([]byte, maxResponseBodySize+1)))
-	if err == nil {
-		t.Fatal("expected error when body exceeds limit")
-	}
-}
-
-func TestSanitizeErrorBody(t *testing.T) {
-	short := "short"
-	if got := sanitizeErrorBody([]byte(short)); got != short {
-		t.Fatalf("sanitizeErrorBody(short) = %q, want %q", got, short)
-	}
-
-	long := strings.Repeat("x", 400)
-	got := sanitizeErrorBody([]byte(long))
-	if !strings.HasSuffix(got, "...(truncated)") {
-		t.Fatalf("sanitizeErrorBody(long) should end with truncation suffix, got %q", got)
 	}
 }
 
@@ -259,7 +231,7 @@ func TestAuthenticate_SetsBearerHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
-	client.token = &OAuthToken{AccessToken: "seed-token", expiresAt: time.Now().Add(10 * time.Minute)}
+	client.token = &httputil.OAuthToken{AccessToken: "seed-token", ExpiresAt: time.Now().Add(10 * time.Minute)}
 
 	req, err := http.NewRequest(http.MethodGet, "https://graph.microsoft.com/v1.0/applications", nil)
 	if err != nil {

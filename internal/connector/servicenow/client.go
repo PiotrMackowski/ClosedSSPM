@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
@@ -28,12 +28,6 @@ import (
 const (
 	// version is used in the User-Agent header.
 	version = "0.1.0"
-
-	// maxResponseBodySize limits API response bodies to 50MB to prevent memory exhaustion.
-	maxResponseBodySize = 50 * 1024 * 1024
-
-	// maxRedirects limits the number of HTTP redirects followed.
-	maxRedirects = 5
 )
 
 const (
@@ -41,21 +35,6 @@ const (
 	defaultConcurrency = 5
 	defaultRateLimit   = 10.0 // requests per second
 )
-
-// OAuthToken represents an OAuth 2.0 access token response.
-type OAuthToken struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	Scope       string `json:"scope"`
-	expiresAt   time.Time
-}
-
-// IsExpired returns true if the token is expired or about to expire.
-func (t *OAuthToken) IsExpired() bool {
-	// Consider expired 60 seconds before actual expiry.
-	return time.Now().After(t.expiresAt.Add(-60 * time.Second))
-}
 
 // Client is the ServiceNow REST API client.
 type Client struct {
@@ -79,7 +58,7 @@ type Client struct {
 
 	// OAuth token state (protected by mutex)
 	mu    sync.Mutex
-	token *OAuthToken
+	token *httputil.OAuthToken
 }
 
 // NewClient creates a new ServiceNow API client.
@@ -114,11 +93,9 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		},
 	}
 
-	redirectCount := 0
 	checkRedirect := func(req *http.Request, via []*http.Request) error {
-		redirectCount++
-		if redirectCount > maxRedirects {
-			return fmt.Errorf("exceeded maximum redirects (%d)", maxRedirects)
+		if len(via) >= httputil.MaxRedirects {
+			return fmt.Errorf("exceeded maximum redirects (%d)", httputil.MaxRedirects)
 		}
 		// Only allow redirects to the same host to prevent SSRF.
 		if len(via) > 0 && req.URL.Host != via[0].URL.Host {
@@ -215,33 +192,8 @@ func (c *Client) authenticate(ctx context.Context, req *http.Request) error {
 	return nil
 }
 
-// readLimitedBody reads at most maxResponseBodySize bytes from the response body.
-// Returns an error if the body exceeds the limit.
-func readLimitedBody(body io.Reader) ([]byte, error) {
-	limited := io.LimitReader(body, maxResponseBodySize+1)
-	data, err := io.ReadAll(limited)
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxResponseBodySize {
-		return nil, errors.New("response body exceeds maximum allowed size")
-	}
-	return data, nil
-}
-
-// sanitizeErrorBody truncates and sanitizes response bodies for error messages
-// to prevent leaking sensitive information in logs.
-func sanitizeErrorBody(body []byte) string {
-	const maxErrorBodyLen = 256
-	s := string(body)
-	if len(s) > maxErrorBodyLen {
-		s = s[:maxErrorBodyLen] + "...(truncated)"
-	}
-	return s
-}
-
 // getOAuthToken returns a valid OAuth token, refreshing if necessary.
-func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
+func (c *Client) getOAuthToken(ctx context.Context) (*httputil.OAuthToken, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -271,15 +223,15 @@ func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := readLimitedBody(resp.Body)
-		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
+		body, _ := httputil.ReadLimitedBody(resp.Body)
+		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, httputil.SanitizeErrorBody(body))
 	}
 
-	var token OAuthToken
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&token); err != nil {
+	var token httputil.OAuthToken
+	if err := json.NewDecoder(io.LimitReader(resp.Body, httputil.MaxResponseBodySize)).Decode(&token); err != nil {
 		return nil, fmt.Errorf("decoding token response: %w", err)
 	}
-	token.expiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 
 	c.token = &token
 	return c.token, nil
@@ -328,7 +280,7 @@ func (c *Client) signJWT() (string, error) {
 }
 
 // getKeyPairToken returns a valid OAuth token using JWT bearer grant, refreshing if necessary.
-func (c *Client) getKeyPairToken(ctx context.Context) (*OAuthToken, error) {
+func (c *Client) getKeyPairToken(ctx context.Context) (*httputil.OAuthToken, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -363,15 +315,15 @@ func (c *Client) getKeyPairToken(ctx context.Context) (*OAuthToken, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := readLimitedBody(resp.Body)
-		return nil, fmt.Errorf("key pair token request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
+		body, _ := httputil.ReadLimitedBody(resp.Body)
+		return nil, fmt.Errorf("key pair token request failed (status %d): %s", resp.StatusCode, httputil.SanitizeErrorBody(body))
 	}
 
-	var token OAuthToken
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&token); err != nil {
+	var token httputil.OAuthToken
+	if err := json.NewDecoder(io.LimitReader(resp.Body, httputil.MaxResponseBodySize)).Decode(&token); err != nil {
 		return nil, fmt.Errorf("decoding token response: %w", err)
 	}
-	token.expiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 
 	c.token = &token
 	return c.token, nil
@@ -424,12 +376,12 @@ func (c *Client) QueryTable(ctx context.Context, table string, fields []string) 
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			body, _ := readLimitedBody(resp.Body)
-			return nil, fmt.Errorf("table %s query failed (status %d): %s", table, resp.StatusCode, sanitizeErrorBody(body))
+			body, _ := httputil.ReadLimitedBody(resp.Body)
+			return nil, fmt.Errorf("table %s query failed (status %d): %s", table, resp.StatusCode, httputil.SanitizeErrorBody(body))
 		}
 
 		var result QueryTableResponse
-		if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&result); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, httputil.MaxResponseBodySize)).Decode(&result); err != nil {
 			return nil, fmt.Errorf("decoding response for %s: %w", table, err)
 		}
 

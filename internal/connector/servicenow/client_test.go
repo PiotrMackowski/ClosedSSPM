@@ -1,7 +1,6 @@
 package servicenow
 
 import (
-	"bytes"
 	"context"
 	crypto_rand "crypto/rand"
 	"crypto/rsa"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -232,14 +232,17 @@ func TestNewClient_DefaultRateLimit(t *testing.T) {
 
 func TestOAuthTokenIsExpired(t *testing.T) {
 	// Not expired.
-	token := &OAuthToken{
+	token := &httputil.OAuthToken{
 		AccessToken: "test_token",
 		ExpiresIn:   3600,
 	}
 	// Set expiry far in the future.
-	token.expiresAt = token.expiresAt.Add(3600 * 1e9)
+	token.ExpiresAt = time.Now().Add(1 * time.Hour)
+	if token.IsExpired() {
+		t.Error("token should not be expired")
+	}
 	// With zero expiresAt, it's in the past.
-	zeroToken := &OAuthToken{}
+	zeroToken := &httputil.OAuthToken{}
 	if !zeroToken.IsExpired() {
 		t.Error("Zero-time token should be expired")
 	}
@@ -306,45 +309,6 @@ func TestNewClient_RedirectPolicy(t *testing.T) {
 
 	if client.httpClient.CheckRedirect == nil {
 		t.Error("CheckRedirect should be set")
-	}
-}
-
-func TestReadLimitedBody(t *testing.T) {
-	// Within limit.
-	small := bytes.NewReader(make([]byte, 100))
-	data, err := readLimitedBody(small)
-	if err != nil {
-		t.Fatalf("readLimitedBody() error: %v", err)
-	}
-	if len(data) != 100 {
-		t.Errorf("got %d bytes, want 100", len(data))
-	}
-
-	// Exceeds limit.
-	huge := bytes.NewReader(make([]byte, maxResponseBodySize+1))
-	_, err = readLimitedBody(huge)
-	if err == nil {
-		t.Error("readLimitedBody() should reject bodies exceeding max size")
-	}
-}
-
-func TestSanitizeErrorBody(t *testing.T) {
-	short := "short error message"
-	if got := sanitizeErrorBody([]byte(short)); got != short {
-		t.Errorf("sanitizeErrorBody(%q) = %q, want %q", short, got, short)
-	}
-
-	// Long message should be truncated.
-	long := make([]byte, 500)
-	for i := range long {
-		long[i] = 'x'
-	}
-	got := sanitizeErrorBody(long)
-	if len(got) > 300 {
-		t.Errorf("sanitizeErrorBody should truncate long messages, got length %d", len(got))
-	}
-	if got[len(got)-14:] != "...(truncated)" {
-		t.Errorf("sanitizeErrorBody should end with ...(truncated), got %q", got[len(got)-20:])
 	}
 }
 

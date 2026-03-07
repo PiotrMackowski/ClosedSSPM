@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,30 +13,17 @@ import (
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
 	"golang.org/x/time/rate"
 )
 
 const (
-	version             = "0.1.0"
-	maxResponseBodySize = 50 * 1024 * 1024
-	defaultConcurrency  = 5
-	defaultRateLimit    = 10.0
-	maxRedirects        = 5
-	graphV1BaseURL      = "https://graph.microsoft.com/v1.0"
-	graphRootURL        = "https://graph.microsoft.com"
+	version            = "0.1.0"
+	defaultConcurrency = 5
+	defaultRateLimit   = 10.0
+	graphV1BaseURL     = "https://graph.microsoft.com/v1.0"
+	graphRootURL       = "https://graph.microsoft.com"
 )
-
-type OAuthToken struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	Scope       string `json:"scope"`
-	expiresAt   time.Time
-}
-
-func (t *OAuthToken) IsExpired() bool {
-	return time.Now().After(t.expiresAt.Add(-60 * time.Second))
-}
 
 type Client struct {
 	baseURL     string
@@ -50,7 +36,7 @@ type Client struct {
 	clientSecret string
 
 	mu    sync.Mutex
-	token *OAuthToken
+	token *httputil.OAuthToken
 }
 
 func NewClient(config collector.ConnectorConfig) (*Client, error) {
@@ -68,11 +54,9 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 	}
 
 	transport := &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
-	redirectCount := 0
 	checkRedirect := func(req *http.Request, via []*http.Request) error {
-		redirectCount++
-		if redirectCount > maxRedirects {
-			return fmt.Errorf("exceeded maximum redirects (%d)", maxRedirects)
+		if len(via) >= httputil.MaxRedirects {
+			return fmt.Errorf("exceeded maximum redirects (%d)", httputil.MaxRedirects)
 		}
 		if len(via) > 0 && req.URL.Host != via[0].URL.Host {
 			return fmt.Errorf("redirect to different host %q blocked", req.URL.Host)
@@ -102,28 +86,7 @@ func (c *Client) authenticate(ctx context.Context, req *http.Request) error {
 	return nil
 }
 
-func readLimitedBody(body io.Reader) ([]byte, error) {
-	limited := io.LimitReader(body, maxResponseBodySize+1)
-	data, err := io.ReadAll(limited)
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxResponseBodySize {
-		return nil, errors.New("response body exceeds maximum allowed size")
-	}
-	return data, nil
-}
-
-func sanitizeErrorBody(body []byte) string {
-	const maxErrorBodyLen = 256
-	s := string(body)
-	if len(s) > maxErrorBodyLen {
-		s = s[:maxErrorBodyLen] + "...(truncated)"
-	}
-	return s
-}
-
-func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
+func (c *Client) getOAuthToken(ctx context.Context) (*httputil.OAuthToken, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.token != nil && !c.token.IsExpired() {
@@ -147,14 +110,14 @@ func (c *Client) getOAuthToken(ctx context.Context) (*OAuthToken, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := readLimitedBody(resp.Body)
-		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
+		body, _ := httputil.ReadLimitedBody(resp.Body)
+		return nil, fmt.Errorf("OAuth token request failed (status %d): %s", resp.StatusCode, httputil.SanitizeErrorBody(body))
 	}
-	var token OAuthToken
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&token); err != nil {
+	var token httputil.OAuthToken
+	if err := json.NewDecoder(io.LimitReader(resp.Body, httputil.MaxResponseBodySize)).Decode(&token); err != nil {
 		return nil, fmt.Errorf("decoding token response: %w", err)
 	}
-	token.expiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	c.token = &token
 	return c.token, nil
 }
@@ -189,10 +152,10 @@ func (c *Client) doGraphGET(ctx context.Context, requestURL string) ([]byte, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := readLimitedBody(resp.Body)
-		return nil, fmt.Errorf("graph request failed (status %d): %s", resp.StatusCode, sanitizeErrorBody(body))
+		body, _ := httputil.ReadLimitedBody(resp.Body)
+		return nil, fmt.Errorf("graph request failed (status %d): %s", resp.StatusCode, httputil.SanitizeErrorBody(body))
 	}
-	body, err := readLimitedBody(resp.Body)
+	body, err := httputil.ReadLimitedBody(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response body: %w", err)
 	}
