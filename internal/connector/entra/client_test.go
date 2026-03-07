@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
 )
 
@@ -42,8 +41,8 @@ func testHTTPClientForServer(ts *httptest.Server) *http.Client {
 }
 
 func TestNewClient_ValidConfig(t *testing.T) {
-	config := collector.ConnectorConfig{
-		Account:      "tenant-id",
+	config := &EntraConfig{
+		TenantID:     "tenant-id",
 		ClientID:     "client-id",
 		ClientSecret: "client-secret",
 	}
@@ -65,21 +64,21 @@ func TestNewClient_ValidConfig(t *testing.T) {
 }
 
 func TestNewClient_MissingTenantID(t *testing.T) {
-	_, err := NewClient(collector.ConnectorConfig{ClientID: "client-id", ClientSecret: "client-secret"})
+	_, err := NewClient(&EntraConfig{ClientID: "client-id", ClientSecret: "client-secret"})
 	if err == nil {
 		t.Fatal("expected error for missing tenant ID")
 	}
 }
 
 func TestNewClient_MissingClientID(t *testing.T) {
-	_, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientSecret: "client-secret"})
+	_, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientSecret: "client-secret"})
 	if err == nil {
 		t.Fatal("expected error for missing client ID")
 	}
 }
 
 func TestNewClient_MissingClientSecret(t *testing.T) {
-	_, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id"})
+	_, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id"})
 	if err == nil {
 		t.Fatal("expected error for missing client secret")
 	}
@@ -102,7 +101,7 @@ func TestOAuthTokenIsExpired(t *testing.T) {
 }
 
 func TestNewClient_TLSMinVersion(t *testing.T) {
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -120,7 +119,7 @@ func TestNewClient_TLSMinVersion(t *testing.T) {
 }
 
 func TestNewClient_RedirectPolicy(t *testing.T) {
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -159,7 +158,7 @@ func TestGetOAuthToken_WithTLSServer(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -208,7 +207,7 @@ func TestGraphGet_Pagination(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -227,7 +226,7 @@ func TestGraphGet_Pagination(t *testing.T) {
 }
 
 func TestAuthenticate_SetsBearerHeader(t *testing.T) {
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -262,7 +261,7 @@ func TestGetOAuthToken_Caching(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -300,7 +299,7 @@ func TestListServicePrincipals(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -336,7 +335,7 @@ func TestListOAuth2PermissionGrants(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}
@@ -367,7 +366,7 @@ func TestListApplications_Non200(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := NewClient(collector.ConnectorConfig{Account: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
+	client, err := NewClient(&EntraConfig{TenantID: "tenant-id", ClientID: "client-id", ClientSecret: "client-secret"})
 	if err != nil {
 		t.Fatalf("NewClient() error: %v", err)
 	}

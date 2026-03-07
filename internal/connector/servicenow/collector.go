@@ -33,6 +33,19 @@ func init() {
 	)
 }
 
+type ServiceNowConfig struct {
+	collector.BaseConfig
+	AuthMethod     string
+	Username       string
+	Password       string
+	APIKey         string
+	ClientID       string
+	ClientSecret   string
+	PrivateKeyPath string
+	KeyID          string
+	JWTUser        string
+}
+
 // ConfigFromEnv builds a ConnectorConfig from ServiceNow environment variables
 // and CLI flags. This is the platform-specific config builder registered with
 // the connector registry.
@@ -59,8 +72,12 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
 
-	return collector.ConnectorConfig{
-		InstanceURL:    instance,
+	return &ServiceNowConfig{
+		BaseConfig: collector.BaseConfig{
+			InstanceURL: instance,
+			Concurrency: concurrency,
+			RateLimit:   rateLimit,
+		},
 		AuthMethod:     authMethod,
 		Username:       username,
 		Password:       password,
@@ -70,8 +87,6 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		PrivateKeyPath: privateKeyPath,
 		KeyID:          keyID,
 		JWTUser:        jwtUser,
-		Concurrency:    concurrency,
-		RateLimit:      rateLimit,
 	}
 }
 
@@ -199,18 +214,23 @@ func (c *ServiceNowCollector) Tables() []string {
 }
 
 // Collect connects to ServiceNow and collects all security-relevant data.
-func (c *ServiceNowCollector) Collect(ctx context.Context, config collector.ConnectorConfig) (*collector.Snapshot, error) {
+func (c *ServiceNowCollector) Collect(ctx context.Context, cfg collector.ConnectorConfig) (*collector.Snapshot, error) {
+	config, ok := cfg.(*ServiceNowConfig)
+	if !ok {
+		return nil, fmt.Errorf("servicenow collector requires *ServiceNowConfig, got %T", cfg)
+	}
+
 	client, err := NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating ServiceNow client: %w", err)
 	}
 
-	concurrency := config.Concurrency
+	concurrency := config.GetConcurrency()
 	if concurrency <= 0 {
 		concurrency = collector.DefaultConcurrency
 	}
 
-	snapshot := collector.NewSnapshot("servicenow", config.InstanceURL)
+	snapshot := collector.NewSnapshot("servicenow", config.GetInstanceURL())
 
 	fieldsByTable := make(map[string][]string, len(securityTables))
 	tableNames := make([]string, len(securityTables))

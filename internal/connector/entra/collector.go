@@ -31,20 +31,30 @@ func init() {
 	)
 }
 
+type EntraConfig struct {
+	collector.BaseConfig
+	TenantID     string
+	AuthMethod   string
+	ClientID     string
+	ClientSecret string
+}
+
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	tenantID := connector.EnvOrFlag(cmd, "instance", "ENTRA_TENANT_ID")
 	clientID := os.Getenv("ENTRA_CLIENT_ID")
 	clientSecret := os.Getenv("ENTRA_CLIENT_SECRET")
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
-	return collector.ConnectorConfig{
-		Account:      tenantID,
-		InstanceURL:  "graph.microsoft.com",
+	return &EntraConfig{
+		BaseConfig: collector.BaseConfig{
+			InstanceURL: "graph.microsoft.com",
+			Concurrency: concurrency,
+			RateLimit:   rateLimit,
+		},
+		TenantID:     tenantID,
 		AuthMethod:   "oauth",
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Concurrency:  concurrency,
-		RateLimit:    rateLimit,
 	}
 }
 
@@ -405,20 +415,25 @@ func (c *EntraCollector) collectAppCredentials(cc *collectionContext) ([]collect
 	return out, nil
 }
 
-func (c *EntraCollector) Collect(ctx context.Context, config collector.ConnectorConfig) (*collector.Snapshot, error) {
+func (c *EntraCollector) Collect(ctx context.Context, cfg collector.ConnectorConfig) (*collector.Snapshot, error) {
+	config, ok := cfg.(*EntraConfig)
+	if !ok {
+		return nil, fmt.Errorf("entra collector requires *EntraConfig, got %T", cfg)
+	}
+
 	client, err := NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating Entra client: %w", err)
 	}
 
-	concurrency := config.Concurrency
+	concurrency := config.GetConcurrency()
 	if concurrency <= 0 {
 		concurrency = collector.DefaultConcurrency
 	}
 
-	instanceID := config.Account
+	instanceID := config.TenantID
 	if instanceID == "" {
-		instanceID = config.InstanceURL
+		instanceID = config.GetInstanceURL()
 	}
 
 	snapshot := collector.NewSnapshot("entra", instanceID)

@@ -61,13 +61,13 @@ type Client struct {
 }
 
 // NewClient creates a new ServiceNow API client.
-func NewClient(config collector.ConnectorConfig) (*Client, error) {
-	if config.InstanceURL == "" {
+func NewClient(config *ServiceNowConfig) (*Client, error) {
+	if config.GetInstanceURL() == "" {
 		return nil, fmt.Errorf("instance URL is required")
 	}
 
 	// Normalize URL: ensure HTTPS and no trailing slash.
-	instanceURL := strings.TrimRight(config.InstanceURL, "/")
+	instanceURL := strings.TrimRight(config.GetInstanceURL(), "/")
 	if !strings.HasPrefix(instanceURL, "https://") {
 		if strings.HasPrefix(instanceURL, "http://") {
 			return nil, fmt.Errorf("HTTP is not allowed; use HTTPS for instance URL")
@@ -75,7 +75,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		instanceURL = "https://" + instanceURL
 	}
 
-	rl := config.RateLimit
+	rl := config.GetRateLimit()
 	if rl <= 0 {
 		rl = defaultRateLimit
 	}

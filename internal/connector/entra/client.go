@@ -38,8 +38,8 @@ type Client struct {
 	token *httputil.OAuthToken
 }
 
-func NewClient(config collector.ConnectorConfig) (*Client, error) {
-	tenantID := strings.TrimSpace(config.Account)
+func NewClient(config *EntraConfig) (*Client, error) {
+	tenantID := strings.TrimSpace(config.TenantID)
 	if tenantID == "" {
 		return nil, fmt.Errorf("tenant ID is required")
 	}
@@ -47,7 +47,7 @@ func NewClient(config collector.ConnectorConfig) (*Client, error) {
 		return nil, fmt.Errorf("client_id and client_secret are required for OAuth")
 	}
 
-	rl := config.RateLimit
+	rl := config.GetRateLimit()
 	if rl <= 0 {
 		rl = defaultRateLimit
 	}

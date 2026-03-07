@@ -39,6 +39,18 @@ func init() {
 	)
 }
 
+type SnowflakeConfig struct {
+	collector.BaseConfig
+	Account        string
+	AuthMethod     string
+	Username       string
+	Password       string
+	PrivateKeyPath string
+	Role           string
+	Warehouse      string
+	Database       string
+}
+
 // ConfigFromEnv builds a ConnectorConfig from Snowflake environment variables
 // and CLI flags.
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
@@ -71,9 +83,13 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
 
-	return collector.ConnectorConfig{
+	return &SnowflakeConfig{
+		BaseConfig: collector.BaseConfig{
+			InstanceURL: account,
+			Concurrency: concurrency,
+			RateLimit:   rateLimit,
+		},
 		Account:        account,
-		InstanceURL:    account,
 		AuthMethod:     authMethod,
 		Username:       username,
 		Password:       effectivePassword,
@@ -81,8 +97,6 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		Role:           role,
 		Warehouse:      warehouse,
 		Database:       database,
-		Concurrency:    concurrency,
-		RateLimit:      rateLimit,
 	}
 }
 
@@ -177,21 +191,26 @@ func (c *SnowflakeCollector) Tables() []string {
 }
 
 // Collect connects to Snowflake and collects all security-relevant data.
-func (c *SnowflakeCollector) Collect(ctx context.Context, config collector.ConnectorConfig) (*collector.Snapshot, error) {
+func (c *SnowflakeCollector) Collect(ctx context.Context, cfg collector.ConnectorConfig) (*collector.Snapshot, error) {
+	config, ok := cfg.(*SnowflakeConfig)
+	if !ok {
+		return nil, fmt.Errorf("snowflake collector requires *SnowflakeConfig, got %T", cfg)
+	}
+
 	client, err := NewClient(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating Snowflake client: %w", err)
 	}
 	defer client.Close()
 
-	concurrency := config.Concurrency
+	concurrency := config.GetConcurrency()
 	if concurrency <= 0 {
 		concurrency = collector.DefaultConcurrency
 	}
 
 	instanceID := config.Account
 	if instanceID == "" {
-		instanceID = config.InstanceURL
+		instanceID = config.GetInstanceURL()
 	}
 	snapshot := collector.NewSnapshot("snowflake", instanceID)
 
