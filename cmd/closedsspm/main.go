@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -136,7 +136,7 @@ func evaluateFindings(snapshot *collector.Snapshot, policiesDir string) ([]findi
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Loaded %d policies from %s", len(pols), source)
+	slog.Info("Loaded policies", "count", len(pols), "source", source)
 
 	evaluator := policy.NewEvaluator(pols)
 	findings, err := evaluator.Evaluate(snapshot)
@@ -189,10 +189,11 @@ func checkFailOn(cmd *cobra.Command, findings []finding.Finding) {
 	}
 	threshold, err := finding.ParseSeverity(failOn)
 	if err != nil {
-		log.Fatalf("invalid --fail-on value: %s", err)
+		slog.Error("Invalid --fail-on value", "err", err)
+		os.Exit(1)
 	}
 	if finding.HasFindingsAtOrAbove(findings, threshold) {
-		log.Printf("Findings at or above %s detected (--fail-on threshold)", threshold)
+		slog.Warn("Findings exceed threshold", "threshold", string(threshold))
 		os.Exit(2)
 	}
 }
@@ -221,20 +222,20 @@ func newAuditCmd() *cobra.Command {
 			policiesDir := getPoliciesDir(cmd)
 
 			// Collect.
-			log.Printf("Starting %s data collection...", platform)
+			slog.Info("Starting data collection", "platform", platform)
 			coll := factory()
 			snapshot, err := coll.Collect(ctx, config)
 			if err != nil {
 				return fmt.Errorf("collection failed: %w", err)
 			}
-			log.Printf("Collection complete: %d tables collected", len(snapshot.Tables))
+			slog.Info("Collection complete", "tables", len(snapshot.Tables))
 
 			// Optionally save snapshot.
 			if snapshotOutput != "" {
 				if err := saveSnapshot(snapshot, snapshotOutput); err != nil {
 					return err
 				}
-				log.Printf("Snapshot saved to %s", snapshotOutput)
+				slog.Info("Snapshot saved", "path", snapshotOutput)
 			}
 
 			// Evaluate.
@@ -244,13 +245,13 @@ func newAuditCmd() *cobra.Command {
 			}
 
 			summary := finding.NewSummary(findings)
-			log.Printf("Evaluation complete: %d findings (Score: %s)", summary.Total, summary.PostureScore)
+			slog.Info("Evaluation complete", "findings", summary.Total, "score", summary.PostureScore)
 
 			// Report.
 			if err := writeReport(findings, snapshot, output, format); err != nil {
 				return err
 			}
-			log.Printf("Report written to %s", output)
+			slog.Info("Report written", "path", output)
 
 			checkFailOn(cmd, findings)
 
@@ -289,7 +290,7 @@ func newCollectCmd() *cobra.Command {
 			config := configBuilder(cmd)
 			output, _ := cmd.Flags().GetString("output")
 
-			log.Printf("Starting %s data collection...", platform)
+			slog.Info("Starting data collection", "platform", platform)
 			coll := factory()
 			snapshot, err := coll.Collect(ctx, config)
 			if err != nil {
@@ -299,7 +300,7 @@ func newCollectCmd() *cobra.Command {
 			if err := saveSnapshot(snapshot, output); err != nil {
 				return err
 			}
-			log.Printf("Snapshot saved to %s (%d tables)", output, len(snapshot.Tables))
+			slog.Info("Snapshot saved", "path", output, "tables", len(snapshot.Tables))
 
 			return nil
 		},
@@ -329,7 +330,7 @@ func newEvaluateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			log.Printf("Loaded snapshot from %s (%d tables)", snapshotPath, len(snapshot.Tables))
+			slog.Info("Loaded snapshot", "path", snapshotPath, "tables", len(snapshot.Tables))
 
 			findings, err := evaluateFindings(snapshot, policiesDir)
 			if err != nil {
@@ -337,12 +338,12 @@ func newEvaluateCmd() *cobra.Command {
 			}
 
 			summary := finding.NewSummary(findings)
-			log.Printf("Evaluation complete: %d findings (Score: %s)", summary.Total, summary.PostureScore)
+			slog.Info("Evaluation complete", "findings", summary.Total, "score", summary.PostureScore)
 
 			if err := writeReport(findings, snapshot, output, format); err != nil {
 				return err
 			}
-			log.Printf("Report written to %s", output)
+			slog.Info("Report written", "path", output)
 
 			checkFailOn(cmd, findings)
 
@@ -374,7 +375,7 @@ for AI-assisted analysis.`,
 			if err != nil {
 				return err
 			}
-			log.Printf("Loaded snapshot from %s (%d tables)", snapshotPath, len(snapshot.Tables))
+			slog.Info("Loaded snapshot", "path", snapshotPath, "tables", len(snapshot.Tables))
 
 			findings, err := evaluateFindings(snapshot, policiesDir)
 			if err != nil {
@@ -382,7 +383,7 @@ for AI-assisted analysis.`,
 			}
 
 			summary := finding.NewSummary(findings)
-			log.Printf("Loaded %d findings (Score: %s)", summary.Total, summary.PostureScore)
+			slog.Info("Evaluation complete", "findings", summary.Total, "score", summary.PostureScore)
 
 			data := &mcpserver.AuditData{
 				Snapshot: snapshot,
@@ -392,7 +393,7 @@ for AI-assisted analysis.`,
 
 			mcpSrv := mcpserver.NewMCPServer(data)
 
-			log.Println("Starting MCP server on stdio...")
+			slog.Info("Starting MCP server", "transport", "stdio")
 			if err := server.ServeStdio(mcpSrv); err != nil {
 				return fmt.Errorf("MCP server error: %w", err)
 			}
@@ -423,7 +424,7 @@ func newChecksCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("loading policies: %w", err)
 			}
-			log.Printf("Loaded %d policies from %s", len(pols), source)
+			slog.Info("Loaded policies", "count", len(pols), "source", source)
 
 			fmt.Printf("%-16s %-10s %-12s %s\n", "ID", "SEVERITY", "CATEGORY", "TITLE")
 			fmt.Println("------------------------------------------------------------------------------------")
