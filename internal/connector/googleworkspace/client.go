@@ -2,6 +2,7 @@ package googleworkspace
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/time/rate"
@@ -26,6 +28,26 @@ const (
 
 var nonAlphanumericUnderscore = regexp.MustCompile(`[^a-z0-9_]`)
 
+func newHardenedHTTPClient() *http.Client {
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+	checkRedirect := func(req *http.Request, via []*http.Request) error {
+		if len(via) >= httputil.MaxRedirects {
+			return fmt.Errorf("exceeded maximum redirects (%d)", httputil.MaxRedirects)
+		}
+		if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+			return fmt.Errorf("redirect to different host %q blocked", req.URL.Host)
+		}
+		return nil
+	}
+	return &http.Client{
+		Timeout:       30 * time.Second,
+		Transport:     transport,
+		CheckRedirect: checkRedirect,
+	}
+}
+
 type Client struct {
 	directoryService *admin.Service
 	reportsService   *reports.Service
@@ -38,13 +60,15 @@ func NewClient(config *GoogleWorkspaceConfig) (*Client, error) {
 	var httpClient *http.Client
 	var domain string
 
+	baseClient := newHardenedHTTPClient()
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, baseClient)
+
 	switch {
 	case config.AccessToken != "":
-		// Direct OAuth2 access token — no GCP service account needed.
 		tokenSource := oauth2.StaticTokenSource(&oauth2.Token{
 			AccessToken: config.AccessToken,
 		})
-		httpClient = oauth2.NewClient(context.Background(), tokenSource)
+		httpClient = oauth2.NewClient(ctx, tokenSource)
 		domain = extractDomain(config.DelegatedUser, config.GetInstanceURL())
 
 	case config.CredentialsFile != "":
@@ -68,21 +92,21 @@ func NewClient(config *GoogleWorkspaceConfig) (*Client, error) {
 		}
 		jwtConfig.Subject = config.DelegatedUser
 
-		httpClient = jwtConfig.Client(context.Background())
+		httpClient = jwtConfig.Client(ctx)
 		domain = extractDomain(config.DelegatedUser, config.GetInstanceURL())
 
 	default:
 		return nil, fmt.Errorf("either GW_ACCESS_TOKEN or GW_CREDENTIALS_FILE (+ GW_DELEGATED_USER) is required")
 	}
 
-	ctx := context.Background()
+	svcCtx := context.Background()
 
-	directoryService, err := admin.NewService(ctx, option.WithHTTPClient(httpClient))
+	directoryService, err := admin.NewService(svcCtx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("creating directory service: %w", err)
 	}
 
-	reportsService, err := reports.NewService(ctx, option.WithHTTPClient(httpClient))
+	reportsService, err := reports.NewService(svcCtx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("creating reports service: %w", err)
 	}

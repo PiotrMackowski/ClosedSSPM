@@ -4,6 +4,13 @@ set -e
 # ClosedSSPM GitHub Action entrypoint.
 # Maps action inputs (INPUT_*) to CLI flags and writes outputs to $GITHUB_OUTPUT.
 
+# --- Cleanup sensitive temp files on exit ---
+PRIVATE_KEY_FILE=""
+cleanup() {
+  [ -n "${PRIVATE_KEY_FILE}" ] && rm -f "${PRIVATE_KEY_FILE}"
+}
+trap cleanup EXIT INT TERM
+
 # --- Map inputs to env vars expected by the CLI ---
 export SNOW_INSTANCE="${INPUT_INSTANCE:-}"
 export SNOW_USERNAME="${INPUT_USERNAME:-}"
@@ -15,9 +22,8 @@ export SNOW_JWT_USER="${INPUT_JWT_USER:-}"
 
 # --- Handle private key (PEM content → temp file) ---
 if [ -n "${INPUT_PRIVATE_KEY:-}" ]; then
-  PRIVATE_KEY_FILE="/tmp/.closedsspm-key.pem"
+  PRIVATE_KEY_FILE="$(umask 077 && mktemp /tmp/closedsspm-key-XXXXXX.pem)"
   printf '%s\n' "${INPUT_PRIVATE_KEY}" > "${PRIVATE_KEY_FILE}"
-  chmod 600 "${PRIVATE_KEY_FILE}"
   export SNOW_PRIVATE_KEY_PATH="${PRIVATE_KEY_FILE}"
 fi
 
@@ -103,8 +109,5 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     fi
   } >> "${GITHUB_STEP_SUMMARY}"
 fi
-# --- Cleanup sensitive temp files ---
-rm -f /tmp/.closedsspm-key.pem
-
 # Propagate exit code 2 (findings above threshold) to fail the step.
 exit "${EXIT_CODE}"

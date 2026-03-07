@@ -158,7 +158,10 @@ func registerResources(s *server.MCPServer, data *AuditData) {
 			mcp.WithMIMEType("application/json"),
 		),
 		func(ctx context.Context, req mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-			summaryJSON, _ := json.MarshalIndent(data.Summary, "", "  ")
+			summaryJSON, err := json.MarshalIndent(data.Summary, "", "  ")
+			if err != nil {
+				return nil, fmt.Errorf("marshalling summary: %w", err)
+			}
 			return []mcp.ResourceContents{
 				mcp.TextResourceContents{
 					URI:      "closedsspm://summary",
@@ -187,7 +190,10 @@ func registerResources(s *server.MCPServer, data *AuditData) {
 					"tables":       len(data.Snapshot.Tables),
 					"metadata":     data.Snapshot.Metadata,
 				}
-				metaJSON, _ := json.MarshalIndent(meta, "", "  ")
+				metaJSON, err := json.MarshalIndent(meta, "", "  ")
+				if err != nil {
+					return nil, fmt.Errorf("marshalling snapshot metadata: %w", err)
+				}
 				return []mcp.ResourceContents{
 					mcp.TextResourceContents{
 						URI:      "closedsspm://snapshot/meta",
@@ -263,10 +269,13 @@ func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 			}
 		}
 
-		result, _ := json.MarshalIndent(map[string]interface{}{
+		result, err := json.MarshalIndent(map[string]interface{}{
 			"count":    len(summaries),
 			"findings": summaries,
 		}, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("marshalling findings: %v", err)), nil
+		}
 
 		return mcp.NewToolResultText(string(result)), nil
 	}
@@ -284,7 +293,10 @@ func getFindingHandler(data *AuditData) server.ToolHandlerFunc {
 
 		for _, f := range data.Findings {
 			if f.ID == findingID || f.PolicyID == findingID {
-				result, _ := json.MarshalIndent(f, "", "  ")
+				result, err := json.MarshalIndent(f, "", "  ")
+				if err != nil {
+					return mcp.NewToolResultError(fmt.Sprintf("marshalling finding: %v", err)), nil
+				}
 				return mcp.NewToolResultText(string(result)), nil
 			}
 		}
@@ -295,7 +307,10 @@ func getFindingHandler(data *AuditData) server.ToolHandlerFunc {
 
 func getSummaryHandler(data *AuditData) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		result, _ := json.MarshalIndent(data.Summary, "", "  ")
+		result, err := json.MarshalIndent(data.Summary, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("marshalling summary: %v", err)), nil
+		}
 		return mcp.NewToolResultText(string(result)), nil
 	}
 }
@@ -366,12 +381,15 @@ func querySnapshotHandler(data *AuditData) server.ToolHandlerFunc {
 			}
 		}
 
-		result, _ := json.MarshalIndent(map[string]interface{}{
+		result, err := json.MarshalIndent(map[string]interface{}{
 			"table":   table,
 			"count":   len(filtered),
 			"total":   len(records),
 			"records": filtered,
 		}, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("marshalling snapshot query: %v", err)), nil
+		}
 
 		return mcp.NewToolResultText(string(result)), nil
 	}
@@ -397,7 +415,10 @@ func suggestRemediationHandler(data *AuditData) server.ToolHandlerFunc {
 					"references":  f.References,
 					"evidence":    f.Evidence,
 				}
-				result, _ := json.MarshalIndent(remediation, "", "  ")
+				result, err := json.MarshalIndent(remediation, "", "  ")
+				if err != nil {
+					return mcp.NewToolResultError(fmt.Sprintf("marshalling remediation: %v", err)), nil
+				}
 				return mcp.NewToolResultText(string(result)), nil
 			}
 		}
@@ -425,10 +446,13 @@ func listTablesHandler(data *AuditData) server.ToolHandlerFunc {
 			return tables[i].Name < tables[j].Name
 		})
 
-		result, _ := json.MarshalIndent(map[string]interface{}{
+		result, err := json.MarshalIndent(map[string]interface{}{
 			"total_tables": len(tables),
 			"tables":       tables,
 		}, "", "  ")
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("marshalling tables: %v", err)), nil
+		}
 
 		return mcp.NewToolResultText(string(result)), nil
 	}

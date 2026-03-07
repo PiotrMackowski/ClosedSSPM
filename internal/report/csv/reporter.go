@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
@@ -52,12 +53,34 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, _ *collecto
 			evName,
 			evDesc,
 		}
-		if err := cw.Write(row); err != nil {
+		if err := cw.Write(sanitizeRow(row)); err != nil {
 			return fmt.Errorf("writing CSV row: %w", err)
 		}
 	}
 
 	return nil
+}
+
+// csvInjectionPrefixes contains characters that can trigger formula injection
+// in spreadsheet applications when they appear at the start of a CSV cell.
+const csvInjectionPrefixes = "=+-@\t\r"
+
+// sanitizeCell prefixes cells that start with a formula-triggering character
+// with a single quote to neutralise CSV injection attacks.
+func sanitizeCell(s string) string {
+	if s != "" && strings.ContainsRune(csvInjectionPrefixes, rune(s[0])) {
+		return "'" + s
+	}
+	return s
+}
+
+// sanitizeRow applies sanitizeCell to every field in a row.
+func sanitizeRow(row []string) []string {
+	out := make([]string, len(row))
+	for i, cell := range row {
+		out[i] = sanitizeCell(cell)
+	}
+	return out
 }
 
 // evidenceColumns returns the first evidence entry's resource type, resource ID, display name, and description.
