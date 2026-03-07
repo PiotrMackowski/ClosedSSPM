@@ -101,11 +101,11 @@ type Finding struct {
 
 // Summary provides aggregate statistics for a set of findings.
 type Summary struct {
-	Total         int            `json:"total"`
-	BySeverity    map[Severity]int `json:"by_severity"`
-	ByCategory    map[string]int   `json:"by_category"`
-	PostureScore  string           `json:"posture_score"`
-	GeneratedAt   time.Time        `json:"generated_at"`
+	Total        int              `json:"total"`
+	BySeverity   map[Severity]int `json:"by_severity"`
+	ByCategory   map[string]int   `json:"by_category"`
+	PostureScore string           `json:"posture_score"`
+	GeneratedAt  time.Time        `json:"generated_at"`
 }
 
 // CalculatePostureScore computes an A-F grade based on findings.

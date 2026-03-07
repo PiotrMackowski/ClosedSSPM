@@ -21,10 +21,10 @@ func TestReporterGenerate(t *testing.T) {
 			Resource:    "test_table:abc",
 			Evidence: []finding.Evidence{
 				{
-				ResourceType: "test_table",
-				ResourceID:   "abc",
-				DisplayName:  "test_record",
-				Fields:       map[string]string{"field1": "val1", "active": "true"},
+					ResourceType: "test_table",
+					ResourceID:   "abc",
+					DisplayName:  "test_record",
+					Fields:       map[string]string{"field1": "val1", "active": "true"},
 				},
 			},
 			Remediation: "Fix the thing",
