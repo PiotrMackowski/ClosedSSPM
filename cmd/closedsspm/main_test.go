@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -402,5 +403,140 @@ func TestMergeSnapshotsMultiple(t *testing.T) {
 	}
 	if merged.GetRecords("googleworkspace/oauth_tokens") == nil {
 		t.Error("merged snapshot should contain googleworkspace/oauth_tokens table")
+	}
+}
+
+func TestMergeSnapshotsThreePlatforms(t *testing.T) {
+	s1 := collector.NewSnapshot("entra", "https://graph.microsoft.com")
+	s1.AddTableData(&collector.TableData{
+		Table:   "applications",
+		Records: []collector.Record{{"name": "app1"}},
+		Count:   1,
+	})
+
+	s2 := collector.NewSnapshot("googleworkspace", "https://admin.googleapis.com")
+	s2.AddTableData(&collector.TableData{
+		Table:   "oauth_tokens",
+		Records: []collector.Record{{"user": "admin@test.com"}},
+		Count:   1,
+	})
+
+	s3 := collector.NewSnapshot("servicenow", "https://dev123.service-now.com")
+	s3.AddTableData(&collector.TableData{
+		Table:   "sys_user",
+		Records: []collector.Record{{"name": "admin"}},
+		Count:   1,
+	})
+
+	merged := mergeSnapshots([]*collector.Snapshot{s1, s2, s3})
+
+	if merged.Platform != "entra+googleworkspace+servicenow" {
+		t.Errorf("Platform = %q, want entra+googleworkspace+servicenow", merged.Platform)
+	}
+	if !strings.Contains(merged.InstanceURL, "graph.microsoft.com") {
+		t.Error("InstanceURL should contain graph.microsoft.com")
+	}
+	if !strings.Contains(merged.InstanceURL, "admin.googleapis.com") {
+		t.Error("InstanceURL should contain admin.googleapis.com")
+	}
+	if !strings.Contains(merged.InstanceURL, "service-now.com") {
+		t.Error("InstanceURL should contain service-now.com")
+	}
+	if len(merged.Tables) != 3 {
+		t.Errorf("Tables count = %d, want 3", len(merged.Tables))
+	}
+	if merged.GetRecords("entra/applications") == nil {
+		t.Error("merged snapshot should contain entra/applications table")
+	}
+	if merged.GetRecords("googleworkspace/oauth_tokens") == nil {
+		t.Error("merged snapshot should contain googleworkspace/oauth_tokens table")
+	}
+	if merged.GetRecords("servicenow/sys_user") == nil {
+		t.Error("merged snapshot should contain servicenow/sys_user table")
+	}
+}
+
+func TestChecksShowFound(t *testing.T) {
+	cmd := newChecksCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"show", "SNOW-USER-001"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("checks show returned error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "ID:          SNOW-USER-001") {
+		t.Errorf("expected ID in output, got: %s", out)
+	}
+	if !strings.Contains(out, "Title:") {
+		t.Errorf("expected Title in output, got: %s", out)
+	}
+	if !strings.Contains(out, "Platform:    servicenow") {
+		t.Errorf("expected platform in output, got: %s", out)
+	}
+	if !strings.Contains(out, "Query Table:") {
+		t.Errorf("expected query table in output, got: %s", out)
+	}
+}
+
+func TestChecksShowNotFound(t *testing.T) {
+	cmd := newChecksCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"show", "DOES-NOT-EXIST-001"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown policy")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %v", err)
+	}
+}
+
+func TestPlatformEnvSingle(t *testing.T) {
+	cmd := newPlatformCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"env", "servicenow"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("platform env servicenow returned error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "SNOW_INSTANCE") {
+		t.Errorf("expected ServiceNow env help in output, got: %s", out)
+	}
+	if !strings.Contains(out, "SNOW_USERNAME") {
+		t.Errorf("expected ServiceNow env help in output, got: %s", out)
+	}
+}
+
+func TestPlatformEnvAll(t *testing.T) {
+	cmd := newPlatformCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs([]string{"env"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("platform env returned error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "=== servicenow ===") {
+		t.Errorf("expected servicenow section in output, got: %s", out)
+	}
+	if !strings.Contains(out, "=== entra ===") {
+		t.Errorf("expected entra section in output, got: %s", out)
 	}
 }
