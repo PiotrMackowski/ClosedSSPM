@@ -44,7 +44,7 @@ func main() {
 
 Supported platforms: %s
 
-Use --platform to select which connector to use (default: servicenow).
+Use --platform to select one or more connectors (comma-separated or "all").
 Credentials are read from environment variables specific to each platform.
 Run 'closedsspm audit --help' for details.`, strings.Join(connector.List(), ", ")),
 		Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
@@ -179,6 +179,64 @@ func writeReport(findings []finding.Finding, snapshot *collector.Snapshot, outpu
 	}
 }
 
+// parsePlatforms resolves the --platform flag into a list of platform names.
+// Accepts a single name, comma-separated names, or "all" to scan every
+// registered connector.
+func parsePlatforms(raw string) ([]string, error) {
+	if strings.EqualFold(raw, "all") {
+		platforms := connector.List()
+		if len(platforms) == 0 {
+			return nil, fmt.Errorf("no platforms registered")
+		}
+		return platforms, nil
+	}
+
+	var platforms []string
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if _, _, err := connector.Get(p); err != nil {
+			return nil, err
+		}
+		platforms = append(platforms, p)
+	}
+	if len(platforms) == 0 {
+		return nil, fmt.Errorf("no platforms specified")
+	}
+	return platforms, nil
+}
+
+// mergeSnapshots creates a combined snapshot from multiple per-platform snapshots.
+// The merged snapshot uses "multi" as the platform name and concatenates instance URLs.
+func mergeSnapshots(snapshots []*collector.Snapshot) *collector.Snapshot {
+	if len(snapshots) == 1 {
+		return snapshots[0]
+	}
+
+	var urls []string
+	var platformNames []string
+	for _, s := range snapshots {
+		platformNames = append(platformNames, s.Platform)
+		if s.InstanceURL != "" {
+			urls = append(urls, s.InstanceURL)
+		}
+	}
+
+	merged := collector.NewSnapshot(
+		strings.Join(platformNames, "+"),
+		strings.Join(urls, ", "),
+	)
+
+	for _, s := range snapshots {
+		for _, td := range s.Tables {
+			merged.AddTableData(td)
+		}
+	}
+	return merged
+}
+
 // checkFailOn validates the --fail-on flag and exits with code 2 if findings
 // at or above the threshold exist. This distinguishes "audit found issues"
 // from "tool error" (exit code 1).
@@ -209,57 +267,79 @@ func newAuditCmd() *cobra.Command {
 			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
 
-			platform, _ := cmd.Flags().GetString("platform")
-			factory, configBuilder, err := connector.Get(platform)
-			if err != nil {
-				return err
-			}
-
-			config := configBuilder(cmd)
+			platformRaw, _ := cmd.Flags().GetString("platform")
 			output, _ := cmd.Flags().GetString("output")
 			format, _ := cmd.Flags().GetString("format")
 			snapshotOutput, _ := cmd.Flags().GetString("save-snapshot")
 			policiesDir := getPoliciesDir(cmd)
 
-			// Collect.
-			slog.Info("Starting data collection", "platform", platform)
-			coll := factory()
-			snapshot, err := coll.Collect(ctx, config)
+			platforms, err := parsePlatforms(platformRaw)
 			if err != nil {
-				return fmt.Errorf("collection failed: %w", err)
+				return err
 			}
-			slog.Info("Collection complete", "tables", len(snapshot.Tables))
 
-			// Optionally save snapshot.
+			// Collect and evaluate each platform independently so that
+			// policy platform-filtering works correctly.
+			var allFindings []finding.Finding
+			var snapshots []*collector.Snapshot
+
+			for _, p := range platforms {
+				factory, configBuilder, err := connector.Get(p)
+				if err != nil {
+					return err
+				}
+
+				config := configBuilder(cmd)
+
+				slog.Info("Starting data collection", "platform", p)
+				coll := factory()
+				snapshot, err := coll.Collect(ctx, config)
+				if err != nil {
+					return fmt.Errorf("collection failed for %s: %w", p, err)
+				}
+				slog.Info("Collection complete", "platform", p, "tables", len(snapshot.Tables))
+
+				// Evaluate per-platform so that policies with platform filters
+				// match correctly (e.g. platform: entra matches snapshot.Platform == "entra").
+				findings, err := evaluateFindings(snapshot, policiesDir)
+				if err != nil {
+					return fmt.Errorf("evaluation failed for %s: %w", p, err)
+				}
+				allFindings = append(allFindings, findings...)
+				snapshots = append(snapshots, snapshot)
+			}
+
+			merged := mergeSnapshots(snapshots)
+
+			// Optionally save the merged snapshot.
 			if snapshotOutput != "" {
-				if err := saveSnapshot(snapshot, snapshotOutput); err != nil {
+				if err := saveSnapshot(merged, snapshotOutput); err != nil {
 					return err
 				}
 				slog.Info("Snapshot saved", "path", snapshotOutput)
 			}
 
-			// Evaluate.
-			findings, err := evaluateFindings(snapshot, policiesDir)
-			if err != nil {
-				return err
-			}
-
-			summary := finding.NewSummary(findings)
-			slog.Info("Evaluation complete", "findings", summary.Total, "score", summary.PostureScore)
+			summary := finding.NewSummary(allFindings)
+			slog.Info("Evaluation complete",
+				"platforms", len(platforms),
+				"findings", summary.Total,
+				"score", summary.PostureScore,
+			)
 
 			// Report.
-			if err := writeReport(findings, snapshot, output, format); err != nil {
+			if err := writeReport(allFindings, merged, output, format); err != nil {
 				return err
 			}
 			slog.Info("Report written", "path", output)
 
-			checkFailOn(cmd, findings)
+			checkFailOn(cmd, allFindings)
 
 			return nil
 		},
 	}
 
-	cmd.Flags().String("platform", "servicenow", "SaaS platform to audit (available: "+strings.Join(connector.List(), ", ")+")")
+	cmd.Flags().String("platform", "servicenow",
+		"SaaS platform(s) to audit: a single name, comma-separated list, or \"all\" (available: "+strings.Join(connector.List(), ", ")+")")
 	cmd.Flags().String("instance", "", "Platform instance URL (or set via env var)")
 	cmd.Flags().String("output", "report.html", "Output file path")
 	cmd.Flags().String("format", "html", "Report format: html, json, csv, or sarif")
@@ -281,32 +361,47 @@ func newCollectCmd() *cobra.Command {
 			ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer cancel()
 
-			platform, _ := cmd.Flags().GetString("platform")
-			factory, configBuilder, err := connector.Get(platform)
-			if err != nil {
-				return err
-			}
-
-			config := configBuilder(cmd)
+			platformRaw, _ := cmd.Flags().GetString("platform")
 			output, _ := cmd.Flags().GetString("output")
 
-			slog.Info("Starting data collection", "platform", platform)
-			coll := factory()
-			snapshot, err := coll.Collect(ctx, config)
+			platforms, err := parsePlatforms(platformRaw)
 			if err != nil {
-				return fmt.Errorf("collection failed: %w", err)
-			}
-
-			if err := saveSnapshot(snapshot, output); err != nil {
 				return err
 			}
-			slog.Info("Snapshot saved", "path", output, "tables", len(snapshot.Tables))
+
+			var snapshots []*collector.Snapshot
+			for _, p := range platforms {
+				factory, configBuilder, err := connector.Get(p)
+				if err != nil {
+					return err
+				}
+
+				config := configBuilder(cmd)
+
+				slog.Info("Starting data collection", "platform", p)
+				coll := factory()
+				snapshot, err := coll.Collect(ctx, config)
+				if err != nil {
+					return fmt.Errorf("collection failed for %s: %w", p, err)
+				}
+				slog.Info("Collection complete", "platform", p, "tables", len(snapshot.Tables))
+
+				snapshots = append(snapshots, snapshot)
+			}
+
+			merged := mergeSnapshots(snapshots)
+
+			if err := saveSnapshot(merged, output); err != nil {
+				return err
+			}
+			slog.Info("Snapshot saved", "path", output, "tables", len(merged.Tables))
 
 			return nil
 		},
 	}
 
-	cmd.Flags().String("platform", "servicenow", "SaaS platform to collect from (available: "+strings.Join(connector.List(), ", ")+")")
+	cmd.Flags().String("platform", "servicenow",
+		"SaaS platform(s) to collect from: a single name, comma-separated list, or \"all\" (available: "+strings.Join(connector.List(), ", ")+")")
 	cmd.Flags().String("instance", "", "Platform instance URL (or set via env var)")
 	cmd.Flags().String("output", "snapshot.json", "Output snapshot file path")
 	cmd.Flags().Int("concurrency", 5, "Max parallel API requests")

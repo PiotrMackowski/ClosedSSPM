@@ -8,6 +8,7 @@ import (
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/finding"
+	"github.com/PiotrMackowski/ClosedSSPM/internal/testutil"
 )
 
 // --- writeReport tests ---
@@ -15,7 +16,7 @@ import (
 func TestWriteReportHTML(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "report.html")
-	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot := testutil.SampleSnapshot("test")
 
 	err := writeReport(nil, snapshot, out, "html")
 	if err != nil {
@@ -36,15 +37,10 @@ func TestWriteReportJSON(t *testing.T) {
 	out := filepath.Join(dir, "report.json")
 	snapshot := collector.NewSnapshot("test", "https://test.example.com")
 
-	findings := []finding.Finding{
-		{
-			ID:       "TEST-001",
-			PolicyID: "TEST-001",
-			Title:    "Test",
-			Severity: finding.Info,
-			Category: "Test",
-		},
-	}
+	findings := []finding.Finding{testutil.SampleFinding(
+		testutil.WithID("TEST-001"),
+		testutil.WithSeverity(finding.Info),
+	)}
 
 	err := writeReport(findings, snapshot, out, "json")
 	if err != nil {
@@ -63,24 +59,14 @@ func TestWriteReportJSON(t *testing.T) {
 func TestWriteReportCSV(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "report.csv")
-	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot := testutil.SampleSnapshot("test")
 
-	findings := []finding.Finding{
-		{
-			ID:       "TEST-001",
-			PolicyID: "TEST-001",
-			Title:    "Test Finding",
-			Severity: finding.Critical,
-			Category: "Test",
-			Evidence: []finding.Evidence{
-				{
-					ResourceType: "test_table",
-					ResourceID:   "abc",
-					DisplayName:  "test_record",
-				},
-			},
-		},
-	}
+	findings := []finding.Finding{testutil.SampleFinding(
+		testutil.WithID("TEST-001"),
+		testutil.WithTitle("Test Finding"),
+		testutil.WithSeverity(finding.Critical),
+		testutil.WithEvidence(testutil.SampleEvidence()),
+	)}
 
 	err := writeReport(findings, snapshot, out, "csv")
 	if err != nil {
@@ -107,18 +93,13 @@ func TestWriteReportCSV(t *testing.T) {
 func TestWriteReportSARIF(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "report.sarif")
-	snapshot := collector.NewSnapshot("servicenow", "https://test.service-now.com")
+	snapshot := testutil.SampleSnapshot("servicenow")
+	snapshot.InstanceURL = "https://test.service-now.com"
 
-	findings := []finding.Finding{
-		{
-			ID:       "TEST-001-a",
-			PolicyID: "TEST-001",
-			Title:    "Test Finding",
-			Severity: finding.High,
-			Category: "Test",
-			Resource: "test_table:abc",
-		},
-	}
+	findings := []finding.Finding{testutil.SampleFinding(
+		testutil.WithID("TEST-001-a"),
+		testutil.WithSeverity(finding.High),
+	)}
 
 	err := writeReport(findings, snapshot, out, "sarif")
 	if err != nil {
@@ -145,7 +126,7 @@ func TestWriteReportSARIF(t *testing.T) {
 func TestWriteReportUnsupportedFormat(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "report.txt")
-	snapshot := collector.NewSnapshot("test", "https://test.example.com")
+	snapshot := testutil.SampleSnapshot("test")
 
 	err := writeReport(nil, snapshot, out, "xml")
 	if err == nil {
@@ -169,12 +150,11 @@ func TestSnapshotRoundtrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "snapshot.json")
 
-	original := collector.NewSnapshot("servicenow", "https://dev123.service-now.com")
-	original.AddTableData(&collector.TableData{
-		Table:   "sys_user",
-		Records: []collector.Record{{"sys_id": "u1", "name": "admin"}},
-		Count:   1,
-	})
+	original := testutil.SampleSnapshot(
+		"servicenow",
+		testutil.SampleTableData("sys_user", collector.Record{"sys_id": "u1", "name": "admin"}),
+	)
+	original.InstanceURL = "https://dev123.service-now.com"
 
 	if err := saveSnapshot(original, path); err != nil {
 		t.Fatalf("saveSnapshot error: %v", err)
@@ -306,5 +286,121 @@ func TestLoadPoliciesBadDir(t *testing.T) {
 	_, _, err := loadPolicies("/nonexistent/policies")
 	if err == nil {
 		t.Fatal("expected error for nonexistent policies dir")
+	}
+}
+
+// --- parsePlatforms tests ---
+
+func TestParsePlatformsSingle(t *testing.T) {
+	platforms, err := parsePlatforms("servicenow")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(platforms) != 1 || platforms[0] != "servicenow" {
+		t.Errorf("got %v, want [servicenow]", platforms)
+	}
+}
+
+func TestParsePlatformsCommaSeparated(t *testing.T) {
+	platforms, err := parsePlatforms("entra, googleworkspace")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(platforms) != 2 {
+		t.Fatalf("got %d platforms, want 2", len(platforms))
+	}
+	if platforms[0] != "entra" || platforms[1] != "googleworkspace" {
+		t.Errorf("got %v, want [entra googleworkspace]", platforms)
+	}
+}
+
+func TestParsePlatformsAll(t *testing.T) {
+	platforms, err := parsePlatforms("all")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(platforms) == 0 {
+		t.Fatal("expected at least one platform for 'all'")
+	}
+}
+
+func TestParsePlatformsAllCaseInsensitive(t *testing.T) {
+	platforms, err := parsePlatforms("ALL")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(platforms) == 0 {
+		t.Fatal("expected at least one platform for 'ALL'")
+	}
+}
+
+func TestParsePlatformsUnknown(t *testing.T) {
+	_, err := parsePlatforms("nonexistent")
+	if err == nil {
+		t.Fatal("expected error for unknown platform")
+	}
+}
+
+func TestParsePlatformsEmpty(t *testing.T) {
+	_, err := parsePlatforms("")
+	if err == nil {
+		t.Fatal("expected error for empty string")
+	}
+}
+
+func TestParsePlatformsSkipsBlanks(t *testing.T) {
+	platforms, err := parsePlatforms("servicenow,,entra,")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(platforms) != 2 {
+		t.Fatalf("got %d platforms, want 2", len(platforms))
+	}
+}
+
+// --- mergeSnapshots tests ---
+
+func TestMergeSnapshotsSingle(t *testing.T) {
+	s := collector.NewSnapshot("entra", "https://graph.microsoft.com")
+	merged := mergeSnapshots([]*collector.Snapshot{s})
+	if merged != s {
+		t.Error("single snapshot should return the same pointer")
+	}
+}
+
+func TestMergeSnapshotsMultiple(t *testing.T) {
+	s1 := collector.NewSnapshot("entra", "https://graph.microsoft.com")
+	s1.AddTableData(&collector.TableData{
+		Table:   "applications",
+		Records: []collector.Record{{"name": "app1"}},
+		Count:   1,
+	})
+
+	s2 := collector.NewSnapshot("googleworkspace", "https://admin.googleapis.com")
+	s2.AddTableData(&collector.TableData{
+		Table:   "oauth_tokens",
+		Records: []collector.Record{{"user": "admin@test.com"}},
+		Count:   1,
+	})
+
+	merged := mergeSnapshots([]*collector.Snapshot{s1, s2})
+
+	if merged.Platform != "entra+googleworkspace" {
+		t.Errorf("Platform = %q, want entra+googleworkspace", merged.Platform)
+	}
+	if !strings.Contains(merged.InstanceURL, "graph.microsoft.com") {
+		t.Error("InstanceURL should contain graph.microsoft.com")
+	}
+	if !strings.Contains(merged.InstanceURL, "admin.googleapis.com") {
+		t.Error("InstanceURL should contain admin.googleapis.com")
+	}
+	if len(merged.Tables) != 2 {
+		t.Errorf("Tables count = %d, want 2", len(merged.Tables))
+	}
+	if merged.GetRecords("applications") == nil {
+		t.Error("merged snapshot should contain applications table")
+	}
+	if merged.GetRecords("oauth_tokens") == nil {
+		t.Error("merged snapshot should contain oauth_tokens table")
 	}
 }
