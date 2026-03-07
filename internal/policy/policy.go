@@ -163,6 +163,7 @@ func (e *Evaluator) evaluatePolicy(p Policy, snapshot *collector.Snapshot) ([]fi
 			Description: p.Description,
 			Severity:    p.Severity,
 			Category:    p.Category,
+			Platform:    p.Platform,
 			Resource:    fmt.Sprintf("%s:%s", p.Query.Table, sysID),
 			Evidence: []finding.Evidence{
 				{

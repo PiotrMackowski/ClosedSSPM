@@ -16,7 +16,7 @@ type Reporter struct{}
 
 // columns defines the CSV header row.
 var columns = []string{
-	"ID", "PolicyID", "Title", "Description", "Severity", "Category",
+	"ID", "PolicyID", "Title", "Description", "Severity", "Category", "Platform",
 	"Resource", "Remediation", "EvidenceResourceType", "EvidenceResourceID",
 	"EvidenceDisplayName", "EvidenceDescription",
 }
@@ -44,6 +44,7 @@ func (r *Reporter) Generate(w io.Writer, findings []finding.Finding, _ *collecto
 			f.Description,
 			string(f.Severity),
 			f.Category,
+			f.Platform,
 			f.Resource,
 			f.Remediation,
 			evResType,

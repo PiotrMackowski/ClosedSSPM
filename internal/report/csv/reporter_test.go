@@ -46,7 +46,7 @@ func TestReporterGenerate(t *testing.T) {
 	}
 
 	// Check header.
-	expectedHeader := "ID,PolicyID,Title,Description,Severity,Category,Resource,Remediation,EvidenceResourceType,EvidenceResourceID,EvidenceDisplayName,EvidenceDescription"
+	expectedHeader := "ID,PolicyID,Title,Description,Severity,Category,Platform,Resource,Remediation,EvidenceResourceType,EvidenceResourceID,EvidenceDisplayName,EvidenceDescription"
 	if lines[0] != expectedHeader {
 		t.Errorf("Header mismatch:\ngot:  %s\nwant: %s", lines[0], expectedHeader)
 	}

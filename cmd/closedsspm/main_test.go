@@ -397,10 +397,10 @@ func TestMergeSnapshotsMultiple(t *testing.T) {
 	if len(merged.Tables) != 2 {
 		t.Errorf("Tables count = %d, want 2", len(merged.Tables))
 	}
-	if merged.GetRecords("applications") == nil {
-		t.Error("merged snapshot should contain applications table")
+	if merged.GetRecords("entra/applications") == nil {
+		t.Error("merged snapshot should contain entra/applications table")
 	}
-	if merged.GetRecords("oauth_tokens") == nil {
-		t.Error("merged snapshot should contain oauth_tokens table")
+	if merged.GetRecords("googleworkspace/oauth_tokens") == nil {
+		t.Error("merged snapshot should contain googleworkspace/oauth_tokens table")
 	}
 }

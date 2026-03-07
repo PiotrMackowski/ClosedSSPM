@@ -231,7 +231,13 @@ func mergeSnapshots(snapshots []*collector.Snapshot) *collector.Snapshot {
 
 	for _, s := range snapshots {
 		for _, td := range s.Tables {
-			merged.AddTableData(td)
+			prefixed := &collector.TableData{
+				Table:       s.Platform + "/" + td.Table,
+				Records:     td.Records,
+				Count:       td.Count,
+				CollectedAt: td.CollectedAt,
+			}
+			merged.AddTableData(prefixed)
 		}
 	}
 	return merged
@@ -304,6 +310,9 @@ func newAuditCmd() *cobra.Command {
 				findings, err := evaluateFindings(snapshot, policiesDir)
 				if err != nil {
 					return fmt.Errorf("evaluation failed for %s: %w", p, err)
+				}
+				for i := range findings {
+					findings[i].Platform = p
 				}
 				allFindings = append(allFindings, findings...)
 				snapshots = append(snapshots, snapshot)
