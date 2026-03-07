@@ -1,0 +1,22 @@
+id: EN-OAUTH-013
+title: "Service principal does not require assignment"
+description: >
+  The service principal has appRoleAssignmentRequired set to false, which allows
+  users in the tenant to access the application without explicit assignment.
+  This weakens access control boundaries and can increase unintended exposure.
+severity: MEDIUM
+category: Access Control
+platform: entra
+query:
+  table: service_principals
+  field_conditions:
+    - field: "appRoleAssignmentRequired"
+      operator: "equals"
+      value: "false"
+remediation: >
+  Enable assignment requirement for enterprise applications that should be
+  limited to approved users or groups. Combine explicit assignment with periodic
+  entitlement reviews to enforce least privilege.
+references:
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/what-is-access-management"

@@ -1,0 +1,23 @@
+id: EN-OAUTH-005
+title: "Application has User.ReadWrite.All permission"
+description: >
+  The OAuth2 permission grant includes User.ReadWrite.All, enabling an
+  application to modify user profile attributes at scale. Unauthorized changes
+  can impact identity integrity, account recovery, and downstream access
+  controls.
+severity: HIGH
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "User.ReadWrite.All"
+remediation: >
+  Restrict User.ReadWrite.All to approved identity lifecycle applications only.
+  Enforce change governance, monitor profile updates, and remove this scope from
+  unused or over-privileged applications.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"

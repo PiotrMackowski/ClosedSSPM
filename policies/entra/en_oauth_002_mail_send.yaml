@@ -1,0 +1,22 @@
+id: EN-OAUTH-002
+title: "Application has Mail.Send permission"
+description: >
+  The OAuth2 permission grant includes Mail.Send, allowing an application to
+  send email as users. This can be abused for business email compromise (BEC),
+  phishing campaigns, and unauthorized outbound messaging.
+severity: CRITICAL
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "Mail.Send"
+remediation: >
+  Remove Mail.Send from applications that do not have a validated use case and
+  enforce admin approval workflows for high-risk mail scopes. Monitor sent mail
+  behavior from integrated applications for abuse indicators.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"

@@ -1,0 +1,23 @@
+id: EN-OAUTH-007
+title: "Application has Sites.FullControl.All permission"
+description: >
+  The OAuth2 permission grant includes Sites.FullControl.All, granting full
+  control over all SharePoint sites. This includes broad data access and content
+  administration capabilities that can lead to major confidentiality and
+  integrity impact.
+severity: CRITICAL
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "Sites.FullControl.All"
+remediation: >
+  Eliminate Sites.FullControl.All unless absolutely required for a controlled
+  business function. Use scoped site permissions and enforce periodic access
+  recertification for any app with elevated SharePoint privileges.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/sharepoint/dev/solution-guidance/security-apponly"

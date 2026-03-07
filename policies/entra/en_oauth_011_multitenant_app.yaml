@@ -1,0 +1,23 @@
+id: EN-OAUTH-011
+title: "Application registration is multi-tenant"
+description: >
+  The application registration signInAudience includes AzureADMultipleOrgs,
+  indicating a multi-tenant app that can accept tokens from external Entra ID
+  tenants. This broad trust model increases exposure and requires stronger
+  validation and governance controls.
+severity: MEDIUM
+category: Application Registration
+platform: entra
+query:
+  table: app_registrations
+  field_conditions:
+    - field: "signInAudience"
+      operator: "contains"
+      value: "AzureADMultipleOrgs"
+remediation: >
+  Confirm that multi-tenant behavior is required and documented. For apps that
+  do not need external tenant access, switch to single-tenant configuration and
+  review consent and token validation controls.
+references:
+  - "https://learn.microsoft.com/entra/identity-platform/single-and-multi-tenant-apps"
+  - "https://learn.microsoft.com/entra/identity-platform/app-objects-and-service-principals"

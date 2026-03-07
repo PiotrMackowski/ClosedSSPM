@@ -1,0 +1,23 @@
+id: EN-OAUTH-008
+title: "Permission grant uses tenant-wide admin consent"
+description: >
+  The OAuth2 permission grant has consentType set to AllPrincipals, meaning
+  admin consent was granted tenant-wide and applies to all users. This is
+  informational but important for understanding blast radius and governance
+  requirements.
+severity: MEDIUM
+category: OAuth Governance
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "consentType"
+      operator: "equals"
+      value: "AllPrincipals"
+remediation: >
+  Review tenant-wide admin-consented grants and verify each has documented
+  business need, data classification approval, and ongoing ownership. Remove
+  unnecessary broad grants and prefer least-privilege delegated consent.
+references:
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/grant-admin-consent"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"

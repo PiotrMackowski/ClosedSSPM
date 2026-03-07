@@ -1,0 +1,23 @@
+id: EN-OAUTH-004
+title: "Application has Files.ReadWrite.All permission"
+description: >
+  The OAuth2 permission grant includes Files.ReadWrite.All, providing broad
+  read and write access to files in SharePoint and OneDrive contexts. This
+  increases the risk of data exfiltration, corruption, and unauthorized content
+  modification.
+severity: HIGH
+category: OAuth Permissions
+platform: entra
+query:
+  table: oauth2_permission_grants
+  field_conditions:
+    - field: "scope"
+      operator: "contains"
+      value: "Files.ReadWrite.All"
+remediation: >
+  Replace Files.ReadWrite.All with narrower file permissions whenever possible.
+  Limit app access to specific sites or data sets, and continuously monitor file
+  access activity for abnormal patterns.
+references:
+  - "https://learn.microsoft.com/graph/permissions-reference"
+  - "https://learn.microsoft.com/graph/onedrive-sharepoint-concept-overview"

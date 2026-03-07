@@ -1,0 +1,23 @@
+id: EN-OAUTH-015
+title: "Application permission granted to service principal"
+description: >
+  The app role assignment principalType is ServicePrincipal, indicating
+  application-level permission usage without user context. These permissions are
+  high impact because they can execute autonomously and bypass user-based
+  controls.
+severity: HIGH
+category: OAuth Permissions
+platform: entra
+query:
+  table: app_role_assignments
+  field_conditions:
+    - field: "principalType"
+      operator: "equals"
+      value: "ServicePrincipal"
+remediation: >
+  Review all application permissions assigned to service principals and remove
+  excessive grants. Prefer delegated permissions where appropriate and enforce
+  strict monitoring, ownership, and periodic recertification for app-only access.
+references:
+  - "https://learn.microsoft.com/graph/permissions-overview"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"

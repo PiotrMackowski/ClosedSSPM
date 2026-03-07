@@ -1,0 +1,22 @@
+id: EN-OAUTH-012
+title: "Application registration has no owner"
+description: >
+  The application registration has an empty owners field, indicating no assigned
+  accountable owner. Ownerless applications often miss credential rotation,
+  access reviews, and incident response ownership.
+severity: HIGH
+category: Application Governance
+platform: entra
+query:
+  table: app_registrations
+  field_conditions:
+    - field: "owners"
+      operator: "empty"
+      value: ""
+remediation: >
+  Assign one or more accountable owners to every application registration.
+  Establish ownership standards for periodic permission reviews, credential
+  lifecycle management, and security incident handling.
+references:
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/assign-user-or-group-access-portal"
+  - "https://learn.microsoft.com/entra/identity/enterprise-apps/manage-application-permissions"
