@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClosedSSPM Security Audit Report</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --text-muted: #8b949e;
+    --critical: #f85149; --high: #db6d28; --medium: #d29922;
+    --low: #3fb950; --info: #58a6ff;
+    --score-a: #3fb950; --score-b: #56d364; --score-c: #d29922;
+    --score-d: #db6d28; --score-f: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem; }
+
+   
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.2rem; }
+  .card-value { font-size: 2rem; font-weight: 700; }
+  .card-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+   
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;
+    font-weight: 600; text-transform: uppercase; }
+  .badge.critical { background: var(--critical); color: #fff; }
+  .badge.high { background: var(--high); color: #fff; }
+  .badge.medium { background: var(--medium); color: #000; }
+  .badge.low { background: var(--low); color: #000; }
+  .badge.info { background: var(--info); color: #000; }
+
+   
+  .score { font-size: 3rem; font-weight: 800; }
+  .score-a { color: var(--score-a); }
+  .score-b { color: var(--score-b); }
+  .score-c { color: var(--score-c); }
+  .score-d { color: var(--score-d); }
+  .score-f { color: var(--score-f); }
+
+   
+  .finding { background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem 1.2rem; margin-bottom: 0.75rem; }
+  .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+  .finding-title { font-weight: 600; }
+  .finding-id { color: var(--text-muted); font-size: 0.8rem; font-family: monospace; }
+  .finding-body { font-size: 0.9rem; color: var(--text-muted); }
+  .finding-body p { margin: 0.3rem 0; }
+  .finding-resource { font-family: monospace; font-size: 0.8rem; color: var(--info); }
+  .finding-remediation { margin-top: 0.5rem; padding: 0.5rem; background: rgba(56,139,253,0.1);
+    border-radius: 4px; font-size: 0.85rem; }
+
+   
+  .evidence-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.8rem; }
+  .evidence-table th, .evidence-table td { padding: 4px 8px; text-align: left;
+    border-bottom: 1px solid var(--border); }
+  .evidence-table th { color: var(--text-muted); font-weight: 600; }
+
+   
+  .stats-table { width: 100%; border-collapse: collapse; }
+  .stats-table th, .stats-table td { padding: 6px 12px; text-align: left;
+    border-bottom: 1px solid var(--border); }
+  .stats-table th { color: var(--text-muted); font-weight: 600; }
+  .stats-table td:last-child { text-align: right; font-family: monospace; }
+
+   
+  .toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1rem; margin: 2rem 0; display: flex; flex-wrap: wrap; gap: 1.5rem;
+    align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
+  .toolbar-group { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .toolbar-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;
+    letter-spacing: 0.05em; font-weight: 600; }
+  .filter-btn { background: transparent; border: 1px solid var(--border); color: var(--text);
+    padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; }
+  .filter-btn:hover { background: rgba(255,255,255,0.05); }
+  .filter-btn.active { background: var(--btn-color, var(--text)); color: var(--btn-text, var(--bg));
+    border-color: var(--btn-color, var(--text)); box-shadow: 0 0 10px var(--btn-color, rgba(255,255,255,0.2)); }
+  .group-select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; outline: none; cursor: pointer; }
+  .group-select:focus { border-color: var(--info); }
+  .search-input { background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; outline: none;
+    width: 220px; transition: border-color 0.2s ease; }
+  .search-input:focus { border-color: var(--info); }
+  .search-input::placeholder { color: var(--text-muted); }
+  .count-display { margin-left: auto; font-size: 0.9rem; color: var(--text-muted); }
+  .count-display strong { color: var(--text); }
+
+   
+  .group-section { margin-bottom: 0.5rem; }
+  .group-header { display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none; padding: 0.6rem 0; transition: color 0.15s ease; }
+  .group-header:hover { color: var(--info); }
+  .group-header .chevron { display: inline-block; width: 1rem; font-size: 0.85rem;
+    transition: transform 0.2s ease; margin-right: 0.5rem; flex-shrink: 0; color: var(--text-muted); }
+  .group-header .chevron.open { transform: rotate(90deg); }
+  .group-header-left { display: flex; align-items: center; }
+  .group-count { font-size: 0.9rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem; }
+  .group-findings { overflow: hidden; }
+  .group-severity-summary { display: flex; gap: 0.4rem; }
+  .group-severity-summary .badge { font-size: 0.65rem; padding: 1px 6px; }
+
+   
+  .expand-collapse-btn { background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+    transition: all 0.2s ease; }
+  .expand-collapse-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+
+   
+  .no-results { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 1.1rem; }
+
+   
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    .search-input { width: 100%; }
+    .toolbar { position: static; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>ClosedSSPM Security Audit Report</h1>
+<div class="meta">
+  Generated: 2026-01-15 10:30:00 UTC
+  | Instance: googleapis.com
+  | Platform: googleworkspace
+</div>
+
+
+<h2>Executive Summary</h2>
+<div class="summary-grid">
+  <div class="card">
+    <div class="card-value score score-f">F</div>
+    <div class="card-label">Posture Score</div>
+  </div>
+  <div class="card">
+    <div class="card-value">2</div>
+    <div class="card-label">Total Findings</div>
+  </div>
+  
+  
+  
+  <div class="card">
+    <div class="card-value" style="color: var(--critical)">1</div>
+    <div class="card-label">CRITICAL</div>
+  </div>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <div class="card">
+    <div class="card-value" style="color: var(--low)">1</div>
+    <div class="card-label">LOW</div>
+  </div>
+  
+  
+  
+  
+  
+</div>
+
+
+<div class="toolbar">
+  <div class="toolbar-group">
+    <span class="toolbar-label">Severity:</span>
+    <button class="filter-btn active" data-filter="ALL">ALL</button>
+    <button class="filter-btn" data-filter="CRITICAL" style="--btn-color: var(--critical); --btn-text: #fff">CRITICAL</button>
+    <button class="filter-btn" data-filter="HIGH" style="--btn-color: var(--high); --btn-text: #fff">HIGH</button>
+    <button class="filter-btn" data-filter="MEDIUM" style="--btn-color: var(--medium); --btn-text: #000">MEDIUM</button>
+    <button class="filter-btn" data-filter="LOW" style="--btn-color: var(--low); --btn-text: #000">LOW</button>
+    <button class="filter-btn" data-filter="INFO" style="--btn-color: var(--info); --btn-text: #000">INFO</button>
+  </div>
+  <div class="toolbar-group">
+    <span class="toolbar-label">Search:</span>
+    <input type="text" id="search-input" class="search-input" placeholder="Filter findings..." autocomplete="off" spellcheck="false">
+  </div>
+  <div class="toolbar-group">
+    <span class="toolbar-label">Group by:</span>
+    <select id="group-by-select" class="group-select">
+      <option value="category" selected>Category</option>
+      <option value="policyId">Policy ID</option>
+      <option value="severity">Severity</option>
+    </select>
+  </div>
+  <div class="toolbar-group">
+    <button class="expand-collapse-btn" id="expand-all-btn">Expand All</button>
+    <button class="expand-collapse-btn" id="collapse-all-btn">Collapse All</button>
+  </div>
+  <div class="count-display">
+    Showing <strong id="visible-count">2</strong> of <strong id="total-count">2</strong> findings
+  </div>
+</div>
+
+
+<div id="findings-container"></div>
+
+
+
+<h2>Collection Statistics</h2>
+<table class="stats-table">
+  <tr><th>Table</th><th>Records</th></tr>
+  
+  <tr><td>oauth_tokens</td><td>1</td></tr>
+  
+  <tr><td>token_activity</td><td>1</td></tr>
+  
+  <tr><td>users</td><td>1</td></tr>
+  
+</table>
+
+
+</div>
+
+
+<script id="report-data" type="application/json">[{"id": "GW-OAUTH-003", "policy_id": "GW-OAUTH-003", "title": "OAuth token with Admin SDK access detected", "description": "An OAuth application has been granted a scope containing https://www.googleapis.com/auth/admin, which can provide administrative API access to manage users, groups, devices, and workspace settings. This level of access significantly increases blast radius if the token or application is compromised.\n", "severity": "CRITICAL", "category": "OAuth", "resource": "oauth_tokens:", "evidence": [{"resource_type": "oauth_tokens", "resource_id": "", "display_name": "", "fields": {"all_scopes": "[https://www.googleapis.com/auth/admin.directory.user.security https://www.googleapis.com/auth/admin.reports.audit.readonly https://www.googleapis.com/auth/admin.directory.user.readonly]", "anonymous": "false", "client_id": "000000000000.apps.googleusercontent.com", "display_text": "Google OAuth 2.0 Playground", "etag": "\"redacted\"", "kind": "admin#directory#token", "native_app": "false", "scopes": "https://www.googleapis.com/auth/admin.directory.user.security https://www.googleapis.com/auth/admin.reports.audit.readonly https://www.googleapis.com/auth/admin.directory.user.readonly", "scopes_count": "3", "user_key": "admin@example.com"}}], "remediation": "Immediately validate whether the application requires administrative scopes. Revoke unauthorized tokens and restrict risky API clients through App Access Control policies. Limit delegated admin access and monitor all Admin SDK token grants for anomalous behavior.\n", "references": ["https://developers.google.com/admin-sdk", "https://support.google.com/a/answer/162106"], "timestamp": "2026-01-15T10:30:00.000000000Z"}, {"id": "GW-OAUTH-009", "policy_id": "GW-OAUTH-009", "title": "OAuth token authorization event detected", "description": "A token activity record indicates an authorize event, meaning a new OAuth token grant occurred. This policy is informational and helps maintain an audit trail of user consent activity for anomaly detection and incident response.\n", "severity": "LOW", "category": "OAuth", "resource": "token_activity:", "evidence": [{"resource_type": "token_activity", "resource_id": "", "display_name": "", "fields": {"actor_email": "admin@example.com", "actor_profile_id": "000000000000000000000", "application_name": "token", "customer_id": "C00example", "event_name": "authorize", "ip_address": "0.0.0.0", "kind": "admin#reports#activity", "owner_domain": "", "param_app_name": "Google OAuth 2.0 Playground", "param_client_id": "000000000000.apps.googleusercontent.com", "param_client_type": "WEB", "param_scope": "https://www.googleapis.com/auth/admin.directory.user.readonly,https://www.googleapis.com/auth/admin.directory.user.security,https://www.googleapis.com/auth/admin.reports.audit.readonly", "time": "2026-01-15T10:30:00.000Z", "unique_qualifier": "0000000000000000000"}}], "remediation": "Review newly authorized tokens for expected users, applications, and scopes. Correlate with change windows and user-reported activity. Investigate and revoke suspicious grants, then block offending applications if needed.\n", "references": ["https://support.google.com/a/answer/4579696", "https://support.google.com/a/answer/7061566"], "timestamp": "2026-01-15T10:30:00.000000000Z"}]</script>
+
+<script>
+(function() {
+  "use strict";
+
+  
+  var dataEl = document.getElementById("report-data");
+  if (!dataEl) return;
+  var findings;
+  try {
+    findings = JSON.parse(dataEl.textContent);
+  } catch (e) {
+    console.error("Failed to parse report data:", e);
+    return;
+  }
+
+  
+  var items = findings.map(function(f) {
+    return {
+      raw: f,
+      severity: (f.severity || "").toUpperCase(),
+      category: f.category || "",
+      policyId: f.policy_id || "",
+      title: f.title || "",
+      searchText: [
+        f.title, f.policy_id, f.category, f.severity, f.resource, f.description,
+        (f.evidence || []).map(function(e) {
+        return [e.resource_type, e.resource_id, e.display_name, e.description].filter(Boolean).join(" ");
+        }).join(" ")
+      ].filter(Boolean).join(" ").toLowerCase()
+    };
+  });
+
+  var container = document.getElementById("findings-container");
+  var totalCountEl = document.getElementById("total-count");
+  var visibleCountEl = document.getElementById("visible-count");
+  var searchInput = document.getElementById("search-input");
+  var filterBtns = document.querySelectorAll(".filter-btn");
+  var groupBySelect = document.getElementById("group-by-select");
+  var expandAllBtn = document.getElementById("expand-all-btn");
+  var collapseAllBtn = document.getElementById("collapse-all-btn");
+
+  if (totalCountEl) totalCountEl.textContent = items.length;
+  if (visibleCountEl) visibleCountEl.textContent = items.length;
+
+  var activeFilters = { ALL: true };
+  var currentGroup = "category";
+  var searchTerm = "";
+  var debounceTimer = null;
+  var expandedGroups = {};
+
+  
+  function renderFinding(f) {
+    var raw = f.raw;
+    var el = document.createElement("div");
+    el.className = "finding";
+
+    var headerDiv = document.createElement("div");
+    headerDiv.className = "finding-header";
+
+    var leftDiv = document.createElement("div");
+    var titleSpan = document.createElement("span");
+    titleSpan.className = "finding-title";
+    titleSpan.textContent = raw.title || "";
+    var idSpan = document.createElement("span");
+    idSpan.className = "finding-id";
+    idSpan.textContent = raw.policy_id || "";
+    leftDiv.appendChild(titleSpan);
+    leftDiv.appendChild(document.createTextNode(" "));
+    leftDiv.appendChild(idSpan);
+
+    var badge = document.createElement("span");
+    badge.className = "badge " + f.severity.toLowerCase();
+    badge.textContent = f.severity;
+
+    headerDiv.appendChild(leftDiv);
+    headerDiv.appendChild(badge);
+    el.appendChild(headerDiv);
+
+    var body = document.createElement("div");
+    body.className = "finding-body";
+
+    if (raw.description) {
+      var p = document.createElement("p");
+      p.textContent = raw.description;
+      body.appendChild(p);
+    }
+
+    if (raw.resource) {
+      var res = document.createElement("div");
+      res.className = "finding-resource";
+      res.textContent = raw.resource;
+      body.appendChild(res);
+    }
+
+    if (raw.evidence && raw.evidence.length > 0) {
+      var table = document.createElement("table");
+      table.className = "evidence-table";
+      var thead = document.createElement("tr");
+      var th1 = document.createElement("th");
+      th1.textContent = "Field";
+      var th2 = document.createElement("th");
+      th2.textContent = "Value";
+      thead.appendChild(th1);
+      thead.appendChild(th2);
+      table.appendChild(thead);
+
+      raw.evidence.forEach(function(ev) {
+        if (ev.fields) {
+          Object.keys(ev.fields).forEach(function(k) {
+            var tr = document.createElement("tr");
+            var td1 = document.createElement("td");
+            td1.textContent = k;
+            var td2 = document.createElement("td");
+            td2.textContent = ev.fields[k];
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            table.appendChild(tr);
+          });
+        }
+      });
+      body.appendChild(table);
+    }
+
+    if (raw.remediation) {
+      var rem = document.createElement("div");
+      rem.className = "finding-remediation";
+      rem.innerHTML = "<strong>Remediation:</strong> " + escapeHTML(raw.remediation);
+      body.appendChild(rem);
+    }
+
+    el.appendChild(body);
+    return el;
+  }
+
+  
+  function buildSeveritySummaryHTML(groupItems) {
+    var counts = {};
+    groupItems.forEach(function(d) {
+      counts[d.severity] = (counts[d.severity] || 0) + 1;
+    });
+    var order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
+    return order.filter(function(s) { return counts[s]; })
+      .map(function(s) { return '<span class="badge ' + s.toLowerCase() + '">' + counts[s] + " " + s + "</span>"; })
+      .join("");
+  }
+
+  
+  function toggleGroup(section, groupItems) {
+    var body = section.querySelector(".group-findings");
+    var chevron = section.querySelector(".chevron");
+    var key = section.getAttribute("data-group-key");
+    if (!body) return;
+
+    if (body.style.display === "none" || !body.hasChildNodes()) {
+      
+      if (!body.hasChildNodes()) {
+        var frag = document.createDocumentFragment();
+        groupItems.forEach(function(d) {
+          frag.appendChild(renderFinding(d));
+        });
+        body.appendChild(frag);
+      }
+      body.style.display = "";
+      if (chevron) chevron.classList.add("open");
+      if (key) expandedGroups[key] = true;
+    } else {
+      
+      body.style.display = "none";
+      if (chevron) chevron.classList.remove("open");
+      if (key) delete expandedGroups[key];
+    }
+  }
+
+  
+  function renderGroups(visibleItems) {
+    if (visibleCountEl) visibleCountEl.textContent = visibleItems.length;
+
+    
+    var groups = {};
+    var groupOrder = [];
+    visibleItems.forEach(function(d) {
+      var key, title;
+      if (currentGroup === "category") {
+        key = d.category; title = key;
+      } else if (currentGroup === "policyId") {
+        key = d.policyId; title = key + " \u2014 " + d.title;
+      } else if (currentGroup === "severity") {
+        key = d.severity; title = key;
+      }
+      if (!groups[key]) {
+        groups[key] = { title: title, items: [] };
+        groupOrder.push(key);
+      }
+      groups[key].items.push(d);
+    });
+
+    
+    if (currentGroup === "severity") {
+      var sevOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+      groupOrder.sort(function(a, b) {
+        return (sevOrder[a] !== undefined ? sevOrder[a] : 99) - (sevOrder[b] !== undefined ? sevOrder[b] : 99);
+      });
+    } else {
+      groupOrder.sort();
+    }
+
+    
+    var fragment = document.createDocumentFragment();
+
+    if (groupOrder.length === 0) {
+      var msg = document.createElement("div");
+      msg.className = "no-results";
+      msg.textContent = "No findings match the current filters.";
+      fragment.appendChild(msg);
+    }
+
+    groupOrder.forEach(function(key) {
+      var group = groups[key];
+      var isExpanded = !!expandedGroups[key];
+
+      var section = document.createElement("div");
+      section.className = "group-section";
+      section.setAttribute("data-group-key", key);
+
+      var header = document.createElement("h2");
+      header.className = "group-header";
+
+      var left = document.createElement("div");
+      left.className = "group-header-left";
+      left.innerHTML = '<span class="chevron' + (isExpanded ? " open" : "") + '">&#9654;</span>' +
+        '<span>' + escapeHTML(group.title) + '</span>' +
+        '<span class="group-count">(' + group.items.length + ')</span>';
+      header.appendChild(left);
+
+      if (currentGroup !== "severity") {
+        var summary = document.createElement("div");
+        summary.className = "group-severity-summary";
+        summary.innerHTML = buildSeveritySummaryHTML(group.items);
+        header.appendChild(summary);
+      }
+
+      section.appendChild(header);
+
+      var body = document.createElement("div");
+      body.className = "group-findings";
+
+      if (isExpanded) {
+        
+        var frag = document.createDocumentFragment();
+        group.items.forEach(function(d) { frag.appendChild(renderFinding(d)); });
+        body.appendChild(frag);
+      } else {
+        body.style.display = "none";
+      }
+
+      section.appendChild(body);
+
+      
+      (function(sec, gi) {
+        header.addEventListener("click", function() { toggleGroup(sec, gi); });
+      })(section, group.items);
+
+      fragment.appendChild(section);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(fragment);
+  }
+
+  
+  function applyFilters() {
+    
+    for (var i = 0; i < filterBtns.length; i++) {
+      var btn = filterBtns[i];
+      var f = btn.getAttribute("data-filter");
+      btn.classList.toggle("active", !!activeFilters[f]);
+    }
+
+    var needsSeverity = !activeFilters.ALL;
+    var needsSearch = searchTerm.length > 0;
+
+    var visible = items.filter(function(d) {
+      if (needsSeverity && !activeFilters[d.severity]) return false;
+      if (needsSearch && d.searchText.indexOf(searchTerm) === -1) return false;
+      return true;
+    });
+
+    renderGroups(visible);
+  }
+
+  
+  for (var i = 0; i < filterBtns.length; i++) {
+    (function(btn) {
+      btn.addEventListener("click", function() {
+        var filter = btn.getAttribute("data-filter");
+        if (filter === "ALL") {
+          activeFilters = { ALL: true };
+        } else {
+          delete activeFilters.ALL;
+          if (activeFilters[filter]) delete activeFilters[filter];
+          else activeFilters[filter] = true;
+          
+          var hasAny = false;
+          for (var k in activeFilters) { if (activeFilters.hasOwnProperty(k)) { hasAny = true; break; } }
+          if (!hasAny) activeFilters.ALL = true;
+        }
+        applyFilters();
+      });
+    })(filterBtns[i]);
+  }
+
+  
+  if (groupBySelect) {
+    groupBySelect.addEventListener("change", function(e) {
+      currentGroup = e.target.value;
+      expandedGroups = {};
+      applyFilters();
+    });
+  }
+
+  
+  if (searchInput) {
+    searchInput.addEventListener("input", function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        searchTerm = searchInput.value.trim().toLowerCase();
+        applyFilters();
+      }, 200);
+    });
+  }
+
+  
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener("click", function() {
+      var sections = container.querySelectorAll(".group-section");
+      for (var i = 0; i < sections.length; i++) {
+        var sec = sections[i];
+        var body = sec.querySelector(".group-findings");
+        var chevron = sec.querySelector(".chevron");
+        var key = sec.getAttribute("data-group-key");
+        if (body && !body.hasChildNodes()) {
+          
+          
+          var hdr = sec.querySelector(".group-header");
+          if (hdr) hdr.click();
+        } else if (body) {
+          body.style.display = "";
+          if (chevron) chevron.classList.add("open");
+          if (key) expandedGroups[key] = true;
+        }
+      }
+    });
+  }
+
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener("click", function() {
+      expandedGroups = {};
+      var sections = container.querySelectorAll(".group-section");
+      for (var i = 0; i < sections.length; i++) {
+        var body = sections[i].querySelector(".group-findings");
+        var chevron = sections[i].querySelector(".chevron");
+        if (body) body.style.display = "none";
+        if (chevron) chevron.classList.remove("open");
+      }
+    });
+  }
+
+  function escapeHTML(str) {
+    var div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  
+  renderGroups(items);
+})();
+</script>
+</body>
+</html>
