@@ -45,7 +45,7 @@ func init() {
 // ConfigFromEnv builds a ConnectorConfig from Snowflake environment variables
 // and CLI flags.
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
-	account := envOrFlag(cmd, "instance", "SNOWFLAKE_ACCOUNT")
+	account := connector.EnvOrFlag(cmd, "instance", "SNOWFLAKE_ACCOUNT")
 	username := os.Getenv("SNOWFLAKE_USER")
 	password := os.Getenv("SNOWFLAKE_PASSWORD")
 	privateKeyPath := os.Getenv("SNOWFLAKE_PRIVATE_KEY_PATH")
@@ -64,7 +64,6 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		authMethod = "oauth"
 	}
 
-	// For OAuth/PAT, pass the token via Password field (gosnowflake convention).
 	effectivePassword := password
 	if authMethod == "oauth" {
 		effectivePassword = token
@@ -88,15 +87,6 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		Concurrency:    concurrency,
 		RateLimit:      rateLimit,
 	}
-}
-
-// envOrFlag returns the flag value if set, otherwise the environment variable.
-func envOrFlag(cmd *cobra.Command, flag, env string) string {
-	val, _ := cmd.Flags().GetString(flag)
-	if val != "" {
-		return val
-	}
-	return os.Getenv(env)
 }
 
 // querySpec defines a Snowflake security query to execute and its logical table name.

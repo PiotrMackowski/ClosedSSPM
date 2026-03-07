@@ -29,7 +29,7 @@ func init() {
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	credentialsFile := os.Getenv("GW_CREDENTIALS_FILE")
 	delegatedUser := os.Getenv("GW_DELEGATED_USER")
-	instance := envOrFlag(cmd, "instance", "GW_INSTANCE")
+	instance := connector.EnvOrFlag(cmd, "instance", "GW_INSTANCE")
 	if instance == "" {
 		instance = "googleapis.com"
 	}
@@ -44,14 +44,6 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		Concurrency:    concurrency,
 		RateLimit:      rateLimit,
 	}
-}
-
-func envOrFlag(cmd *cobra.Command, flag, env string) string {
-	val, _ := cmd.Flags().GetString(flag)
-	if val != "" {
-		return val
-	}
-	return os.Getenv(env)
 }
 
 type tableSpec struct {
