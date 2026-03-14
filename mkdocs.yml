@@ -1,0 +1,83 @@
+site_name: ClosedSSPM
+site_url: https://closedsspm.com
+site_description: Open Source SaaS Security Posture Management — audit ServiceNow, Snowflake, Google Workspace, and Entra ID for security misconfigurations.
+site_author: Piotr Mackowski
+repo_url: https://github.com/PiotrMackowski/ClosedSSPM
+repo_name: PiotrMackowski/ClosedSSPM
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2025 Piotr Mackowski. Licensed under Apache 2.0.
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/PiotrMackowski/ClosedSSPM
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - Platforms:
+      - ServiceNow: platforms/servicenow.md
+      - Snowflake: platforms/snowflake.md
+      - Google Workspace: platforms/google-workspace.md
+      - Entra ID: platforms/entra-id.md
+  - Reference:
+      - CLI Reference: cli-reference.md
+      - Custom Policies: custom-policies.md
+  - Integrations:
+      - MCP Server: mcp-server.md
+      - GitHub Action: github-action.md
+      - DefectDojo: integrations/defectdojo.md
+  - Project:
+      - Architecture: architecture.md
+      - Security: security.md
+      - Contributing: contributing.md
