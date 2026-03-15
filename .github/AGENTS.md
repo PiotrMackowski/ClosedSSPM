@@ -101,14 +101,16 @@ Every change must leave the project in a consistent state. Use the checklists be
 7. Add a tabbed workflow example in `docs/github-action.md`.
 8. Update `mkdocs.yml` nav if new doc pages are added.
 9. Update the Project description and Architecture tree in this file.
-10. Run full test suite: `go test ./... && go vet ./...`.
+10. Verify MCP server tool descriptions in `internal/mcpserver/server.go` include the new platform (e.g. `list_findings` platform filter, `query_snapshot` examples).
+11. Run full test suite: `go test ./... && go vet ./...`.
 
 ### Changing a SaaS Platform Connector
 
 1. Edit the relevant files in `internal/connector/<platform>/`.
 2. If table names or collected fields changed, update policies in `policies/<platform>/` and integration tests.
 3. If environment variables or config fields changed, update `action.yml`, `entrypoint.sh`, and `docs/github-action.md`.
-4. Run `go test ./... && go vet ./...`.
+4. If the change affects MCP tool descriptions or snapshot table names, review `internal/mcpserver/server.go` and update accordingly.
+5. Run `go test ./... && go vet ./...`.
 
 ### Adding an Auth Method
 
@@ -138,3 +140,11 @@ Every change must leave the project in a consistent state. Use the checklists be
 2. Update `mkdocs.yml` `nav:` section if pages were added, removed, or renamed.
 3. Verify locally with `mkdocs serve` before pushing.
 4. The `docs.yml` workflow deploys to GitHub Pages on merge to main.
+
+### Adding or Changing an MCP Tool
+
+1. Edit tool registration and handler in `internal/mcpserver/server.go`.
+2. Category validation is built dynamically from loaded findings (`buildValidCategories`) — no manual category list to update.
+3. Add or update tests in `internal/mcpserver/server_test.go` covering the new/changed tool, including input validation.
+4. If tool descriptions reference platform-specific examples, ensure all supported platforms are represented.
+5. Run `go test ./internal/mcpserver/... -v`.
