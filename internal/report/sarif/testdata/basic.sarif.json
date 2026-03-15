@@ -1,0 +1,204 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ClosedSSPM",
+          "informationUri": "https://github.com/PiotrMackowski/ClosedSSPM",
+          "version": "servicenow",
+          "rules": [
+            {
+              "id": "SNOW-ACL-001",
+              "name": "MissingAclForTable",
+              "shortDescription": {
+                "text": "Missing ACL for Table"
+              },
+              "fullDescription": {
+                "text": "Default ACL grants read access to all authenticated users"
+              },
+              "helpUri": "https://docs.servicenow.com/acl-best-practices",
+              "help": {
+                "text": "Restrict ACL to appropriate roles"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "severity": "CRITICAL",
+                "tags": [
+                  "security",
+                  "saas",
+                  "acl",
+                  "servicenow"
+                ]
+              }
+            },
+            {
+              "id": "ENTRA-APP-002",
+              "name": "ExcessiveApiPermissions",
+              "shortDescription": {
+                "text": "Excessive API Permissions"
+              },
+              "fullDescription": {
+                "text": "Application has Directory.ReadWrite.All permission"
+              },
+              "help": {
+                "text": "Apply least-privilege permissions"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "severity": "HIGH",
+                "tags": [
+                  "security",
+                  "saas",
+                  "application",
+                  "entra"
+                ]
+              }
+            },
+            {
+              "id": "GW-SHARE-003",
+              "name": "ExternalSharingEnabled",
+              "shortDescription": {
+                "text": "External Sharing Enabled"
+              },
+              "fullDescription": {
+                "text": "Domain-wide sharing allows external access"
+              },
+              "help": {
+                "text": "Disable external sharing for sensitive OUs"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "severity": "MEDIUM",
+                "tags": [
+                  "security",
+                  "saas",
+                  "sharing",
+                  "googleworkspace"
+                ]
+              }
+            },
+            {
+              "id": "SNOW-ROLE-004",
+              "name": "AdminRoleAssignedToService",
+              "shortDescription": {
+                "text": "Admin Role Assigned to Service Account"
+              },
+              "fullDescription": {
+                "text": "A test finding"
+              },
+              "help": {
+                "text": "Remove admin role from service accounts"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "severity": "LOW",
+                "tags": [
+                  "security",
+                  "saas",
+                  "roles",
+                  "servicenow"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "SNOW-ACL-001",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Missing ACL for Table — resource: sys_security_acl:aaa"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "name": "sys_security_acl:aaa",
+                  "fullyQualifiedName": "sys_security_acl:aaa",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "SNOW-ACL-001",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Missing ACL for Table — resource: sys_security_acl:bbb"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "name": "sys_security_acl:bbb",
+                  "fullyQualifiedName": "sys_security_acl:bbb",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "ENTRA-APP-002",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "Excessive API Permissions — resource: app_registration:ccc"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "name": "app_registration:ccc",
+                  "fullyQualifiedName": "app_registration:ccc",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "GW-SHARE-003",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "External Sharing Enabled"
+          }
+        },
+        {
+          "ruleId": "SNOW-ROLE-004",
+          "ruleIndex": 3,
+          "level": "note",
+          "message": {
+            "text": "Admin Role Assigned to Service Account — resource: sys_user_has_role:eee"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "name": "sys_user_has_role:eee",
+                  "fullyQualifiedName": "sys_user_has_role:eee",
+                  "kind": "resource"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

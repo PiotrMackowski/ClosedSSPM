@@ -1,0 +1,80 @@
+{
+  "findings": [
+    {
+      "category": "ACL",
+      "description": "Default ACL grants read access to all authenticated users",
+      "evidence": [
+        {
+          "display_name": "Default ACL",
+          "fields": {
+            "field1": "val1"
+          },
+          "resource_id": "aaa",
+          "resource_type": "sys_security_acl"
+        }
+      ],
+      "id": "SNOW-ACL-001-aaa",
+      "platform": "servicenow",
+      "policy_id": "SNOW-ACL-001",
+      "remediation": "Restrict ACL to appropriate roles",
+      "resource": "sys_security_acl:aaa",
+      "severity": "CRITICAL",
+      "timestamp": "TIMESTAMP_PLACEHOLDER",
+      "title": "Missing ACL for Table"
+    },
+    {
+      "category": "Application",
+      "description": "A test finding",
+      "evidence": null,
+      "id": "ENTRA-APP-002-bbb",
+      "platform": "entra",
+      "policy_id": "ENTRA-APP-002",
+      "remediation": "Apply least-privilege permissions",
+      "resource": "app_registration:bbb",
+      "severity": "HIGH",
+      "timestamp": "TIMESTAMP_PLACEHOLDER",
+      "title": "Excessive API Permissions"
+    },
+    {
+      "category": "Sharing",
+      "description": "A test finding",
+      "evidence": [
+        {
+          "display_name": "test_record",
+          "fields": {
+            "field1": "val1"
+          },
+          "resource_id": "abc",
+          "resource_type": "test_table"
+        }
+      ],
+      "id": "GW-SHARE-003-ccc",
+      "platform": "googleworkspace",
+      "policy_id": "GW-SHARE-003",
+      "remediation": "Disable external sharing for sensitive OUs",
+      "resource": "org_unit:ccc",
+      "severity": "MEDIUM",
+      "timestamp": "TIMESTAMP_PLACEHOLDER",
+      "title": "External Sharing Enabled"
+    }
+  ],
+  "generated_at": "TIMESTAMP_PLACEHOLDER",
+  "instance_url": "https://test.example.com",
+  "platform": "servicenow",
+  "summary": {
+    "by_category": {
+      "ACL": 1,
+      "Application": 1,
+      "Sharing": 1
+    },
+    "by_severity": {
+      "CRITICAL": 1,
+      "HIGH": 1,
+      "MEDIUM": 1
+    },
+    "generated_at": "TIMESTAMP_PLACEHOLDER",
+    "posture_score": "F",
+    "total": 3
+  },
+  "title": "ClosedSSPM Security Audit Report"
+}
