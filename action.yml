@@ -1,5 +1,5 @@
 name: 'ClosedSSPM'
-description: 'Audit SaaS platforms for security misconfigurations. Open source SSPM with 69+ ServiceNow checks.'
+description: 'Audit SaaS platforms for security misconfigurations. Open source SSPM with 166+ checks across ServiceNow, Snowflake, Entra ID, and Google Workspace.'
 author: 'PiotrMackowski'
 
 branding:
@@ -8,33 +8,9 @@ branding:
 
 inputs:
   platform:
-    description: 'SaaS platform to audit'
+    description: 'SaaS platform to audit: servicenow, snowflake, entra, or googleworkspace'
     required: false
     default: 'servicenow'
-  instance:
-    description: 'Platform instance URL (e.g. https://mycompany.service-now.com). Pass via secrets: ${{ secrets.SNOW_INSTANCE }}'
-    required: true
-  username:
-    description: 'Username for basic authentication. Pass via secrets: ${{ secrets.SNOW_USERNAME }}'
-    required: false
-  password:
-    description: 'Password for basic authentication. Pass via secrets: ${{ secrets.SNOW_PASSWORD }}'
-    required: false
-  client-id:
-    description: 'OAuth 2.0 client ID. Pass via secrets: ${{ secrets.SNOW_CLIENT_ID }}'
-    required: false
-  client-secret:
-    description: 'OAuth 2.0 client secret. Pass via secrets: ${{ secrets.SNOW_CLIENT_SECRET }}'
-    required: false
-  private-key:
-    description: 'RSA private key PEM content for JWT key pair auth. Pass via secrets: ${{ secrets.SNOW_PRIVATE_KEY }}'
-    required: false
-  key-id:
-    description: 'Key ID from ServiceNow JWT Verifier Map. Pass via secrets: ${{ secrets.SNOW_KEY_ID }}'
-    required: false
-  jwt-user:
-    description: 'ServiceNow username for JWT sub claim (cannot be admin). Pass via secrets: ${{ secrets.SNOW_JWT_USER }}'
-    required: false
   format:
     description: 'Report format: html, json, csv, or sarif'
     required: false
@@ -43,6 +19,83 @@ inputs:
     description: 'Fail (exit 2) if findings at or above this severity: CRITICAL, HIGH, MEDIUM, LOW, INFO, or none'
     required: false
     default: 'none'
+
+  # --- ServiceNow ---
+  instance:
+    description: 'ServiceNow instance URL (e.g. https://mycompany.service-now.com). Pass via secrets.'
+    required: false
+  username:
+    description: 'ServiceNow username for basic auth. Pass via secrets.'
+    required: false
+  password:
+    description: 'ServiceNow password for basic auth. Pass via secrets.'
+    required: false
+  client-id:
+    description: 'ServiceNow OAuth 2.0 client ID. Pass via secrets.'
+    required: false
+  client-secret:
+    description: 'ServiceNow OAuth 2.0 client secret. Pass via secrets.'
+    required: false
+  private-key:
+    description: 'ServiceNow RSA private key PEM content for JWT key pair auth. Pass via secrets.'
+    required: false
+  key-id:
+    description: 'ServiceNow Key ID from JWT Verifier Map. Pass via secrets.'
+    required: false
+  jwt-user:
+    description: 'ServiceNow username for JWT sub claim (cannot be admin). Pass via secrets.'
+    required: false
+
+  # --- Snowflake ---
+  snowflake-account:
+    description: 'Snowflake account identifier (e.g. xy12345.us-east-1). Pass via secrets.'
+    required: false
+  snowflake-user:
+    description: 'Snowflake username. Pass via secrets.'
+    required: false
+  snowflake-password:
+    description: 'Snowflake password for basic auth. Pass via secrets.'
+    required: false
+  snowflake-private-key:
+    description: 'Snowflake RSA private key PEM content for key pair auth. Pass via secrets.'
+    required: false
+  snowflake-pat:
+    description: 'Snowflake programmatic access token. Pass via secrets.'
+    required: false
+  snowflake-token:
+    description: 'Snowflake OAuth access token. Pass via secrets.'
+    required: false
+  snowflake-role:
+    description: 'Snowflake role to assume (default: SECURITYADMIN)'
+    required: false
+  snowflake-warehouse:
+    description: 'Snowflake warehouse for queries (default: COMPUTE_WH)'
+    required: false
+  snowflake-database:
+    description: 'Snowflake database (default: SNOWFLAKE for ACCOUNT_USAGE views)'
+    required: false
+
+  # --- Entra ID ---
+  entra-tenant-id:
+    description: 'Azure AD / Entra ID tenant ID. Pass via secrets.'
+    required: false
+  entra-client-id:
+    description: 'Entra ID app registration client ID. Pass via secrets.'
+    required: false
+  entra-client-secret:
+    description: 'Entra ID app registration client secret. Pass via secrets.'
+    required: false
+
+  # --- Google Workspace ---
+  gw-access-token:
+    description: 'Google Workspace OAuth2 bearer token. Pass via secrets.'
+    required: false
+  gw-credentials-json:
+    description: 'Google Workspace service account JSON key content. Pass via secrets.'
+    required: false
+  gw-delegated-user:
+    description: 'Google Workspace super admin email for domain-wide delegation. Pass via secrets.'
+    required: false
 
 outputs:
   report-path:
