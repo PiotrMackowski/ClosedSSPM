@@ -85,6 +85,9 @@ inputs:
   entra-client-secret:
     description: 'Entra ID app registration client secret. Pass via secrets.'
     required: false
+  entra-certificate:
+    description: 'Entra ID PEM certificate content for client assertion auth. Pass via secrets.'
+    required: false
 
   # --- Google Workspace ---
   gw-access-token:
@@ -95,6 +98,9 @@ inputs:
     required: false
   gw-delegated-user:
     description: 'Google Workspace super admin email for domain-wide delegation. Pass via secrets.'
+    required: false
+  gw-use-adc:
+    description: 'Use Application Default Credentials for Google Workspace (true/false). Pass via secrets.'
     required: false
 
 outputs:

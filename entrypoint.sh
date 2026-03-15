@@ -61,11 +61,16 @@ case "${PLATFORM}" in
     export ENTRA_TENANT_ID="${INPUT_ENTRA_TENANT_ID:-}"
     export ENTRA_CLIENT_ID="${INPUT_ENTRA_CLIENT_ID:-}"
     export ENTRA_CLIENT_SECRET="${INPUT_ENTRA_CLIENT_SECRET:-}"
+    if [ -n "${INPUT_ENTRA_CERTIFICATE:-}" ]; then
+      ENTRA_CERTIFICATE_PATH=$(write_temp_file "${INPUT_ENTRA_CERTIFICATE}" ".pem")
+      export ENTRA_CERTIFICATE_PATH
+    fi
     ;;
 
   googleworkspace)
     export GW_ACCESS_TOKEN="${INPUT_GW_ACCESS_TOKEN:-}"
     export GW_DELEGATED_USER="${INPUT_GW_DELEGATED_USER:-}"
+    export GW_USE_ADC="${INPUT_GW_USE_ADC:-}"
     if [ -n "${INPUT_GW_CREDENTIALS_JSON:-}" ]; then
       GW_CREDENTIALS_FILE=$(write_temp_file "${INPUT_GW_CREDENTIALS_JSON}" ".json")
       export GW_CREDENTIALS_FILE
