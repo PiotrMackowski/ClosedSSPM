@@ -51,6 +51,8 @@ ClosedSSPM is an Open Source SaaS Security Posture Management tool. It audits Sa
 
 ![ClosedSSPM HTML Report](screenshots/report.jpg)
 
+[View interactive example report (synthetic data)](gw-report-demo.html){ .md-button }
+
 ## Quick Example
 
 !!! tip "Try it out"
