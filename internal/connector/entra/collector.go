@@ -18,6 +18,8 @@ const envHelp = `Microsoft Entra ID credentials (environment variables):
   ENTRA_TENANT_ID      - Azure AD tenant ID
   ENTRA_CLIENT_ID      - App registration client ID
   ENTRA_CLIENT_SECRET   - App registration client secret
+  ENTRA_CERTIFICATE_PATH - Path to PEM certificate file (client assertion auth)
+  ENTRA_CERTIFICATE_PASSWORD - Optional certificate password (PEM only currently supported)
 
 Required API permissions (Application):
   Application.Read.All, Directory.Read.All`
@@ -33,16 +35,20 @@ func init() {
 
 type EntraConfig struct {
 	collector.BaseConfig
-	TenantID     string
-	AuthMethod   string
-	ClientID     string
-	ClientSecret string
+	TenantID            string
+	AuthMethod          string
+	ClientID            string
+	ClientSecret        string
+	CertificatePath     string
+	CertificatePassword string
 }
 
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	tenantID := connector.EnvOrFlag(cmd, "instance", "ENTRA_TENANT_ID")
 	clientID := os.Getenv("ENTRA_CLIENT_ID")
 	clientSecret := os.Getenv("ENTRA_CLIENT_SECRET")
+	certificatePath := os.Getenv("ENTRA_CERTIFICATE_PATH")
+	certificatePassword := os.Getenv("ENTRA_CERTIFICATE_PASSWORD")
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 	rateLimit, _ := cmd.Flags().GetFloat64("rate-limit")
 	return &EntraConfig{
@@ -51,10 +57,12 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 			Concurrency: concurrency,
 			RateLimit:   rateLimit,
 		},
-		TenantID:     tenantID,
-		AuthMethod:   "oauth",
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		TenantID:            tenantID,
+		AuthMethod:          "oauth",
+		ClientID:            clientID,
+		ClientSecret:        clientSecret,
+		CertificatePath:     certificatePath,
+		CertificatePassword: certificatePassword,
 	}
 }
 

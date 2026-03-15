@@ -5,29 +5,84 @@ set -e
 # Maps action inputs (INPUT_*) to CLI flags and writes outputs to $GITHUB_OUTPUT.
 
 # --- Cleanup sensitive temp files on exit ---
-PRIVATE_KEY_FILE=""
+TEMP_FILES=""
 cleanup() {
-  [ -n "${PRIVATE_KEY_FILE}" ] && rm -f "${PRIVATE_KEY_FILE}"
+  for f in ${TEMP_FILES}; do
+    [ -f "${f}" ] && rm -f "${f}"
+  done
 }
 trap cleanup EXIT INT TERM
 
-# --- Map inputs to env vars expected by the CLI ---
-export SNOW_INSTANCE="${INPUT_INSTANCE:-}"
-export SNOW_USERNAME="${INPUT_USERNAME:-}"
-export SNOW_PASSWORD="${INPUT_PASSWORD:-}"
-export SNOW_CLIENT_ID="${INPUT_CLIENT_ID:-}"
-export SNOW_CLIENT_SECRET="${INPUT_CLIENT_SECRET:-}"
-export SNOW_KEY_ID="${INPUT_KEY_ID:-}"
-export SNOW_JWT_USER="${INPUT_JWT_USER:-}"
-
-# --- Handle private key (PEM content → temp file) ---
-if [ -n "${INPUT_PRIVATE_KEY:-}" ]; then
-  PRIVATE_KEY_FILE="$(umask 077 && mktemp /tmp/closedsspm-key-XXXXXX.pem)"
-  printf '%s\n' "${INPUT_PRIVATE_KEY}" > "${PRIVATE_KEY_FILE}"
-  export SNOW_PRIVATE_KEY_PATH="${PRIVATE_KEY_FILE}"
-fi
+# write_temp_file writes content to a secure temp file and echoes the path.
+# Usage: path=$(write_temp_file "content" "suffix")
+write_temp_file() {
+  _content="$1"
+  _suffix="${2:-.tmp}"
+  _file="$(umask 077 && mktemp /tmp/closedsspm-XXXXXX${_suffix})"
+  printf '%s\n' "${_content}" > "${_file}"
+  TEMP_FILES="${TEMP_FILES} ${_file}"
+  echo "${_file}"
+}
 
 PLATFORM="${INPUT_PLATFORM:-servicenow}"
+
+# --- Map platform-specific inputs to env vars ---
+case "${PLATFORM}" in
+  servicenow)
+    export SNOW_INSTANCE="${INPUT_INSTANCE:-}"
+    export SNOW_USERNAME="${INPUT_USERNAME:-}"
+    export SNOW_PASSWORD="${INPUT_PASSWORD:-}"
+    export SNOW_CLIENT_ID="${INPUT_CLIENT_ID:-}"
+    export SNOW_CLIENT_SECRET="${INPUT_CLIENT_SECRET:-}"
+    export SNOW_KEY_ID="${INPUT_KEY_ID:-}"
+    export SNOW_JWT_USER="${INPUT_JWT_USER:-}"
+    if [ -n "${INPUT_PRIVATE_KEY:-}" ]; then
+      SNOW_PRIVATE_KEY_PATH=$(write_temp_file "${INPUT_PRIVATE_KEY}" ".pem")
+      export SNOW_PRIVATE_KEY_PATH
+    fi
+    ;;
+
+  snowflake)
+    export SNOWFLAKE_ACCOUNT="${INPUT_SNOWFLAKE_ACCOUNT:-}"
+    export SNOWFLAKE_USER="${INPUT_SNOWFLAKE_USER:-}"
+    export SNOWFLAKE_PASSWORD="${INPUT_SNOWFLAKE_PASSWORD:-}"
+    export SNOWFLAKE_PAT="${INPUT_SNOWFLAKE_PAT:-}"
+    export SNOWFLAKE_TOKEN="${INPUT_SNOWFLAKE_TOKEN:-}"
+    export SNOWFLAKE_ROLE="${INPUT_SNOWFLAKE_ROLE:-}"
+    export SNOWFLAKE_WAREHOUSE="${INPUT_SNOWFLAKE_WAREHOUSE:-}"
+    export SNOWFLAKE_DATABASE="${INPUT_SNOWFLAKE_DATABASE:-}"
+    if [ -n "${INPUT_SNOWFLAKE_PRIVATE_KEY:-}" ]; then
+      SNOWFLAKE_PRIVATE_KEY_PATH=$(write_temp_file "${INPUT_SNOWFLAKE_PRIVATE_KEY}" ".pem")
+      export SNOWFLAKE_PRIVATE_KEY_PATH
+    fi
+    ;;
+
+  entra)
+    export ENTRA_TENANT_ID="${INPUT_ENTRA_TENANT_ID:-}"
+    export ENTRA_CLIENT_ID="${INPUT_ENTRA_CLIENT_ID:-}"
+    export ENTRA_CLIENT_SECRET="${INPUT_ENTRA_CLIENT_SECRET:-}"
+    if [ -n "${INPUT_ENTRA_CERTIFICATE:-}" ]; then
+      ENTRA_CERTIFICATE_PATH=$(write_temp_file "${INPUT_ENTRA_CERTIFICATE}" ".pem")
+      export ENTRA_CERTIFICATE_PATH
+    fi
+    ;;
+
+  googleworkspace)
+    export GW_ACCESS_TOKEN="${INPUT_GW_ACCESS_TOKEN:-}"
+    export GW_DELEGATED_USER="${INPUT_GW_DELEGATED_USER:-}"
+    export GW_USE_ADC="${INPUT_GW_USE_ADC:-}"
+    if [ -n "${INPUT_GW_CREDENTIALS_JSON:-}" ]; then
+      GW_CREDENTIALS_FILE=$(write_temp_file "${INPUT_GW_CREDENTIALS_JSON}" ".json")
+      export GW_CREDENTIALS_FILE
+    fi
+    ;;
+
+  *)
+    echo "::error::Unsupported platform: ${PLATFORM}. Use servicenow, snowflake, entra, or googleworkspace."
+    exit 1
+    ;;
+esac
+
 FORMAT="${INPUT_FORMAT:-sarif}"
 FAIL_ON="${INPUT_FAIL_ON:-none}"
 

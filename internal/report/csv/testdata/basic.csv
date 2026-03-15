@@ -1,0 +1,5 @@
+ID,PolicyID,Title,Description,Severity,Category,Platform,Resource,Remediation,EvidenceResourceType,EvidenceResourceID,EvidenceDisplayName,EvidenceDescription
+SNOW-ACL-001-aaa,SNOW-ACL-001,Missing ACL for Table,Default ACL grants read access to all authenticated users,CRITICAL,ACL,servicenow,sys_security_acl:aaa,Restrict ACL to appropriate roles,sys_security_acl,aaa,Default ACL,Read access for all users
+ENTRA-APP-002-bbb,ENTRA-APP-002,'=cmd injection attempt,'+formula prefix,HIGH,Application,entra,app_registration:bbb,'-remove dangerous permissions,app_registration,bbb,Test App,Over-permissioned app
+GW-SHARE-003-ccc,GW-SHARE-003,External Sharing Enabled,Domain-wide sharing allows external access,MEDIUM,Sharing,googleworkspace,org_unit:ccc,Disable external sharing for sensitive OUs,,,,
+SNOW-ROLE-004-ddd,SNOW-ROLE-004,Admin Role Assigned to Service Account,Service account has admin role,LOW,Roles,servicenow,sys_user_has_role:ddd,Remove admin role from service accounts,sys_user_has_role,ddd,svc_integration,Admin role assignment

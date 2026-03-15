@@ -13,6 +13,7 @@ import (
 const envHelp = `Google Workspace credentials (environment variables):
   GW_ACCESS_TOKEN     - OAuth2 bearer token (e.g. from gcloud auth print-access-token)
   GW_CREDENTIALS_FILE - Path to service account JSON key file (fallback)
+  GW_USE_ADC          - Use Application Default Credentials (true/1)
   GW_DELEGATED_USER   - Super admin email for domain-wide delegation (with service account)`
 
 func init() {
@@ -28,12 +29,14 @@ type GoogleWorkspaceConfig struct {
 	collector.BaseConfig
 	AccessToken     string
 	CredentialsFile string
+	UseADC          bool
 	DelegatedUser   string
 }
 
 func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 	accessToken := os.Getenv("GW_ACCESS_TOKEN")
 	credentialsFile := os.Getenv("GW_CREDENTIALS_FILE")
+	useADC := os.Getenv("GW_USE_ADC") == "true" || os.Getenv("GW_USE_ADC") == "1"
 	delegatedUser := os.Getenv("GW_DELEGATED_USER")
 	instance := connector.EnvOrFlag(cmd, "instance", "GW_INSTANCE")
 	if instance == "" {
@@ -51,6 +54,7 @@ func ConfigFromEnv(cmd *cobra.Command) collector.ConnectorConfig {
 		},
 		AccessToken:     accessToken,
 		CredentialsFile: credentialsFile,
+		UseADC:          useADC,
 		DelegatedUser:   delegatedUser,
 	}
 }

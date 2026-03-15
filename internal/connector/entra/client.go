@@ -2,18 +2,28 @@ package entra
 
 import (
 	"context"
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/PiotrMackowski/ClosedSSPM/internal/collector"
 	"github.com/PiotrMackowski/ClosedSSPM/internal/httputil"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 )
 
@@ -30,9 +40,11 @@ type Client struct {
 	httpClient  *http.Client
 	rateLimiter *rate.Limiter
 
-	tenantID     string
-	clientID     string
-	clientSecret string
+	tenantID            string
+	clientID            string
+	clientSecret        string
+	certificatePath     string
+	certificatePassword string
 
 	mu    sync.Mutex
 	token *httputil.OAuthToken
@@ -43,8 +55,11 @@ func NewClient(config *EntraConfig) (*Client, error) {
 	if tenantID == "" {
 		return nil, fmt.Errorf("tenant ID is required")
 	}
-	if strings.TrimSpace(config.ClientID) == "" || strings.TrimSpace(config.ClientSecret) == "" {
-		return nil, fmt.Errorf("client_id and client_secret are required for OAuth")
+	clientID := strings.TrimSpace(config.ClientID)
+	clientSecret := strings.TrimSpace(config.ClientSecret)
+	certificatePath := strings.TrimSpace(config.CertificatePath)
+	if clientID == "" || (clientSecret == "" && certificatePath == "") {
+		return nil, fmt.Errorf("client_id and either client_secret or certificate_path are required for OAuth")
 	}
 
 	rl := config.GetRateLimit()
@@ -64,13 +79,15 @@ func NewClient(config *EntraConfig) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL:      graphV1BaseURL,
-		tokenURL:     fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", url.PathEscape(tenantID)),
-		httpClient:   &http.Client{Timeout: 30 * time.Second, Transport: transport, CheckRedirect: checkRedirect},
-		rateLimiter:  rate.NewLimiter(rate.Limit(rl), 1),
-		tenantID:     tenantID,
-		clientID:     config.ClientID,
-		clientSecret: config.ClientSecret,
+		baseURL:             graphV1BaseURL,
+		tokenURL:            fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", url.PathEscape(tenantID)),
+		httpClient:          &http.Client{Timeout: 30 * time.Second, Transport: transport, CheckRedirect: checkRedirect},
+		rateLimiter:         rate.NewLimiter(rate.Limit(rl), 1),
+		tenantID:            tenantID,
+		clientID:            clientID,
+		clientSecret:        clientSecret,
+		certificatePath:     certificatePath,
+		certificatePassword: strings.TrimSpace(config.CertificatePassword),
 	}, nil
 }
 
@@ -92,10 +109,19 @@ func (c *Client) getOAuthToken(ctx context.Context) (*httputil.OAuthToken, error
 		return c.token, nil
 	}
 	data := url.Values{
-		"grant_type":    {"client_credentials"},
-		"client_id":     {c.clientID},
-		"client_secret": {c.clientSecret},
-		"scope":         {"https://graph.microsoft.com/.default"},
+		"grant_type": {"client_credentials"},
+		"client_id":  {c.clientID},
+		"scope":      {"https://graph.microsoft.com/.default"},
+	}
+	if c.certificatePath != "" {
+		assertion, err := buildClientAssertion(c.certificatePath, c.clientID, c.tokenURL)
+		if err != nil {
+			return nil, fmt.Errorf("building client assertion: %w", err)
+		}
+		data.Set("client_assertion", assertion)
+		data.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	} else {
+		data.Set("client_secret", c.clientSecret)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.tokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -119,6 +145,94 @@ func (c *Client) getOAuthToken(ctx context.Context) (*httputil.OAuthToken, error
 	token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	c.token = &token
 	return c.token, nil
+}
+
+func buildClientAssertion(certPath, clientID, tokenURL string) (string, error) {
+	content, err := os.ReadFile(certPath)
+	if err != nil {
+		return "", fmt.Errorf("reading certificate file: %w", err)
+	}
+
+	var (
+		certificate *x509.Certificate
+		privateKey  *rsa.PrivateKey
+	)
+
+	remaining := content
+	for {
+		var block *pem.Block
+		block, remaining = pem.Decode(remaining)
+		if block == nil {
+			break
+		}
+
+		switch block.Type {
+		case "CERTIFICATE":
+			if certificate != nil {
+				continue
+			}
+			parsedCert, parseErr := x509.ParseCertificate(block.Bytes)
+			if parseErr != nil {
+				return "", fmt.Errorf("parsing certificate: %w", parseErr)
+			}
+			certificate = parsedCert
+		case "PRIVATE KEY", "RSA PRIVATE KEY":
+			if privateKey != nil {
+				continue
+			}
+			if block.Type == "PRIVATE KEY" {
+				parsedKey, parseErr := x509.ParsePKCS8PrivateKey(block.Bytes)
+				if parseErr != nil {
+					return "", fmt.Errorf("parsing PKCS8 private key: %w", parseErr)
+				}
+				rsaKey, ok := parsedKey.(*rsa.PrivateKey)
+				if !ok {
+					return "", fmt.Errorf("private key is not RSA")
+				}
+				privateKey = rsaKey
+			} else {
+				parsedKey, parseErr := x509.ParsePKCS1PrivateKey(block.Bytes)
+				if parseErr != nil {
+					return "", fmt.Errorf("parsing PKCS1 private key: %w", parseErr)
+				}
+				privateKey = parsedKey
+			}
+		}
+	}
+
+	if certificate == nil || privateKey == nil {
+		return "", fmt.Errorf("certificate file must contain PEM certificate and RSA private key (PFX/PKCS12 not supported)")
+	}
+
+	now := time.Now().UTC()
+	claims := jwt.MapClaims{
+		"aud": tokenURL,
+		"iss": clientID,
+		"sub": clientID,
+		"jti": uuid.NewString(),
+		"nbf": now.Unix(),
+		"exp": now.Add(10 * time.Minute).Unix(),
+	}
+
+	thumbprint := sha1.Sum(certificate.Raw)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["x5t"] = base64.RawURLEncoding.EncodeToString(thumbprint[:])
+
+	var signer crypto.Signer = privateKey
+	if _, ok := signer.Public().(*rsa.PublicKey); !ok {
+		return "", fmt.Errorf("private key public component is not RSA")
+	}
+
+	if privateKey.N == nil || privateKey.N.Sign() <= 0 || privateKey.D == nil || privateKey.D.Cmp(big.NewInt(0)) <= 0 {
+		return "", fmt.Errorf("invalid RSA private key")
+	}
+
+	signedToken, err := token.SignedString(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("signing client assertion: %w", err)
+	}
+
+	return signedToken, nil
 }
 
 func (c *Client) resolveGraphURL(path string) string {
