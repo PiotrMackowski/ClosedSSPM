@@ -27,7 +27,7 @@ const (
 	maxInputLength = 256
 )
 
-// validIdentifier matches ServiceNow table names and field names (alphanumeric + underscores).
+// validIdentifier matches table names and field names (alphanumeric + underscores).
 var validIdentifier = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,80}$`)
 
 // validSeverities lists allowed severity filter values.
@@ -39,14 +39,16 @@ var validSeverities = map[string]bool{
 	"INFO":     true,
 }
 
-// validCategories lists allowed category filter values.
-var validCategories = map[string]bool{
-	"ACL":          true,
-	"ROLES":        true,
-	"SCRIPTS":      true,
-	"INTEGRATIONS": true,
-	"CONFIG":       true,
-	"USERS":        true,
+// buildValidCategories constructs the set of allowed category values from loaded findings.
+// This keeps category validation in sync with the actual policy data without manual updates.
+func buildValidCategories(data *AuditData) map[string]bool {
+	cats := make(map[string]bool)
+	for _, f := range data.Findings {
+		if f.Category != "" {
+			cats[strings.ToUpper(f.Category)] = true
+		}
+	}
+	return cats
 }
 
 // AuditData holds the loaded audit data for MCP tool queries.
@@ -60,7 +62,7 @@ type AuditData struct {
 func NewMCPServer(data *AuditData) *server.MCPServer {
 	s := server.NewMCPServer(
 		"ClosedSSPM",
-		"0.1.0",
+		"0.2.0",
 		server.WithToolCapabilities(false),
 		server.WithRecovery(),
 	)
@@ -75,12 +77,15 @@ func registerTools(s *server.MCPServer, data *AuditData) {
 	// list_findings: List all findings with optional filters.
 	s.AddTool(
 		mcp.NewTool("list_findings",
-			mcp.WithDescription("List security audit findings. Optionally filter by severity or category."),
+			mcp.WithDescription("List security audit findings. Optionally filter by severity, category, or platform."),
 			mcp.WithString("severity",
 				mcp.Description("Filter by severity: CRITICAL, HIGH, MEDIUM, LOW, INFO"),
 			),
 			mcp.WithString("category",
-				mcp.Description("Filter by category (e.g. ACL, Roles, Scripts, Integrations, Config, Users)"),
+				mcp.Description("Filter by category (e.g. ACL, Roles, Scripts, Instance Config, IAM, CFG, OAuth Permissions, OAuth)"),
+			),
+			mcp.WithString("platform",
+				mcp.Description("Filter by platform: servicenow, snowflake, entra, googleworkspace"),
 			),
 		),
 		listFindingsHandler(data),
@@ -109,10 +114,10 @@ func registerTools(s *server.MCPServer, data *AuditData) {
 	// query_snapshot: Query raw collected data.
 	s.AddTool(
 		mcp.NewTool("query_snapshot",
-			mcp.WithDescription("Query raw collected data from a specific ServiceNow table in the snapshot."),
+			mcp.WithDescription("Query raw collected data from a specific table in the snapshot."),
 			mcp.WithString("table",
 				mcp.Required(),
-				mcp.Description("The ServiceNow table name (e.g. sys_security_acl, sys_user_has_role)"),
+				mcp.Description("The table name from the collected snapshot (use list_tables to see available tables)"),
 			),
 			mcp.WithString("field",
 				mcp.Description("Filter records where this field matches the given value"),
@@ -212,6 +217,7 @@ func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		severity := strings.TrimSpace(req.GetString("severity", ""))
 		category := strings.TrimSpace(req.GetString("category", ""))
+		platform := strings.TrimSpace(req.GetString("platform", ""))
 
 		// Validate severity filter.
 		if severity != "" {
@@ -223,12 +229,26 @@ func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 			}
 		}
 
-		// Validate category filter.
+		// Validate category filter against categories present in the loaded findings.
 		if category != "" {
-			if !validCategories[strings.ToUpper(category)] {
+			cats := buildValidCategories(data)
+			if !cats[strings.ToUpper(category)] {
+				allowed := make([]string, 0, len(cats))
+				for c := range cats {
+					allowed = append(allowed, c)
+				}
+				sort.Strings(allowed)
 				return mcp.NewToolResultError(
-					fmt.Sprintf("invalid category %q; allowed values: ACL, Roles, Scripts, Integrations, Config, Users", category),
+					fmt.Sprintf("invalid category %q; allowed values: %s", category, strings.Join(allowed, ", ")),
 				), nil
+			}
+		}
+
+		// Validate platform filter.
+		if platform != "" {
+			platform = strings.ToLower(platform)
+			if len(platform) > maxInputLength {
+				return mcp.NewToolResultError("platform exceeds maximum length"), nil
 			}
 		}
 
@@ -238,6 +258,9 @@ func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 				continue
 			}
 			if category != "" && !strings.EqualFold(f.Category, category) {
+				continue
+			}
+			if platform != "" && strings.ToLower(f.Platform) != platform {
 				continue
 			}
 			filtered = append(filtered, f)
@@ -254,6 +277,7 @@ func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 			Title    string           `json:"title"`
 			Severity finding.Severity `json:"severity"`
 			Category string           `json:"category"`
+			Platform string           `json:"platform"`
 			Resource string           `json:"resource"`
 		}
 
@@ -265,6 +289,7 @@ func listFindingsHandler(data *AuditData) server.ToolHandlerFunc {
 				Title:    f.Title,
 				Severity: f.Severity,
 				Category: f.Category,
+				Platform: f.Platform,
 				Resource: f.Resource,
 			}
 		}

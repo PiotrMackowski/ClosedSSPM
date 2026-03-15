@@ -34,6 +34,7 @@ func newTestAuditData() *AuditData {
 			testutil.WithDescription("An ACL has no condition or script"),
 			testutil.WithSeverity(finding.Critical),
 			testutil.WithCategory("ACL"),
+			testutil.WithPlatform("servicenow"),
 			testutil.WithResource("sys_security_acl:acl1"),
 			testutil.WithEvidence(testutil.SampleEvidence(
 				testutil.WithResourceType("sys_security_acl"),
@@ -50,6 +51,7 @@ func newTestAuditData() *AuditData {
 			testutil.WithDescription("A user has admin role"),
 			testutil.WithSeverity(finding.High),
 			testutil.WithCategory("Roles"),
+			testutil.WithPlatform("servicenow"),
 			testutil.WithResource("sys_user:u1"),
 			testutil.WithEvidence(testutil.SampleEvidence(
 				testutil.WithResourceType("sys_user"),
@@ -595,5 +597,183 @@ func TestSuggestRemediationHandler_ExcessiveLength(t *testing.T) {
 
 	if !result.IsError {
 		t.Error("Should return error for excessively long finding_id")
+	}
+}
+
+func newMultiPlatformAuditData() *AuditData {
+	snapshot := testutil.SampleSnapshot(
+		"servicenow",
+		testutil.SampleTableData(
+			"sys_security_acl",
+			collector.Record{"sys_id": "acl1", "name": "test_acl"},
+		),
+	)
+
+	findings := []finding.Finding{
+		testutil.SampleFinding(
+			testutil.WithID("SNOW-ACL-001-acl1"),
+			testutil.WithSeverity(finding.Critical),
+			testutil.WithCategory("ACL"),
+			testutil.WithPlatform("servicenow"),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("EN-OAUTH-001-app1"),
+			testutil.WithSeverity(finding.High),
+			testutil.WithCategory("OAuth Permissions"),
+			testutil.WithPlatform("entra"),
+		),
+		testutil.SampleFinding(
+			testutil.WithID("SF-IAM-001-u1"),
+			testutil.WithSeverity(finding.Medium),
+			testutil.WithCategory("IAM"),
+			testutil.WithPlatform("snowflake"),
+		),
+	}
+
+	return &AuditData{
+		Snapshot: snapshot,
+		Findings: findings,
+		Summary:  finding.NewSummary(findings),
+	}
+}
+
+func TestBuildValidCategories(t *testing.T) {
+	data := newMultiPlatformAuditData()
+	cats := buildValidCategories(data)
+
+	expected := []string{"ACL", "OAUTH PERMISSIONS", "IAM"}
+	for _, e := range expected {
+		if !cats[e] {
+			t.Errorf("buildValidCategories missing %q", e)
+		}
+	}
+
+	if cats["NONEXISTENT"] {
+		t.Error("buildValidCategories should not contain NONEXISTENT")
+	}
+}
+
+func TestBuildValidCategories_Empty(t *testing.T) {
+	data := &AuditData{}
+	cats := buildValidCategories(data)
+	if len(cats) != 0 {
+		t.Errorf("buildValidCategories with no findings should be empty, got %d", len(cats))
+	}
+}
+
+func TestListFindingsHandler_FilterByPlatform(t *testing.T) {
+	data := newMultiPlatformAuditData()
+	handler := listFindingsHandler(data)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"platform": "entra",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	text := result.Content[0].(mcp.TextContent).Text
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	count := int(parsed["count"].(float64))
+	if count != 1 {
+		t.Errorf("count = %d, want 1 (only entra)", count)
+	}
+
+	// Verify the finding is from entra.
+	findings := parsed["findings"].([]interface{})
+	first := findings[0].(map[string]interface{})
+	if first["platform"] != "entra" {
+		t.Errorf("platform = %v, want entra", first["platform"])
+	}
+}
+
+func TestListFindingsHandler_FilterByPlatformAndSeverity(t *testing.T) {
+	data := newMultiPlatformAuditData()
+	handler := listFindingsHandler(data)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"platform": "servicenow",
+		"severity": "CRITICAL",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	text := result.Content[0].(mcp.TextContent).Text
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	count := int(parsed["count"].(float64))
+	if count != 1 {
+		t.Errorf("count = %d, want 1 (only servicenow CRITICAL)", count)
+	}
+}
+
+func TestListFindingsHandler_FilterByPlatformNoResults(t *testing.T) {
+	data := newMultiPlatformAuditData()
+	handler := listFindingsHandler(data)
+
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"platform": "googleworkspace",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	text := result.Content[0].(mcp.TextContent).Text
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	count := int(parsed["count"].(float64))
+	if count != 0 {
+		t.Errorf("count = %d, want 0 (no googleworkspace findings)", count)
+	}
+}
+
+func TestListFindingsHandler_MultiPlatformCategory(t *testing.T) {
+	data := newMultiPlatformAuditData()
+	handler := listFindingsHandler(data)
+
+	// "OAuth Permissions" is an Entra category — should work with dynamic validation.
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"category": "OAuth Permissions",
+	}
+
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handler error: %v", err)
+	}
+
+	if result.IsError {
+		t.Error("Should accept 'OAuth Permissions' as valid category from entra findings")
+	}
+
+	text := result.Content[0].(mcp.TextContent).Text
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+
+	count := int(parsed["count"].(float64))
+	if count != 1 {
+		t.Errorf("count = %d, want 1 (only OAuth Permissions)", count)
 	}
 }
