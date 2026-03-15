@@ -95,8 +95,21 @@ func NewClient(config *GoogleWorkspaceConfig) (*Client, error) {
 		httpClient = jwtConfig.Client(ctx)
 		domain = extractDomain(config.DelegatedUser, config.GetInstanceURL())
 
+	case config.UseADC:
+		scopes := []string{
+			"https://www.googleapis.com/auth/admin.directory.user.readonly",
+			"https://www.googleapis.com/auth/admin.directory.user.security",
+			"https://www.googleapis.com/auth/admin.reports.audit.readonly",
+		}
+		credentials, err := google.FindDefaultCredentials(ctx, scopes...)
+		if err != nil {
+			return nil, fmt.Errorf("finding application default credentials: %w", err)
+		}
+		httpClient = oauth2.NewClient(ctx, credentials.TokenSource)
+		domain = extractDomain(config.DelegatedUser, config.GetInstanceURL())
+
 	default:
-		return nil, fmt.Errorf("either GW_ACCESS_TOKEN or GW_CREDENTIALS_FILE (+ GW_DELEGATED_USER) is required")
+		return nil, fmt.Errorf("either GW_ACCESS_TOKEN, GW_CREDENTIALS_FILE (+ GW_DELEGATED_USER), or GW_USE_ADC is required")
 	}
 
 	svcCtx := context.Background()
