@@ -4,7 +4,7 @@ We welcome contributions to ClosedSSPM! Whether you are fixing a bug, adding a n
 
 ## Contribution Guidelines
 
-To ensure a smooth contribution process, please follow these steps:
+Follow these steps:
 
 1. **Open an Issue**: Before starting work on a significant change, please open an issue to discuss your proposal with the maintainers. This helps avoid duplicate work and ensures the change aligns with the project's goals.
 2. **Fork and Branch**: Fork the repository and create a new branch from `main` for your changes.

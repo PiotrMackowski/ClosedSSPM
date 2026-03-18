@@ -1,10 +1,10 @@
 # DefectDojo Integration
 
-ClosedSSPM supports exporting audit results in the Static Analysis Results Interchange Format (SARIF). This format is natively supported by DefectDojo, allowing for centralized vulnerability management and historical tracking of your security posture across multiple platforms.
+ClosedSSPM can export audit results as SARIF, which DefectDojo accepts directly for vulnerability tracking and deduplication.
 
 ## Step 1: Generate SARIF Report
 
-The first step is to execute an audit and specify the `sarif` output format:
+Run an audit with `sarif` output:
 
 ```bash
 closedsspm audit --platform servicenow --instance https://dev123.service-now.com --format sarif --output report.sarif
@@ -12,7 +12,7 @@ closedsspm audit --platform servicenow --instance https://dev123.service-now.com
 
 ## Step 2: Import into DefectDojo
 
-Once the SARIF file is generated, it can be imported into DefectDojo using its REST API. The following `curl` example demonstrates how to reimport a scan, which is recommended for deduplication:
+Import the SARIF file via DefectDojo's REST API. Use `reimport-scan` for deduplication:
 
 ```bash
 curl -X POST "https://defectdojo.example.com/api/v2/reimport-scan/" \

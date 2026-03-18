@@ -1,10 +1,10 @@
 # Security
 
-The security of ClosedSSPM and the platforms it audits is our highest priority. This page outlines how to report vulnerabilities and the security principles that guide the tool's development.
+How to report vulnerabilities and the security principles behind ClosedSSPM.
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in ClosedSSPM, please report it through GitHub Security Advisories rather than opening a public issue. This allows for a coordinated disclosure process and protects other users of the tool.
+If you discover a security vulnerability in ClosedSSPM, report it through GitHub Security Advisories rather than opening a public issue. This keeps disclosure coordinated and protects users.
 
 - **Response Time**: We aim to respond to all security reports within 72 hours.
 - **What to Include**:
