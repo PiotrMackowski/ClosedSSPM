@@ -1,6 +1,6 @@
 # CLI Reference
 
-ClosedSSPM provides a unified command line interface to manage the entire audit lifecycle, from data collection to reporting.
+CLI for the full audit lifecycle: collect, evaluate, report.
 
 ## closedsspm audit
 
@@ -55,7 +55,7 @@ closedsspm collect --platform snowflake --instance account.region --output snow_
 
 ## closedsspm evaluate
 
-The `evaluate` command performs security analysis on a previously collected snapshot file. This allows for auditing environments without needing direct network access to the platform during the evaluation phase.
+The `evaluate` command runs policies against a previously collected snapshot. Useful for auditing without direct network access to the platform.
 
 ### Flags
 
@@ -76,7 +76,7 @@ closedsspm evaluate --snapshot snapshot.json --format json --output report.json
 
 ## closedsspm mcp
 
-The `mcp` command starts a Model Context Protocol (MCP) server. This enables AI assistants like Claude to interact with audit findings and snapshot data directly.
+The `mcp` command starts a Model Context Protocol (MCP) server. AI assistants (e.g. Claude) can then query findings and snapshot data.
 
 ### Flags
 

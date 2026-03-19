@@ -1,10 +1,10 @@
 # Architecture
 
-ClosedSSPM is built with a modular and extensible architecture, allowing it to support multiple SaaS and Cloud platforms while maintaining a consistent user experience.
+ClosedSSPM has a modular architecture. Each SaaS platform is a self-contained connector behind a shared registry.
 
 ## Directory Structure
 
-The project is organized into the following key components:
+Project layout:
 
 ```text
 closedsspm/
@@ -39,10 +39,10 @@ closedsspm/
 
 ## Key Design Decisions
 
-- **Pluggable Connector Registry**: All platform-specific logic is isolated within its own connector. The central registry allows for easy addition of new platforms without modifying the core audit engine.
-- **Embedded Policies**: Security checks are written in YAML and embedded directly into the binary at build time. This ensures that the CLI is a single, self-contained tool that doesn't require external assets to function out of the box.
+- **Pluggable Connector Registry**: Each platform lives in its own connector package. New platforms plug in without changing the core engine.
+- **Embedded Policies**: YAML policies are embedded into the binary at build time. The CLI is self-contained — no external files needed.
 - **Offline Analysis via Snapshots**: The architecture separates data collection from evaluation. By saving state into a JSON snapshot file, users can perform audits in one environment and evaluate findings in another, which is ideal for restricted network environments.
-- **Read-only Design**: ClosedSSPM is designed to be purely observational. It never attempts to modify the target environment, making it safe to run in production without the risk of accidental misconfiguration.
+- **Read-only Design**: ClosedSSPM never modifies the target environment, so it is safe to run in production.
 
 ## Subprojects
 

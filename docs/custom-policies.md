@@ -1,6 +1,6 @@
 # Custom Policies
 
-ClosedSSPM uses a policy-as-code approach, enabling users to define and run custom security checks. Policies are written in YAML and operate on the data collected during a snapshot.
+Policies are YAML files that run against collected snapshot data. You can add custom checks alongside or instead of the built-in ones.
 
 ## Policy Format
 

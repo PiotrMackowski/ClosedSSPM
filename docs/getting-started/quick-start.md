@@ -1,6 +1,6 @@
 # Quick Start
 
-This guide walks you through running your first security audit. 
+Run your first security audit.
 
 Each platform requires specific environment variables for authentication. These are the simplest authentication methods for a quick test.
 
@@ -60,8 +60,8 @@ After the command completes, you can view the report.
 
 ## What's Next?
 
-Once you have completed your first audit, explore further to tailor ClosedSSPM to your needs.
+After your first audit:
 
-- **Platform-specific Guides**: Check individual platform documentation for advanced authentication methods.
+- **Platform-specific Guides**: Check individual platform documentation for other authentication methods.
 - **CLI Reference**: See the full list of commands and flags available in the CLI documentation.
-- **Custom Policies**: Learn how to write and use custom policies for specialized security requirements.
+- **Custom Policies**: Write YAML policies for project-specific checks.
