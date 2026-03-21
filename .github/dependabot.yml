@@ -23,3 +23,15 @@ updates:
     labels:
       - dependencies
       - ci
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "deps"
+    labels:
+      - dependencies
+      - docker
