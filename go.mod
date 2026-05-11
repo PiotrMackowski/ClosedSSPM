@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/mark3labs/mcp-go v0.49.0
+	github.com/mark3labs/mcp-go v0.51.0
 	github.com/snowflakedb/gosnowflake v1.19.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.36.0
@@ -71,6 +71,7 @@ require (
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
