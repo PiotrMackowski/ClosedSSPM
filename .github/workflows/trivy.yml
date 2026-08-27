@@ -33,8 +33,12 @@ jobs:
 
       - name: Build binaries
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o closedsspm ./cmd/closedsspm
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o closedsspm-mcp ./cmd/mcp
+          for attempt in 1 2 3; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o closedsspm ./cmd/closedsspm && \
+              CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o closedsspm-mcp ./cmd/mcp && break
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep $((attempt * 5))
+          done
           mkdir -p linux/amd64
           mv closedsspm closedsspm-mcp linux/amd64/
 
